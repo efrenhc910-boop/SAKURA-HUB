@@ -338,3 +338,35 @@ local function executeStealV2(prompt)
 end
 
 -- >>> [PEGA LA FASE 3 JUSTO AQUÍ ABAJO] <<<
+-- ============================================================
+-- ESP ROJO NEÓN UNIFICADO (FASE 3)
+-- ============================================================
+local ESP_ENABLED = true
+local ESP_COLOR = Color3.fromRGB(255, 0, 60)
+
+local function CreateESP(player)
+    if player == LP then return end
+    local function ApplyHighlight(character)
+        if not character then return end
+        local oldHL = character:FindFirstChild("SakuraNeonESP")
+        if oldHL then oldHL:Destroy() end
+        
+        local hl = Instance.new("Highlight")
+        hl.Name = "SakuraNeonESP"
+        hl.Adornee = character
+        hl.FillColor = ESP_COLOR
+        hl.FillTransparency = 0.55
+        hl.OutlineColor = Color3.fromRGB(255, 60, 130)
+        hl.OutlineTransparency = 0
+        hl.Enabled = ESP_ENABLED
+        hl.Parent = character
+    end
+    if player.Character then ApplyHighlight(player.Character) end
+    player.CharacterAdded:Connect(ApplyHighlight)
+end
+
+for _, pl in ipairs(Players:GetPlayers()) do CreateESP(pl) end
+Players.PlayerAdded:Connect(CreateESP)
+
+-- >>> [PEGA LA FASE 4 JUSTO AQUÍ ABAJO] <<<
+
