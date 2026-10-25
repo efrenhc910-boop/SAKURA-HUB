@@ -197,7 +197,6 @@ local AUTO_TP_Y = -7.00
 
 -- Default UI scale is 75% (0.75)
 local uiScale = 0.75
-local uiLocked = false
 
 local function canUseAutoPath()
     return true
@@ -545,4 +544,4 @@ end
 local function executeStealV2(prompt)
     -- V2: the existing half-hold timing, kept as a separate mode.
     if not Steal.Data[prompt] then
-        Steal.Data[prompt]={hold={},
+        Steal.Data[prompt]={hold={},trigger={},ready=true}
