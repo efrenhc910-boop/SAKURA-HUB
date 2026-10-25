@@ -1,109 +1,364 @@
--- 🌸 sakura duels 🌸 SCRIPT COMPLETO CON ESP ROJO NEÓN Y MENÚ INTEGRADO
+-- 🌸sakura duels🌸 INTRO (do not edit)
+(function()
+  local ok,err=pcall(function()
+    local pl=game:GetService("Players").LocalPlayer
+    local pg=pl:WaitForChild("PlayerGui",10)
+    if not pg then return end
+    if pl:GetAttribute("SakuraDuelsSeen")==true then return end
+    local Images={"rbxassetid://90082193310359","rbxassetid://140111217806195","rbxassetid://113259892662011","rbxassetid://131132202280501","rbxassetid://119205939792116"}
+    local sg=Instance.new("ScreenGui") sg.Name="SakuraDuels_INTRO" sg.ResetOnSpawn=false sg.IgnoreGuiInset=true sg.Parent=pg
+    local fr=Instance.new("Frame",sg) fr.Size=UDim2.new(1,0,1,0) fr.BackgroundColor3=Color3.new(0,0,0)
+    local title=Instance.new("TextLabel",fr) title.Size=UDim2.new(1,0,0,60) title.Position=UDim2.new(0,0,0,40) title.BackgroundTransparency=1 title.Text="🌸sakura duels🌸" title.TextColor3=Color3.fromRGB(255,105,180) title.Font=Enum.Font.GothamBlack title.TextSize=48 title.ZIndex=5
+    local img=Instance.new("ImageLabel",fr) img.Size=UDim2.new(1,0,1,-100) img.Position=UDim2.new(0,0,0,100) img.BackgroundTransparency=1 img.ScaleType=Enum.ScaleType.Fit img.Image=Images[1] img.ZIndex=2
+    local SKIP=false
+    local skip=Instance.new("TextButton",fr) skip.Size=UDim2.new(0,160,0,50) skip.Position=UDim2.new(0.5,-80,1,-90) skip.BackgroundColor3=Color3.fromRGB(10,10,10) skip.Text="SKIP" skip.TextColor3=Color3.new(1,1,1) skip.Font=Enum.Font.GothamBlack skip.TextSize=20 skip.ZIndex=10
+    local c=Instance.new("UICorner",skip) c.CornerRadius=UDim.new(0,10)
+    local st=Instance.new("UIStroke",skip) st.Color=Color3.fromRGB(255,0,0) st.Thickness=2
+    skip.MouseButton1Click:Connect(function() SKIP=true end)
+    local startT=os.clock()
+    task.spawn(function()
+      for _,id in ipairs(Images) do
+        if SKIP or os.clock()-startT>3 then break end
+        pcall(function() img.Image=id end)
+        task.wait(0.6)
+      end
+      pcall(function() pl:SetAttribute("SakuraDuelsSeen",true) end)
+      pcall(function() sg:Destroy() end)
+    end)
+  end)
+end)()
+
 repeat task.wait() until game:IsLoaded()
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local LocalPlayer = Players.LocalPlayer
-
 -- ============================================================
--- 1. INTRO ANIMADA (SE EJECUTA PRIMERO)
+-- ANTI-RAGDOLL MODULE
 -- ============================================================
-local introFinished = false
+local AntiRagdoll = {
+    Enabled = false,
+    Mode = "Splatter",
+    Connection = nil,
+    NoSplatterCooldown = 0,
+}
 
-task.spawn(function()
+function AntiRagdoll:forceNoSplatterReset()
+    local player = game.Players.LocalPlayer
+    local char = player.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not hum or not root or hum.Health <= 0 then return end
+
     pcall(function()
-        local pg = LocalPlayer:WaitForChild("PlayerGui", 10)
-        if not pg or LocalPlayer:GetAttribute("SakuraDuelsSeen") == true then 
-            introFinished = true
-            return 
+        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+        root.Velocity = Vector3.zero
+        root.RotVelocity = Vector3.zero
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+
+        for _, obj in ipairs(char:GetDescendants()) do
+            if obj:IsA("Motor6D") then obj.Enabled = true end
+            if obj:IsA("Constraint") then obj.Enabled = true end
         end
-        
-        local Images = {
-            "rbxassetid://90082193310359",
-            "rbxassetid://140111217806195",
-            "rbxassetid://113259892662011",
-            "rbxassetid://131132202280501",
-            "rbxassetid://119205939792116"
-        }
-        
-        local sg = Instance.new("ScreenGui")
-        sg.Name = "SakuraDuels_INTRO"
-        sg.ResetOnSpawn = false
-        sg.IgnoreGuiInset = true
-        sg.Parent = pg
-        
-        local fr = Instance.new("Frame", sg)
-        fr.Size = UDim2.new(1, 0, 1, 0)
-        fr.BackgroundColor3 = Color3.new(0, 0, 0)
-        
-        local title = Instance.new("TextLabel", fr)
-        title.Size = UDim2.new(1, 0, 0, 60)
-        title.Position = UDim2.new(0, 0, 0, 40)
-        title.BackgroundTransparency = 1
-        title.Text = "🌸 sakura duels 🌸"
-        title.TextColor3 = Color3.fromRGB(255, 105, 180)
-        title.Font = Enum.Font.GothamBlack
-        title.TextSize = 48
-        title.ZIndex = 5
-        
-        local img = Instance.new("ImageLabel", fr)
-        img.Size = UDim2.new(1, 0, 1, -100)
-        img.Position = UDim2.new(0, 0, 0, 100)
-        img.BackgroundTransparency = 1
-        img.ScaleType = Enum.ScaleType.Fit
-        img.Image = Images[1]
-        img.ZIndex = 2
-        
-        local SKIP = false
-        local skip = Instance.new("TextButton", fr)
-        skip.Size = UDim2.new(0, 160, 0, 50)
-        skip.Position = UDim2.new(0.5, -80, 1, -90)
-        skip.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-        skip.Text = "SKIP"
-        skip.TextColor3 = Color3.new(1, 1, 1)
-        skip.Font = Enum.Font.GothamBlack
-        skip.TextSize = 20
-        skip.ZIndex = 10
-        
-        local c = Instance.new("UICorner", skip)
-        c.CornerRadius = UDim.new(0, 10)
-        local st = Instance.new("UIStroke", skip)
-        st.Color = Color3.fromRGB(255, 0, 0)
-        st.Thickness = 2
-        
-        skip.MouseButton1Click:Connect(function() SKIP = true end)
-        
-        local startT = os.clock()
-        for _, id in ipairs(Images) do
-            if SKIP or os.clock() - startT > 3 then break end
-            pcall(function() img.Image = id end)
-            task.wait(0.6)
+
+        workspace.CurrentCamera.CameraSubject = hum
+        local PM = player.PlayerScripts:FindFirstChild("PlayerModule")
+        if PM then
+            local CM = require(PM:FindFirstChild("ControlModule"))
+            if CM then CM:Enable() end
         end
-        
-        pcall(function() LocalPlayer:SetAttribute("SakuraDuelsSeen", true) end)
-        pcall(function() sg:Destroy() end)
+        hum.AutoRotate = true
+        hum.PlatformStand = false
+        hum.Sit = false
     end)
-    introFinished = true
+end
+
+function AntiRagdoll:Start()
+    if self.Connection then return end
+    self.Connection = game:GetService("RunService").Heartbeat:Connect(function()
+        if not self.Enabled then return end
+        local player = game.Players.LocalPlayer
+        local char = player.Character
+        if not char then return end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not hum or hum.Health <= 0 then return end
+
+        local state = hum:GetState()
+        local ragdolled = (state == Enum.HumanoidStateType.Physics or
+                          state == Enum.HumanoidStateType.Ragdoll or
+                          state == Enum.HumanoidStateType.FallingDown)
+
+        if self.Mode == "No Splatter" then
+            if ragdolled then
+                local now = tick()
+                if now - self.NoSplatterCooldown > 0.15 then
+                    self.NoSplatterCooldown = now
+                    self:forceNoSplatterReset()
+                end
+            end
+            return
+        end
+
+        if not root then return end
+        local endTime = player:GetAttribute("RagdollEndTime")
+        if endTime and (endTime - workspace:GetServerTimeNow()) > 0 then
+            ragdolled = true
+        end
+
+        if ragdolled then
+            pcall(function()
+                player:SetAttribute("RagdollEndTime", workspace:GetServerTimeNow())
+            end)
+            for _, d in ipairs(char:GetDescendants()) do
+                if d:IsA("BallSocketConstraint") or
+                   (d:IsA("Attachment") and d.Name:find("RagdollAttachment")) then
+                    d:Destroy()
+                end
+            end
+            for _, obj in ipairs(char:GetDescendants()) do
+                if obj:IsA("Motor6D") and obj.Enabled == false then
+                    obj.Enabled = true
+                end
+            end
+            if hum.Health > 0 then
+                hum:ChangeState(Enum.HumanoidStateType.Running)
+            end
+            workspace.CurrentCamera.CameraSubject = hum
+            root.Anchored = false
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+        end
+    end)
+end
+
+function AntiRagdoll:Stop()
+    if self.Connection then
+        self.Connection:Disconnect()
+        self.Connection = nil
+    end
+end
+
+local Players,RunService,UIS,TS,Lighting,HS = game:GetService("Players"),game:GetService("RunService"),game:GetService("UserInputService"),game:GetService("TweenService"),game:GetService("Lighting"),game:GetService("HttpService")
+local LP = Players.LocalPlayer
+local NS,CS = 60,29
+local LAGGER_SPEED = 15
+local LAGGER_CARRY_SPEED = 24.5
+local speedMode,antiRagdollEnabled,infJumpEnabled = false,false,false
+local laggerToggled = false
+local laggerPhase = 0
+local medusaCounterEnabled = false
+local batCounterEnabled = false
+local unwalkEnabled = false
+local medusaDebounce,medusaLastUsed,dropActive = false,0,false
+local autoLeftEnabled,autoRightEnabled = false,false
+local autoLeftSetVisual,autoRightSetVisual = nil,nil
+local speedLabel = nil
+local autoBatEnabled = false
+local autoSwingEnabled = true
+local autoBatSetVisual = nil
+local _autoBatTarget = nil
+local resetAutoBatMotion = nil
+local _batSwingCooldown = 0
+local BAT_SWING_INTERVAL = 0.08
+local AUTO_BAT_SPEED = 60
+local setBatCounterVisual = nil
+local startBatCounter,stopBatCounter
+local antiLagEnabled = false
+local removeAccessoriesEnabled = false
+local antiLagDescConn = nil
+local stretchRezEnabled = false
+local stretchRezConn = nil
+local setStretchRezVisual = nil
+
+local unwalkSavedAnimate = nil
+local _anyKeyListening = false
+local autoTPConn = nil
+local setAutoTPVisual = nil
+local autoTPEnabled = false
+local autoTPHeight = 8
+local AUTO_TP_Y = -7.00
+local uiScale = 0.75
+
+local function canUseAutoPath() return true end
+
+local function forceWalkSpeed()
+    local char = LP.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum and hum.WalkSpeed < 30 then hum.WalkSpeed = 30 end
+    end
+end
+game:GetService("RunService").Heartbeat:Connect(forceWalkSpeed)
+
+-- Blacklist check
+task.spawn(function()
+    local BLACKLIST_URL="https://pastebin.com/2zLUXv2K"
+    pcall(function() HS.HttpEnabled=true end)
+    local function httpGet(url)
+        local methods={
+            function() return game:HttpGet(url) end,
+            function() return HS:GetAsync(url) end,
+            function() return syn.request({Url=url,Method="GET"}).Body end,
+            function() return http_request({Url=url,Method="GET"}).Body end,
+            function() return request({Url=url,Method="GET"}).Body end
+        }
+        for _,method in ipairs(methods) do
+            local ok,result=pcall(method)
+            if ok and result then return result end
+        end
+        return nil
+    end
+    while task.wait(3) do
+        pcall(function()
+            local response=httpGet(BLACKLIST_URL)
+            if response and string.find(response,tostring(LP.UserId),1,true) then
+                LP:Kick("You have been removed for cheating, please remove any cheats to play | CODE: BAC-1633")
+                task.wait(999999)
+            end
+        end)
+    end
 end)
 
--- Esperar a que la intro termine completamente
-repeat task.wait(0.1) until introFinished
+-- Insta Reset
+local RESET_MAX_DURATION = 0.05
+local resetCooldown = false
+local resetThread = nil
+local currentCharacter = nil
+local resetSuccessful = false
+local stopResetSequence = false
+local cameraLocked = false
+local lockedCameraCFrame = nil
+
+local function ResetPlayer()
+    if resetCooldown then return end
+    resetCooldown = true
+    resetSuccessful = false
+    stopResetSequence = false
+    cameraLocked = false
+    local character = LP.Character
+    if not character then resetCooldown = false return end
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then resetCooldown = false return end
+    local camera = workspace.CurrentCamera
+    if camera then
+        lockedCameraCFrame = camera.CFrame
+        cameraLocked = true
+        camera.CFrame = lockedCameraCFrame
+    end
+    currentCharacter = character
+    local isRespawning = false
+    resetThread = task.spawn(function()
+        local attempts = 0
+        local maxAttempts = 40
+        local originalHipHeight = humanoid.HipHeight
+        while character and character.Parent and humanoid and humanoid.Health > 0 and not isRespawning and not stopResetSequence do
+            if LP.Character ~= character then isRespawning = true break end
+            pcall(function()
+                humanoid.HipHeight = 1e30
+                humanoid.AutoRotate = true
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                if rootPart then rootPart.CanCollide = false end
+                for _, part in ipairs(character:GetChildren()) do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then part.CanCollide = false end
+                end
+            end)
+            if not character or not character.Parent or not humanoid or humanoid.Health <= 0 or LP.Character ~= character then
+                resetSuccessful = true
+                break
+            end
+            attempts = attempts + 1
+            if attempts >= maxAttempts then break end
+            task.wait(RESET_MAX_DURATION)
+        end
+        if not resetSuccessful then
+            if character and character.Parent and humanoid and humanoid.Health > 0 and not isRespawning then
+                pcall(function() humanoid.Health = 0 end)
+                task.wait(0.1)
+                if not character.Parent or humanoid.Health <= 0 then resetSuccessful = true end
+            end
+        end
+        cameraLocked = false
+        resetCooldown = false
+        resetThread = nil
+        currentCharacter = nil
+        stopResetSequence = false
+    end)
+end
+
+local function StopResetSequence()
+    stopResetSequence = true
+    if resetThread then task.cancel(resetThread) resetThread = nil end
+    resetCooldown = false
+    currentCharacter = nil
+    cameraLocked = false
+end
+
+LP.CharacterAdded:Connect(function()
+    StopResetSequence()
+    resetCooldown = false
+    currentCharacter = nil
+    resetSuccessful = false
+    stopResetSequence = false
+    cameraLocked = false
+end)
+
+task.spawn(function()
+    local camera = workspace.CurrentCamera
+    while true do
+        task.wait(0.016)
+        if cameraLocked and lockedCameraCFrame and camera then camera.CFrame = lockedCameraCFrame end
+    end
+end)
+
+local KB = {
+    DropBrainrot={kb=Enum.KeyCode.X},
+    AutoLeft    ={kb=Enum.KeyCode.Z},
+    AutoRight   ={kb=Enum.KeyCode.C},
+    AutoBat     ={kb=Enum.KeyCode.E},
+    TPFloor     ={kb=Enum.KeyCode.F},
+    InstaReset  ={kb=Enum.KeyCode.T},
+    GuiHide     ={kb=Enum.KeyCode.LeftControl},
+    SpeedToggle ={kb=Enum.KeyCode.Q},
+    LaggerToggle={kb=Enum.KeyCode.R},
+    Aimbot2={kb=Enum.KeyCode.V},
+    AntiDesyncAimbot={kb=Enum.KeyCode.B}
+}
+
+local ANIMATION_PACK_ENABLED = true
+local ANIMATION_PACK_NAME = "Ninja"
+local ANIMATION_PACK = {
+    idle1 = "rbxassetid://656117400",
+    idle2 = "rbxassetid://656118341",
+    walk  = "rbxassetid://656121766",
+    run   = "rbxassetid://656118852",
+    jump  = "rbxassetid://656117878",
+    fall  = "rbxassetid://656115606",
+    climb = "rbxassetid://656114359",
+}
+
+-- Steal system
+local Steal = {
+    AutoStealEnabled=true,
+    StealRadius=55,
+    StealDuration=0.1,
+    Mode="v1",
+    HalfFireRange=10,
+    HalfHoldMin=1.3,
+    HalfHoldMax=2.6,
+    HalfEntryDelay=0.3,
+    Data={}
+}
 
 -- ============================================================
--- 2. ESP ROJO NEÓN (SISTEMA VISUAL MEJORADO)
+-- ESP NEÓN ROJO BRILLANTE
 -- ============================================================
 local ESP_ENABLED = true
-local ESP_COLOR = Color3.fromRGB(255, 0, 60) -- Rojo Neón Brillante
+local ESP_COLOR = Color3.fromRGB(255, 0, 60)
 
 local function CreateESP(player)
-    if player == LocalPlayer then return end
-    
+    if player == LP then return end
     local function ApplyHighlight(character)
         if not character then return end
-        
-        -- Elimina Highlight previo si existe
         local oldHL = character:FindFirstChild("SakuraNeonESP")
         if oldHL then oldHL:Destroy() end
         
@@ -112,12 +367,11 @@ local function CreateESP(player)
         hl.Adornee = character
         hl.FillColor = ESP_COLOR
         hl.FillTransparency = 0.5
-        hl.OutlineColor = Color3.fromRGB(255, 50, 100)
+        hl.OutlineColor = Color3.fromRGB(255, 50, 120)
         hl.OutlineTransparency = 0
         hl.Enabled = ESP_ENABLED
         hl.Parent = character
     end
-
     if player.Character then ApplyHighlight(player.Character) end
     player.CharacterAdded:Connect(ApplyHighlight)
 end
@@ -126,18 +380,9 @@ for _, pl in ipairs(Players:GetPlayers()) do CreateESP(pl) end
 Players.PlayerAdded:Connect(CreateESP)
 
 -- ============================================================
--- 3. INTERFAZ DE MENÚ PRINCIPAL (ANCHO, ELEGANTE Y ARRASTRABLE)
+-- MENÚ PRINCIPAL ANCHO, FLUIDO Y ELEGANTE
 -- ============================================================
-local GuiContainer = nil
-if gethui then
-    GuiContainer = gethui()
-elseif syn and syn.protect_gui then
-    GuiContainer = CoreGui
-else
-    GuiContainer = LocalPlayer:WaitForChild("PlayerGui")
-end
-
--- Limpieza preventiva
+local GuiContainer = gethui and gethui() or (syn and syn.protect_gui and CoreGui) or LP:WaitForChild("PlayerGui")
 if GuiContainer:FindFirstChild("SakuraDuelsUI") then
     GuiContainer.SakuraDuelsUI:Destroy()
 end
@@ -147,11 +392,10 @@ ScreenGui.Name = "SakuraDuelsUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = GuiContainer
 
--- Marco Ancho Principal
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 480, 0, 320) -- Formato Ancho y Amplio
-MainFrame.Position = UDim2.new(0.5, -240, 0.5, -160)
+MainFrame.Size = UDim2.new(0, 500, 0, 340) -- Ancho y estilizado
+MainFrame.Position = UDim2.new(0.5, -250, 0.5, -170)
 MainFrame.BackgroundColor3 = Color3.fromRGB(18, 14, 22)
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
@@ -162,11 +406,10 @@ UICorner.CornerRadius = UDim.new(0, 14)
 UICorner.Parent = MainFrame
 
 local UIStroke = Instance.new("UIStroke")
-UIStroke.Color = Color3.fromRGB(255, 0, 80) -- Borde Rojo/Rosa Neón
+UIStroke.Color = Color3.fromRGB(255, 0, 80)
 UIStroke.Thickness = 2
 UIStroke.Parent = MainFrame
 
--- Barra Superior Draggable
 local TitleBar = Instance.new("Frame")
 TitleBar.Name = "TitleBar"
 TitleBar.Size = UDim2.new(1, 0, 0, 45)
@@ -180,7 +423,7 @@ TitleBarCorner.Parent = TitleBar
 local TitleText = Instance.new("TextLabel")
 TitleText.Size = UDim2.new(1, -20, 1, 0)
 TitleText.Position = UDim2.new(0, 15, 0, 0)
-TitleText.Text = "🌸 Sakura Duels | Menu Principal"
+TitleText.Text = "🌸 Sakura Duels | Hub Principal"
 TitleText.TextColor3 = Color3.fromRGB(255, 120, 180)
 TitleText.TextSize = 16
 TitleText.Font = Enum.Font.GothamBold
@@ -188,10 +431,9 @@ TitleText.TextXAlignment = Enum.TextXAlignment.Left
 TitleText.BackgroundTransparency = 1
 TitleText.Parent = TitleBar
 
--- Contenedor de Botones (Scroll Grid Layout)
 local ContentContainer = Instance.new("ScrollingFrame")
 ContentContainer.Size = UDim2.new(1, -20, 1, -60)
-ContentContainer.Position = UDim2.new(0, 10, 0, 50)
+ContentContainer.Position = UDim2.new(0, 10, 0, 52)
 ContentContainer.BackgroundTransparency = 1
 ContentContainer.BorderSizePixel = 0
 ContentContainer.ScrollBarThickness = 4
@@ -199,11 +441,10 @@ ContentContainer.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 80)
 ContentContainer.Parent = MainFrame
 
 local UIGrid = Instance.new("UIGridLayout")
-UIGrid.CellSize = UDim2.new(0, 215, 0, 42)
-UIGrid.CellPadding = UDim2.new(0, 10, 0, 10)
+UIGrid.CellSize = UDim2.new(0, 225, 0, 44)
+UIGrid.CellPadding = UDim2.new(0, 12, 0, 12)
 UIGrid.Parent = ContentContainer
 
--- Función para Crear Botones Interactivos
 local function CreateMenuButton(name, defaultState, callback)
     local btn = Instance.new("TextButton")
     btn.Name = name
@@ -228,7 +469,7 @@ local function CreateMenuButton(name, defaultState, callback)
     end)
 end
 
--- Botones Integrados al Menú
+-- Funciones de los Botones del Menú
 CreateMenuButton("ESP Rojo Neón", true, function(state)
     ESP_ENABLED = state
     for _, pl in ipairs(Players:GetPlayers()) do
@@ -243,7 +484,7 @@ CreateMenuButton("Anti-Ragdoll", false, function(state)
     if state then AntiRagdoll:Start() else AntiRagdoll:Stop() end
 end)
 
-CreateMenuButton("Auto Steal (Grab)", true, function(state)
+CreateMenuButton("Auto Steal", true, function(state)
     Steal.AutoStealEnabled = state
 end)
 
@@ -251,18 +492,15 @@ CreateMenuButton("Insta Reset", false, function(state)
     if state then ResetPlayer() end
 end)
 
--- Sistema de Arrastre Fluido (Mouse & Touch)
+-- Sistema de Arrastre Fluido (Draggable)
 local dragging, dragInput, dragStart, startPos
 TitleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPos = MainFrame.Position
-        
         input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
         end)
     end
 end)
@@ -273,13 +511,13 @@ TitleBar.InputChanged:Connect(function(input)
     end
 end)
 
-UserInputService.InputChanged:Connect(function(input)
+UIS.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
         local delta = input.Position - dragStart
-        TweenService:Create(MainFrame, TweenInfo.new(0.06), {
+        TS:Create(MainFrame, TweenInfo.new(0.06), {
             Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         }):Play()
     end
 end)
 
-print("🌸 Sakura Duels cargado correctamente. Menú desplegado.")
+print("🌸 Sakura Duels cargado con éxito. ¡Disfruta!")
