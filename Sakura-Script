@@ -928,3 +928,62 @@ end)
 print("🌸 Sakura Duels Rediseñado con éxito.")
 
 -- Pega la parte 2 acá, dentro del código como comentario
+---------------------------------------------------------------
+-- 🌸 SAKURA DUELS - ESP AVANZADO Y SOPORTE VISUAL (PARTE 3)
+---------------------------------------------------------------
+
+local ESP_ENABLED = true
+local ESP_COLOR = Color3.fromRGB(255, 0, 60) -- Rojo Neón Brillante
+
+local function CreateESP(player)
+    if player == LP then return end
+    
+    local function ApplyHighlight(character)
+        if not character then return end
+        
+        -- Limpieza de highlights previos para evitar duplicados
+        local oldHL = character:FindFirstChild("SakuraNeonESP")
+        if oldHL then oldHL:Destroy() end
+        
+        local hl = Instance.new("Highlight")
+        hl.Name = "SakuraNeonESP"
+        hl.Adornee = character
+        hl.FillColor = ESP_COLOR
+        hl.FillTransparency = 0.55
+        hl.OutlineColor = Color3.fromRGB(255, 60, 130)
+        hl.OutlineTransparency = 0
+        hl.Enabled = ESP_ENABLED
+        hl.Parent = character
+    end
+
+    if player.Character then 
+        ApplyHighlight(player.Character) 
+    end
+    
+    player.CharacterAdded:Connect(function(newChar)
+        task.wait(0.5) -- Esperar a que cargue el personaje completamente
+        ApplyHighlight(newChar)
+    end)
+end
+
+-- Aplicar ESP a los jugadores ya conectados y a los futuros
+for _, pl in ipairs(Players:GetPlayers()) do 
+    CreateESP(pl) 
+end
+Players.PlayerAdded:Connect(CreateESP)
+
+---------------------------------------------------------------
+-- 10. LIMPIEZA Y GESTIÓN DE ERRORES AL SALIR / REINICIAR
+---------------------------------------------------------------
+game:GetService("CoreGui").ChildRemoved:Connect(function(child)
+    if child.Name == "SakuraDuelsUI_Redesign" then
+        -- Limpieza de conexiones y estados activos al cerrar la UI
+        pcall(function()
+            if AntiRagdoll and AntiRagdoll.Stop then
+                AntiRagdoll:Stop()
+            end
+        end)
+    end
+end)
+
+print("🌸 Sakura Duels | Interfaz 'Sakura Midnight' completamente cargada y optimizada.")
