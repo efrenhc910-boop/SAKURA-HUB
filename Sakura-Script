@@ -686,4 +686,61 @@ local function CreateToggle(parentTab, titleText, descText, defaultState, callba
 end
 
 -- >>> [PEGA LA FASE 5 JUSTO AQUÍ ABAJO] <<<
+-- ============================================================
+-- CONEXIÓN DE FUNCIONES Y BUCLES FINALES (FASE 5)
+-- ============================================================
+local TabMain    = CreateTab("Main")
+local TabVisuals = CreateTab("Visuals")
+local TabCombat  = CreateTab("Combat")
+
+if TabButtons["Main"] then
+    TabButtons["Main"].BackgroundColor3 = SakuraTheme.SakuraPink
+    TabButtons["Main"].TextColor3 = Color3.fromRGB(255, 255, 255)
+    Pages["Main"].Visible = true
+end
+
+CreateToggle(TabMain, "Auto Steal", "Robo automático de items", Steal.AutoStealEnabled, function(state)
+    Steal.AutoStealEnabled = state
+end)
+
+CreateToggle(TabMain, "Insta Reset", "Reinicio rápido seguro", false, function(state)
+    if state then ResetPlayer() end
+end)
+
+CreateToggle(TabVisuals, "ESP Rojo Neón", "Resalta jugadores cercanos", true, function(state)
+    ESP_ENABLED = state
+    for _, pl in ipairs(Players:GetPlayers()) do
+        if pl.Character and pl.Character:FindFirstChild("SakuraNeonESP") then
+            pl.Character.SakuraNeonESP.Enabled = state
+        end
+    end
+end)
+
+CreateToggle(TabCombat, "Anti-Ragdoll", "Evita estados de caída", AntiRagdoll.Enabled, function(state)
+    AntiRagdoll.Enabled = state
+    if state then AntiRagdoll:Start() else AntiRagdoll:Stop() end
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(0.15)
+        pcall(function()
+            if Steal.AutoStealEnabled then
+                local prompt = findNearestPrompt()
+                if prompt then
+                    local dist = _promptDist(prompt)
+                    if dist <= Steal.StealRadius then
+                        if Steal.Mode == "v1" then
+                            executeStealV1(prompt)
+                        else
+                            executeStealV2(prompt)
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+print("🌸 Sakura Duels | Interfaz unificada 'Sakura Midnight V2' cargada con éxito.")
 
