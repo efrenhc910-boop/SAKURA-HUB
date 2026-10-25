@@ -1,5 +1,5 @@
 -- ============================================================
--- 🌸 SAKURA DUELS - SCRIPT UNIFICADO & SAKURA MIDNIGHT V2 (FASE 1)
+-- 🌸 SAKURA DUELS - SCRIPT UNIFICADO & SAKURA MIDNIGHT V2
 -- ============================================================
 
 -- 🌸sakura duels🌸 INTRO (do not edit)
@@ -142,9 +142,8 @@ function AntiRagdoll:Stop()
     end
 end
 
--- >>> [PEGA LA FASE 2 JUSTO AQUÍ ABAJO] <<<
 -- ============================================================
--- SERVICIOS Y UTILIDADES (FASE 2)
+-- SERVICIOS Y UTILIDADES
 -- ============================================================
 local Players,RunService,UIS,TS,Lighting,HS = game:GetService("Players"),game:GetService("RunService"),game:GetService("UserInputService"),game:GetService("TweenService"),game:GetService("Lighting"),game:GetService("HttpService")
 local LP = Players.LocalPlayer
@@ -158,7 +157,9 @@ local function forceWalkSpeed()
 end
 game:GetService("RunService").Heartbeat:Connect(forceWalkSpeed)
 
--- INSTA RESET CORREGIDO (Restaura HipHeight original)
+-- ============================================================
+-- INSTA RESET SEGURO (Restaura HipHeight original)
+-- ============================================================
 local resetCooldown = false
 local resetThread = nil
 local originalHipHeightMap = {}
@@ -239,7 +240,9 @@ task.spawn(function()
     end
 end)
 
+-- ============================================================
 -- SISTEMA STEAL
+-- ============================================================
 local Steal = {
     AutoStealEnabled = true,
     StealRadius = 55,
@@ -337,9 +340,8 @@ local function executeStealV2(prompt)
     return executeStealV1(prompt)
 end
 
--- >>> [PEGA LA FASE 3 JUSTO AQUÍ ABAJO] <<<
 -- ============================================================
--- ESP ROJO NEÓN UNIFICADO (FASE 3)
+-- ESP ROJO NEÓN UNIFICADO
 -- ============================================================
 local ESP_ENABLED = true
 local ESP_COLOR = Color3.fromRGB(255, 0, 60)
@@ -368,9 +370,8 @@ end
 for _, pl in ipairs(Players:GetPlayers()) do CreateESP(pl) end
 Players.PlayerAdded:Connect(CreateESP)
 
--- >>> [PEGA LA FASE 4 JUSTO AQUÍ ABAJO] <<<
 -- ============================================================
--- INTERFAZ SAKURA MIDNIGHT & ARRASTRE MÓVIL (FASE 4)
+-- INTERFAZ SAKURA MIDNIGHT & ARRASTRE SEGURO
 -- ============================================================
 local SakuraTheme = {
     MainBg       = Color3.fromRGB(18, 14, 24),
@@ -518,229 +519,4 @@ end)
 
 local CloseButton = Instance.new("TextButton")
 CloseButton.Name = "CloseButton"
-CloseButton.Size = UDim2.new(0, 26, 0, 26)
-CloseButton.Position = UDim2.new(1, -34, 0.5, -13)
-CloseButton.BackgroundColor3 = Color3.fromRGB(45, 25, 35)
-CloseButton.Text = "✕"
-CloseButton.TextColor3 = SakuraTheme.SakuraLight
-CloseButton.Font = Enum.Font.GothamBold
-CloseButton.TextSize = 12
-CloseButton.Parent = TitleBar
-
-local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0, 6)
-CloseCorner.Parent = CloseButton
-
-CloseButton.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-end)
-
-MakeElementDraggable(MainFrame, TitleBar)
-
-local TabBar = Instance.new("Frame")
-TabBar.Name = "TabBar"
-TabBar.Size = UDim2.new(0, 120, 1, -52)
-TabBar.Position = UDim2.new(0, 10, 0, 46)
-TabBar.BackgroundColor3 = SakuraTheme.SecondaryBg
-TabBar.BorderSizePixel = 0
-TabBar.Parent = MainFrame
-
-local TabBarCorner = Instance.new("UICorner")
-TabBarCorner.CornerRadius = UDim.new(0, 10)
-TabBarCorner.Parent = TabBar
-
-local TabListLayout = Instance.new("UIListLayout")
-TabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-TabListLayout.Padding = UDim.new(0, 6)
-TabListLayout.Parent = TabBar
-
-local TabPadding = Instance.new("UIPadding")
-TabPadding.PaddingTop = UDim.new(0, 8)
-TabPadding.PaddingLeft = UDim.new(0, 6)
-TabPadding.PaddingRight = UDim.new(0, 6)
-TabPadding.Parent = TabBar
-
-local PagesContainer = Instance.new("Frame")
-PagesContainer.Name = "PagesContainer"
-PagesContainer.Size = UDim2.new(1, -145, 1, -52)
-PagesContainer.Position = UDim2.new(0, 138, 0, 46)
-PagesContainer.BackgroundTransparency = 1
-PagesContainer.Parent = MainFrame
-
-local Pages = {}
-local TabButtons = {}
-
-local function CreateTab(tabName)
-    local page = Instance.new("ScrollingFrame")
-    page.Name = tabName .. "Page"
-    page.Size = UDim2.new(1, 0, 1, 0)
-    page.BackgroundTransparency = 1
-    page.BorderSizePixel = 0
-    page.ScrollBarThickness = 4
-    page.ScrollBarImageColor3 = SakuraTheme.SakuraPink
-    page.Visible = false
-    page.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    page.Parent = PagesContainer
-
-    local pageLayout = Instance.new("UIListLayout")
-    pageLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    pageLayout.Padding = UDim.new(0, 8)
-    pageLayout.Parent = page
-
-    local tabBtn = Instance.new("TextButton")
-    tabBtn.Name = tabName .. "TabBtn"
-    tabBtn.Size = UDim2.new(1, 0, 0, 32)
-    tabBtn.BackgroundColor3 = SakuraTheme.MainBg
-    tabBtn.Text = tabName
-    tabBtn.TextColor3 = SakuraTheme.TextSecondary
-    tabBtn.Font = Enum.Font.GothamMedium
-    tabBtn.TextSize = 11
-    tabBtn.AutoButtonColor = false
-    tabBtn.Parent = TabBar
-
-    local tabBtnCorner = Instance.new("UICorner")
-    tabBtnCorner.CornerRadius = UDim.new(0, 6)
-    tabBtnCorner.Parent = tabBtn
-
-    tabBtn.MouseButton1Click:Connect(function()
-        for name, p in pairs(Pages) do
-            p.Visible = (name == tabName)
-        end
-        for name, b in pairs(TabButtons) do
-            if name == tabName then
-                TS:Create(b, TweenInfo.new(0.15), {
-                    BackgroundColor3 = SakuraTheme.SakuraPink,
-                    TextColor3 = Color3.fromRGB(255, 255, 255)
-                }):Play()
-            else
-                TS:Create(b, TweenInfo.new(0.15), {
-                    BackgroundColor3 = SakuraTheme.MainBg,
-                    TextColor3 = SakuraTheme.TextSecondary
-                }):Play()
-            end
-        end
-    end)
-
-    Pages[tabName] = page
-    TabButtons[tabName] = tabBtn
-    return page
-end
-
-local function CreateToggle(parentTab, titleText, descText, defaultState, callback)
-    local toggleFrame = Instance.new("Frame")
-    toggleFrame.Size = UDim2.new(1, -6, 0, 44)
-    toggleFrame.BackgroundColor3 = SakuraTheme.SecondaryBg
-    toggleFrame.BorderSizePixel = 0
-    toggleFrame.Parent = parentTab
-
-    local tCorner = Instance.new("UICorner")
-    tCorner.CornerRadius = UDim.new(0, 8)
-    tCorner.Parent = toggleFrame
-
-    local tTitle = Instance.new("TextLabel")
-    tTitle.Size = UDim2.new(0.65, 0, 0, 20)
-    tTitle.Position = UDim2.new(0, 10, 0, 4)
-    tTitle.Text = titleText
-    tTitle.TextColor3 = SakuraTheme.TextPrimary
-    tTitle.Font = Enum.Font.GothamBold
-    tTitle.TextSize = 11
-    tTitle.TextXAlignment = Enum.TextXAlignment.Left
-    tTitle.BackgroundTransparency = 1
-    tTitle.Parent = toggleFrame
-
-    local tDesc = Instance.new("TextLabel")
-    tDesc.Size = UDim2.new(0.65, 0, 0, 14)
-    tDesc.Position = UDim2.new(0, 10, 0, 22)
-    tDesc.Text = descText or ""
-    tDesc.TextColor3 = SakuraTheme.TextSecondary
-    tDesc.Font = Enum.Font.Gotham
-    tDesc.TextSize = 9
-    tDesc.TextXAlignment = Enum.TextXAlignment.Left
-    tDesc.BackgroundTransparency = 1
-    tDesc.Parent = toggleFrame
-
-    local switchBtn = Instance.new("TextButton")
-    switchBtn.Size = UDim2.new(0, 55, 0, 24)
-    switchBtn.Position = UDim2.new(1, -65, 0.5, -12)
-    switchBtn.BackgroundColor3 = defaultState and SakuraTheme.NeonRedActive or SakuraTheme.StateOff
-    switchBtn.Text = defaultState and "ON" or "OFF"
-    switchBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    switchBtn.Font = Enum.Font.GothamBold
-    switchBtn.TextSize = 10
-    switchBtn.AutoButtonColor = false
-    switchBtn.Parent = toggleFrame
-
-    local sCorner = Instance.new("UICorner")
-    sCorner.CornerRadius = UDim.new(0, 12)
-    sCorner.Parent = switchBtn
-
-    local state = defaultState
-    switchBtn.MouseButton1Click:Connect(function()
-        state = not state
-        switchBtn.Text = state and "ON" or "OFF"
-        TS:Create(switchBtn, TweenInfo.new(0.15), {
-            BackgroundColor3 = state and SakuraTheme.NeonRedActive or SakuraTheme.StateOff
-        }):Play()
-        callback(state)
-    end)
-end
-
--- >>> [PEGA LA FASE 5 JUSTO AQUÍ ABAJO] <<<
--- ============================================================
--- CONEXIÓN DE FUNCIONES Y BUCLES FINALES (FASE 5)
--- ============================================================
-local TabMain    = CreateTab("Main")
-local TabVisuals = CreateTab("Visuals")
-local TabCombat  = CreateTab("Combat")
-
-if TabButtons["Main"] then
-    TabButtons["Main"].BackgroundColor3 = SakuraTheme.SakuraPink
-    TabButtons["Main"].TextColor3 = Color3.fromRGB(255, 255, 255)
-    Pages["Main"].Visible = true
-end
-
-CreateToggle(TabMain, "Auto Steal", "Robo automático de items", Steal.AutoStealEnabled, function(state)
-    Steal.AutoStealEnabled = state
-end)
-
-CreateToggle(TabMain, "Insta Reset", "Reinicio rápido seguro", false, function(state)
-    if state then ResetPlayer() end
-end)
-
-CreateToggle(TabVisuals, "ESP Rojo Neón", "Resalta jugadores cercanos", true, function(state)
-    ESP_ENABLED = state
-    for _, pl in ipairs(Players:GetPlayers()) do
-        if pl.Character and pl.Character:FindFirstChild("SakuraNeonESP") then
-            pl.Character.SakuraNeonESP.Enabled = state
-        end
-    end
-end)
-
-CreateToggle(TabCombat, "Anti-Ragdoll", "Evita estados de caída", AntiRagdoll.Enabled, function(state)
-    AntiRagdoll.Enabled = state
-    if state then AntiRagdoll:Start() else AntiRagdoll:Stop() end
-end)
-
-task.spawn(function()
-    while true do
-        task.wait(0.15)
-        pcall(function()
-            if Steal.AutoStealEnabled then
-                local prompt = findNearestPrompt()
-                if prompt then
-                    local dist = _promptDist(prompt)
-                    if dist <= Steal.StealRadius then
-                        if Steal.Mode == "v1" then
-                            executeStealV1(prompt)
-                        else
-                            executeStealV2(prompt)
-                        end
-                    end
-                end
-            end
-        end)
-    end
-end)
-
-print("🌸 Sakura Duels | Interfaz unificada 'Sakura Midnight V2' cargada con éxito.")
-
+CloseButton.Size = UDim2.
