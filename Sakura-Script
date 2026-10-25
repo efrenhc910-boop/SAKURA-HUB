@@ -153,3 +153,183 @@ local function forceWalkSpeed()
     end
 end
 game:GetService("RunService").Heartbeat:Connect(forceWalkSpeed)
+
+-- ============================================================
+-- INSTA RESET & SISTEMA STEAL (PARTE 2)
+-- ============================================================
+local resetCooldown = false
+local resetThread = nil
+local originalHipHeightMap = {}
+local cameraLocked = false
+local lockedCameraCFrame = nil
+
+local function ResetPlayer()
+    if resetCooldown then return end
+    resetCooldown = true
+    local character = LP.Character
+    if not character then resetCooldown = false return end
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then resetCooldown = false return end
+
+    originalHipHeightMap[character] = humanoid.HipHeight
+
+    local camera = workspace.CurrentCamera
+    if camera then
+        lockedCameraCFrame = camera.CFrame
+        cameraLocked = true
+    end
+
+    resetThread = task.spawn(function()
+        local attempts = 0
+        while character and character.Parent and humanoid and humanoid.Health > 0 do
+            if LP.Character ~= character then break end
+            pcall(function()
+                humanoid.HipHeight = 1e30
+                humanoid.AutoRotate = true
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                if rootPart then rootPart.CanCollide = false end
+                for _, part in ipairs(character:GetChildren()) do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then part.CanCollide = false end
+                end
+            end)
+            attempts = attempts + 1
+            if attempts >= 40 then break end
+            task.wait(0.05)
+        end
+        if character and character.Parent and humanoid and humanoid.Health > 0 then
+            pcall(function() humanoid.Health = 0 end)
+        end
+        cameraLocked = false
+        resetCooldown = false
+        resetThread = nil
+    end)
+end
+
+local function StopResetSequence()
+    if resetThread then task.cancel(resetThread) resetThread = nil end
+    resetCooldown = false
+    cameraLocked = false
+    local character = LP.Character
+    if character then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            pcall(function()
+                humanoid.HipHeight = originalHipHeightMap[character] or 2
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                if rootPart then rootPart.CanCollide = true end
+                for _, part in ipairs(character:GetChildren()) do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then part.CanCollide = true end
+                end
+            end)
+        end
+    end
+end
+
+LP.CharacterAdded:Connect(function()
+    StopResetSequence()
+end)
+
+task.spawn(function()
+    local camera = workspace.CurrentCamera
+    while true do
+        task.wait(0.016)
+        if cameraLocked and lockedCameraCFrame and camera then camera.CFrame = lockedCameraCFrame end
+    end
+end)
+
+local Steal = {
+    AutoStealEnabled = true,
+    StealRadius = 55,
+    StealDuration = 0.1,
+    Mode = "v1",
+    Data = {}
+}
+
+local function isMyPlotByName(plotName)
+    local plots = workspace:FindFirstChild("Plots")
+    if not plots then return false end
+    local plot = plots:FindFirstChild(plotName)
+    if not plot then return false end
+    local sign = plot:FindFirstChild("PlotSign")
+    if sign then
+        local yb = sign:FindFirstChild("YourBase")
+        if yb and yb:IsA("BillboardGui") then return yb.Enabled == true end
+    end
+    return false
+end
+
+local function findNearestPrompt()
+    local char = LP.Character; if not char then return nil end
+    local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso")
+    if not root then return nil end
+    local plots = workspace:FindFirstChild("Plots"); if not plots then return nil end
+    local nearest, dist = nil, math.huge
+    for _, plot in ipairs(plots:GetChildren()) do
+        if plot:IsA("Model") and not isMyPlotByName(plot.Name) then
+            local pods = plot:FindFirstChild("AnimalPodiums")
+            if pods then
+                for _, pod in ipairs(pods:GetChildren()) do
+                    local base = pod:FindFirstChild("Base")
+                    local sp = base and base:FindFirstChild("Spawn")
+                    if sp then
+                        local d = (sp.Position - root.Position).Magnitude
+                        if d <= Steal.StealRadius and d < dist then
+                            local found = nil
+                            local att = sp:FindFirstChild("PromptAttachment")
+                            if att then
+                                for _, pr in ipairs(att:GetChildren()) do
+                                    if pr:IsA("ProximityPrompt") and pr.ActionText and pr.ActionText:find("Steal") then found = pr end
+                                end
+                            end
+                            if not found then
+                                for _, pr in ipairs(sp:GetDescendants()) do
+                                    if pr:IsA("ProximityPrompt") and pr.ActionText and pr.ActionText:find("Steal") then found = pr end
+                                end
+                            end
+                            if found then nearest, dist = found, d end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return nearest
+end
+
+local function _promptDist(prompt)
+    local char = LP.Character
+    if not char then return math.huge end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return math.huge end
+    local part = prompt.Parent
+    if part and part:IsA("Attachment") then part = part.Parent end
+    if part and part:IsA("BasePart") then return (part.Position - root.Position).Magnitude end
+    return math.huge
+end
+
+local function executeStealV1(prompt)
+    if not prompt or not prompt.Parent then return false end
+    local fired = false
+    pcall(function()
+        if typeof(fireproximityprompt) == "function" then
+            fireproximityprompt(prompt)
+            fired = true
+        end
+    end)
+    if not fired then
+        pcall(function()
+            prompt:InputHoldBegin()
+            task.wait(math.max(Steal.StealDuration, 0.1))
+            prompt:InputHoldEnd()
+            fired = true
+        end)
+    end
+    return fired
+end
+
+local function executeStealV2(prompt)
+    if not Steal.Data[prompt] then
+        Steal.Data[prompt] = {hold={}, trigger={}, ready=true}
+    end
+    return executeStealV1(prompt)
+end
