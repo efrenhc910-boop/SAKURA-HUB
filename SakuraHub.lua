@@ -249,7 +249,6 @@ local function ValidarAcceso()
         -- ACÁ ABAJO EL RESTO DE TU CÓDIGO
         -----------------------------------------------------------   
 loadstring(game:HttpGet("https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/main/Sakura-Script"))()
-
     else
         StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
         StatusLabel.Text = "✕ Clave incorrecta."
