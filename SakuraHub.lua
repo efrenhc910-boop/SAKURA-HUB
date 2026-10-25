@@ -1,291 +1,99 @@
---[[ ============================================================
-  🔑 SAKURA DUELS — SISTEMA DE LLAVES
-  ------------------------------------------------------------
-  ▸ Cada llave está ATADA a un nombre de usuario.
-  ▸ Si el nombre del que ejecuta no está en la lista, la llave
-    NO sirve aunque sea la correcta.
-  ------------------------------------------------------------
-  ▸ AGREGAR USUARIO: copia una línea dentro de Whitelist
-      ["nombre_en_minusculas"] = "LLAVE",
-  ------------------------------------------------------------
-  ▸ Pega TODO este bloque al inicio del script, antes del INTRO.
-============================================================ ]]
 
-local KEYCONFIG = {
-    Enabled        = true,       -- false = salta el menú por completo
-    Remember       = false,      -- true = recuerda el acceso durante la sesión
-    Timeout        = 0,          -- segundos antes de auto-continuar (0 = infinito)
-    TimeoutAction  = "continue", -- "continue" o "kick"
-    KeyCaseInsensitive = true,   -- "ABC" == "abc" en la llave
+--[[
+    SAKURA DUELS — SISTEMA DE LLAVES
+    Versión sencilla para probar la lógica de acceso.
+]]
 
-    -- Usuarios que entran SIN escribir llave
+local CONFIG = {
+    Enabled = true,
+    KeyCaseInsensitive = true,
+
     BypassUsers = {
-        -- ["algunamigo"] = true,
+        -- ["amigo1"] = true,
     },
 
-    -- Llaves válidas para CUALQUIER usuario (extra opcional)
     MasterKeys = {
         -- "sakura",
     },
 
-    -- 🔑 LISTA DE LLAVES  (nombre de usuario en minúsculas)
     Whitelist = {
         ["elinsanidinu"] = "1234",
-        -- ["otrousuario"] = "5678",
+        -- ["amigo1"] = "5678",
     },
 }
 
-if KEYCONFIG.Enabled then
+local function normalize(value)
+    value = tostring(value or "")
+    value = value:gsub("^%s+", ""):gsub("%s+$", "")
 
-local Players      = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local LP           = Players.LocalPlayer
-local PG           = LP:WaitForChild("PlayerGui", 15)
+    if CONFIG.KeyCaseInsensitive then
+        value = value:lower()
+    end
 
-local KEY_ATTR  = "SakuraDuelsKeyOK"
-local validated = false
-
-if KEYCONFIG.BypassUsers[LP.Name:lower()] then validated = true end
-if KEYCONFIG.Remember and LP:GetAttribute(KEY_ATTR) == true then validated = true end
-
-if not PG then
-    validated = true
+    return value
 end
 
-if PG and not validated then
+local function validate(username, enteredKey)
+    if not CONFIG.Enabled then
+        return true, "Sistema desactivado"
+    end
 
-    -- limpia menús viejos si re-ejecutas el script
-    local viejo = PG:FindFirstChild("SakuraDuels_KEY")
-    if viejo then viejo:Destroy() end
+    if type(username) ~= "string"
+        or type(enteredKey) ~= "string" then
+        return false, "Datos inválidos"
+    end
 
-    local sg = Instance.new("ScreenGui")
-    sg.Name           = "SakuraDuels_KEY"
-    sg.ResetOnSpawn   = false
-    sg.IgnoreGuiInset = true
-    sg.DisplayOrder   = 9999
-    sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    sg.Parent         = PG
+    username = username:lower()
+    enteredKey = normalize(enteredKey)
 
-    local dim = Instance.new("Frame", sg)
-    dim.Size                   = UDim2.fromScale(1, 1)
-    dim.BackgroundColor3       = Color3.new(0, 0, 0)
-    dim.BackgroundTransparency = 0.45
-    dim.BorderSizePixel        = 0
-    dim.ZIndex                 = 1
+    if CONFIG.BypassUsers[username] then
+        return true, "Acceso autorizado por bypass"
+    end
 
-    local card = Instance.new("Frame", sg)
-    card.AnchorPoint       = Vector2.new(0.5, 0.5)
-    card.Position          = UDim2.fromScale(0.5, 0.5)
-    card.Size              = UDim2.fromOffset(370, 244)
-    card.BackgroundColor3  = Color3.fromRGB(12, 12, 12)
-    card.BorderSizePixel   = 0
-    card.ZIndex            = 2
-
-    local cardCorner = Instance.new("UICorner", card)
-    cardCorner.CornerRadius = UDim.new(0, 14)
-
-    local cardStroke = Instance.new("UIStroke", card)
-    cardStroke.Color        = Color3.fromRGB(255, 105, 180)
-    cardStroke.Thickness    = 2
-    cardStroke.Transparency = 0.15
-
-    local title = Instance.new("TextLabel", card)
-    title.Size                   = UDim2.new(1, -30, 0, 32)
-    title.Position               = UDim2.new(0, 15, 0, 18)
-    title.BackgroundTransparency = 1
-    title.Font                   = Enum.Font.GothamBlack
-    title.Text                   = "🌸 sakura duels 🌸"
-    title.TextColor3             = Color3.fromRGB(255, 105, 180)
-    title.TextSize               = 26
-    title.TextXAlignment         = Enum.TextXAlignment.Left
-    title.ZIndex                 = 3
-
-    local sub = Instance.new("TextLabel", card)
-    sub.Size                   = UDim2.new(1, -30, 0, 16)
-    sub.Position               = UDim2.new(0, 15, 0, 52)
-    sub.BackgroundTransparency = 1
-    sub.Font                   = Enum.Font.Gotham
-    sub.Text                   = "SISTEMA DE LLAVES · ACCESO PRIVADO"
-    sub.TextColor3             = Color3.fromRGB(145, 145, 145)
-    sub.TextSize               = 12
-    sub.TextXAlignment         = Enum.TextXAlignment.Left
-    sub.ZIndex                 = 3
-
-    local userLbl = Instance.new("TextLabel", card)
-    userLbl.Size                   = UDim2.new(1, -30, 0, 18)
-    userLbl.Position               = UDim2.new(0, 15, 0, 78)
-    userLbl.BackgroundTransparency = 1
-    userLbl.Font                   = Enum.Font.GothamMedium
-    userLbl.Text                   = "usuario: " .. LP.Name
-    userLbl.TextColor3             = Color3.new(1, 1, 1)
-    userLbl.TextSize               = 13
-    userLbl.TextXAlignment         = Enum.TextXAlignment.Left
-    userLbl.ZIndex                 = 3
-
-    local tbFrame = Instance.new("Frame", card)
-    tbFrame.Size             = UDim2.new(1, -30, 0, 42)
-    tbFrame.Position         = UDim2.new(0, 15, 0, 102)
-    tbFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    tbFrame.BorderSizePixel  = 0
-    tbFrame.ZIndex           = 3
-
-    local tbCorner = Instance.new("UICorner", tbFrame)
-    tbCorner.CornerRadius = UDim.new(0, 8)
-
-    local tbStroke = Instance.new("UIStroke", tbFrame)
-    tbStroke.Color     = Color3.fromRGB(60, 60, 60)
-    tbStroke.Thickness = 1
-
-    local tb = Instance.new("TextBox", tbFrame)
-    tb.Size                   = UDim2.new(1, -20, 1, 0)
-    tb.Position               = UDim2.new(0, 10, 0, 0)
-    tb.BackgroundTransparency = 1
-    tb.Font                   = Enum.Font.GothamMedium
-    tb.Text                   = ""
-    tb.PlaceholderText        = "escribe tu llave..."
-    tb.PlaceholderColor3      = Color3.fromRGB(110, 110, 110)
-    tb.TextColor3             = Color3.new(1, 1, 1)
-    tb.TextSize               = 16
-    tb.TextXAlignment         = Enum.TextXAlignment.Left
-    tb.ClearTextOnFocus       = false
-    tb.ZIndex                 = 4
-
-    local btn = Instance.new("TextButton", card)
-    btn.Size             = UDim2.new(1, -30, 0, 42)
-    btn.Position         = UDim2.new(0, 15, 0, 154)
-    btn.BackgroundColor3 = Color3.fromRGB(255, 105, 180)
-    btn.BorderSizePixel  = 0
-    btn.Font             = Enum.Font.GothamBold
-    btn.Text             = "DESBLOQUEAR"
-    btn.TextColor3       = Color3.fromRGB(10, 10, 10)
-    btn.TextSize         = 16
-    btn.ZIndex           = 3
-
-    local btnCorner = Instance.new("UICorner", btn)
-    btnCorner.CornerRadius = UDim.new(0, 8)
-
-    local status = Instance.new("TextLabel", card)
-    status.Size                   = UDim2.new(1, -30, 0, 18)
-    status.Position               = UDim2.new(0, 15, 0, 206)
-    status.BackgroundTransparency = 1
-    status.Font                   = Enum.Font.GothamMedium
-    status.Text                   = "la llave está ligada a tu cuenta"
-    status.TextColor3             = Color3.fromRGB(160, 160, 160)
-    status.TextSize               = 12
-    status.TextXAlignment         = Enum.TextXAlignment.Left
-    status.ZIndex                 = 3
-
-    local function shake()
-        local base = UDim2.fromScale(0.5, 0.5)
-        for _ = 1, 3 do
-            if not card.Parent then return end
-            TweenService:Create(card, TweenInfo.new(0.05), {Position = base + UDim2.fromOffset(9, 0)}):Play()
-            task.wait(0.05)
-            if not card.Parent then return end
-            TweenService:Create(card, TweenInfo.new(0.05), {Position = base - UDim2.fromOffset(9, 0)}):Play()
-            task.wait(0.05)
-        end
-        if card.Parent then
-            TweenService:Create(card, TweenInfo.new(0.05), {Position = base}):Play()
+    for _, masterKey in ipairs(CONFIG.MasterKeys) do
+        if enteredKey ~= ""
+            and enteredKey == normalize(masterKey) then
+            return true, "Acceso autorizado"
         end
     end
 
-    local function fail(msg, color)
-        status.TextColor3 = color
-        status.Text       = msg
-        shake()
+    local expectedKey = CONFIG.Whitelist[username]
+
+    if not expectedKey then
+        return false, "Usuario no autorizado"
     end
 
-    local function unlock()
-        validated = true
-        if KEYCONFIG.Remember then
-            pcall(function() LP:SetAttribute(KEY_ATTR, true) end)
-        end
-        status.TextColor3 = Color3.fromRGB(80, 220, 120)
-        status.Text       = "acceso concedido"
-        tb.TextEditable   = false
-        task.wait(0.35)
-        pcall(function() sg:Destroy() end)
+    if enteredKey == "" then
+        return false, "Escribe una llave"
     end
 
-    local function attempt()
-        if validated then return end
-
-        local uname   = LP.Name:lower()
-        local entered = (tb.Text:gsub("%s+", ""))
-        if KEYCONFIG.KeyCaseInsensitive then entered = entered:lower() end
-
-        -- master keys (sirven para cualquiera)
-        for _, mk in ipairs(KEYCONFIG.MasterKeys) do
-            local k = tostring(mk)
-            if KEYCONFIG.KeyCaseInsensitive then k = k:lower() end
-            if entered ~= "" and entered == k then return unlock() end
-        end
-
-        local expected = KEYCONFIG.Whitelist[uname]
-
-        if not expected then
-            return fail("usuario no autorizado: " .. LP.Name, Color3.fromRGB(255, 90, 90))
-        end
-
-        expected = tostring(expected)
-        if KEYCONFIG.KeyCaseInsensitive then expected = expected:lower() end
-
-        if entered == "" then
-            return fail("escribe una llave.", Color3.fromRGB(255, 190, 80))
-        end
-
-        if entered ~= expected then
-            return fail("llave incorrecta.", Color3.fromRGB(255, 90, 90))
-        end
-
-        unlock()
+    if enteredKey ~= normalize(expectedKey) then
+        return false, "Llave incorrecta"
     end
 
-    btn.MouseButton1Click:Connect(attempt)
-
-    tb.FocusLost:Connect(function(enterPressed)
-        tbStroke.Color = Color3.fromRGB(60, 60, 60)
-        if enterPressed then attempt() end
-    end)
-
-    tb.Focused:Connect(function()
-        tbStroke.Color = Color3.fromRGB(255, 105, 180)
-    end)
-
-    tb:GetPropertyChangedSignal("Text"):Connect(function()
-        if not validated and status.Text ~= "" then
-            status.Text       = ""
-            status.TextColor3 = Color3.fromRGB(160, 160, 160)
-        end
-    end)
-
-    task.delay(0.4, function()
-        if tb.Parent then pcall(function() tb:CaptureFocus() end) end
-    end)
-
-    if KEYCONFIG.Timeout > 0 then
-        task.delay(KEYCONFIG.Timeout, function()
-            if validated then return end
-            if KEYCONFIG.TimeoutAction == "kick" then
-                LP:Kick("⏱ no ingresaste la llave a tiempo.")
-            else
-                validated = true
-                pcall(function() sg:Destroy() end)
-            end
-        end)
-    end
+    return true, "Acceso concedido"
 end
 
--- ⛔ El script no avanza hasta que la llave sea válida
-if not validated then
-    repeat task.wait(0.05) until validated
+-- Pruebas básicas
+local tests = {
+    {"elinsanidinu", "1234"},
+    {"ELINSANIDINU", "1234"},
+    {"elinsanidinu", "9999"},
+    {"usuario_desconocido", "1234"},
+}
+
+for _, test in ipairs(tests) do
+    local ok, message = validate(test[1], test[2])
+    print(test[1], ok, message)
 end
 
-print("[sakura duels] llave validada — cargando script...")
+-- Para conectar la función a tu interfaz:
+-- local ok, message = validate(nombreUsuario, llaveIntroducida)
+-- print(message)
+-- if ok then
+--     -- Continuar con tu propio menú
+-- end
 
-end
--- ⬇️ AQUÍ SIGUE TU INTRO Y TODO LO DEMÁS, SIN TOCAR
 
 -- 🌸sakura duels🌸 INTRO test (do not edit)
 (function()
