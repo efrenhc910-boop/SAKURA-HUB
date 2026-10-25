@@ -247,8 +247,7 @@ local function ValidarAcceso()
         
         -----------------------------------------------------------
         -- ACÁ ABAJO EL RESTO DE TU CÓDIGO
-        -----------------------------------------------------------
-print("VALIDACIÓN CORRECTA: iniciando Sakura-Script")        loadstring(game:HttpGet("https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/main/Sakura-Script"))()
+        -----------------------------------------------------------   loadstring(game:HttpGet("https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/main/Sakura-Script"))()
 
     else
         StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
