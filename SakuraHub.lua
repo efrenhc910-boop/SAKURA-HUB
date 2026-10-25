@@ -54,6 +54,10 @@ end
 
 if PG and not validated then
 
+    -- limpia menús viejos si re-ejecutas el script
+    local viejo = PG:FindFirstChild("SakuraDuels_KEY")
+    if viejo then viejo:Destroy() end
+
     local sg = Instance.new("ScreenGui")
     sg.Name           = "SakuraDuels_KEY"
     sg.ResetOnSpawn   = false
@@ -81,8 +85,8 @@ if PG and not validated then
     cardCorner.CornerRadius = UDim.new(0, 14)
 
     local cardStroke = Instance.new("UIStroke", card)
-    cardStroke.Color       = Color3.fromRGB(255, 105, 180)
-    cardStroke.Thickness   = 2
+    cardStroke.Color        = Color3.fromRGB(255, 105, 180)
+    cardStroke.Thickness    = 2
     cardStroke.Transparency = 0.15
 
     local title = Instance.new("TextLabel", card)
@@ -281,7 +285,7 @@ end
 print("[sakura duels] llave validada — cargando script...")
 
 end
--- ⬇️ A partir de aquí sigue tu INTRO intacto
+-- ⬇️ AQUÍ SIGUE TU INTRO Y TODO LO DEMÁS, SIN TOCAR
 
 -- 🌸sakura duels🌸 INTRO test (do not edit)
 (function()
