@@ -1,5 +1,5 @@
 -- =========================================================
---  SAKURA SCRIPTS - DELTA EXECUTOR (ACTUALIZADO)
+--  SAKURA SCRIPTS - DELTA EXECUTOR (FINAL)
 --  Sistema de Claves + Anti-pantallas dobles + Código Principal
 -- =========================================================
 
@@ -26,7 +26,6 @@ end
 local DatabaseClaves = {
     ["ELINSANIDINu"] = "1234",
     ["ELINSANIDINU"] = "1234", -- Soporte para variantes de mayúsculas
-    ["UsuarioEjemplo"] = "Sakura2026",
 }
 
 -----------------------------------------------------------
@@ -228,24 +227,7 @@ local function ValidarAcceso()
             -----------------------------------------------------------
             -- ACÁ ABAJO EL RESTO DE TU CÓDIGO
             -----------------------------------------------------------
-            print("[Sakura Scripts] Clave correcta. Ejecutando script principal...")
-            
-            -- [ Ejemplo: Coloca tus funciones, hubs o scripts aquí ]
-            -- loadstring(game:HttpGet("TU_LINK_DE_SCRIPT_PRINCIPAL"))()
-
-        else
-            StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-            StatusLabel.Text = "✕ Clave incorrecta para el usuario " .. userActual
-        end
-    else
-        StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-        StatusLabel.Text = "✕ El usuario '" .. userActual .. "' no está registrado."
-    end
-end
-
-VerifyButton.MouseButton1Click:Connect(ValidarAcceso)
-
-
+ 
 -- 🌸sakura duels🌸 INTRO test (do not edit)
 (function()
   local ok,err=pcall(function()
@@ -792,4 +774,18 @@ end
 local function executeStealV2(prompt)
     -- V2: the existing half-hold timing, kept as a separate mode.
     if not Steal.Data[prompt] then
-        Steal.Data[prompt]={hold={},trigger={},ready=true}
+        Steal.Data[prompt]={hold={},trigger={},ready=           
+
+        else
+            StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            StatusLabel.Text = "✕ Clave incorrecta para el usuario " .. userActual
+        end
+    else
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        StatusLabel.Text = "✕ El usuario '" .. userActual .. "' no está registrado."
+    end
+end
+
+VerifyButton.MouseButton1Click:Connect(ValidarAcceso)
+
+
