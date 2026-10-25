@@ -333,3 +333,198 @@ local function executeStealV2(prompt)
     end
     return executeStealV1(prompt)
 end
+
+-- ============================================================
+-- ESP ROJO NEÓN & INTERFAZ SAKURA MIDNIGHT (PARTE 3)
+-- ============================================================
+local ESP_ENABLED = true
+local ESP_COLOR = Color3.fromRGB(255, 0, 60)
+
+local function CreateESP(player)
+    if player == LP then return end
+    local function ApplyHighlight(character)
+        if not character then return end
+        local oldHL = character:FindFirstChild("SakuraNeonESP")
+        if oldHL then oldHL:Destroy() end
+        
+        local hl = Instance.new("Highlight")
+        hl.Name = "SakuraNeonESP"
+        hl.Adornee = character
+        hl.FillColor = ESP_COLOR
+        hl.FillTransparency = 0.55
+        hl.OutlineColor = Color3.fromRGB(255, 60, 130)
+        hl.OutlineTransparency = 0
+        hl.Enabled = ESP_ENABLED
+        hl.Parent = character
+    end
+    if player.Character then ApplyHighlight(player.Character) end
+    player.CharacterAdded:Connect(ApplyHighlight)
+end
+
+for _, pl in ipairs(Players:GetPlayers()) do CreateESP(pl) end
+Players.PlayerAdded:Connect(CreateESP)
+
+local SakuraTheme = {
+    MainBg       = Color3.fromRGB(18, 14, 24),
+    SecondaryBg  = Color3.fromRGB(30, 23, 38),
+    TitleBg      = Color3.fromRGB(26, 18, 32),
+    SakuraPink   = Color3.fromRGB(255, 105, 180),
+    SakuraLight  = Color3.fromRGB(255, 180, 215),
+    NeonRedActive= Color3.fromRGB(255, 45, 90),
+    TextPrimary  = Color3.fromRGB(245, 240, 250),
+    TextSecondary= Color3.fromRGB(175, 165, 185),
+    StateOff     = Color3.fromRGB(85, 78, 95),
+    BorderColor  = Color3.fromRGB(255, 60, 120),
+}
+
+local UIPositionLock = true
+
+local function MakeElementDraggable(dragFrame, handleFrame)
+    handleFrame = handleFrame or dragFrame
+    local dragging, dragInput, dragStart, startPos
+
+    handleFrame.InputBegan:Connect(function(input)
+        if UIPositionLock then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = dragFrame.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    handleFrame.InputChanged:Connect(function(input)
+        if UIPositionLock then return end
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(input)
+        if dragging and input == dragInput then
+            if UIPositionLock then dragging = false return end
+            local delta = input.Position - dragStart
+            
+            local viewport = workspace.CurrentCamera.ViewportSize
+            local newX = math.clamp(startPos.X.Offset + delta.X, -dragFrame.AbsoluteSize.X + 50, viewport.X - 50)
+            local newY = math.clamp(startPos.Y.Offset + delta.Y, 0, viewport.Y - 50)
+
+            TS:Create(dragFrame, TweenInfo.new(0.06, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+                Position = UDim2.new(startPos.X.Scale, newX, startPos.Y.Scale, newY)
+            }):Play()
+        end
+    end)
+end
+
+local GuiContainer = gethui and gethui() or (syn and syn.protect_gui and CoreGui) or LP:WaitForChild("PlayerGui")
+if GuiContainer:FindFirstChild("SakuraDuelsUI_Redesign") then
+    GuiContainer.SakuraDuelsUI_Redesign:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "SakuraDuelsUI_Redesign"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = GuiContainer
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 480, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -240, 0.5, -160)
+MainFrame.BackgroundColor3 = SakuraTheme.MainBg
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 14)
+MainCorner.Parent = MainFrame
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = SakuraTheme.BorderColor
+MainStroke.Thickness = 1.8
+MainStroke.Transparency = 0.2
+MainStroke.Parent = MainFrame
+
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Size = UDim2.new(1, 0, 0, 42)
+TitleBar.BackgroundColor3 = SakuraTheme.TitleBg
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 14)
+TitleCorner.Parent = TitleBar
+
+local TitleText = Instance.new("TextLabel")
+TitleText.Size = UDim2.new(0, 200, 1, 0)
+TitleText.Position = UDim2.new(0, 15, 0, 0)
+TitleText.Text = "🌸 Sakura Duels"
+TitleText.TextColor3 = SakuraTheme.SakuraPink
+TitleText.TextSize = 15
+TitleText.Font = Enum.Font.GothamBold
+TitleText.TextXAlignment = Enum.TextXAlignment.Left
+TitleText.BackgroundTransparency = 1
+TitleText.Parent = TitleBar
+
+local LockButton = Instance.new("TextButton")
+LockButton.Name = "LockButton"
+LockButton.Size = UDim2.new(0, 120, 0, 26)
+LockButton.Position = UDim2.new(1, -195, 0.5, -13)
+LockButton.BackgroundColor3 = SakuraTheme.SecondaryBg
+LockButton.Text = "🔒 UI LOCKED"
+LockButton.TextColor3 = SakuraTheme.SakuraLight
+LockButton.Font = Enum.Font.GothamBold
+LockButton.TextSize = 10
+LockButton.AutoButtonColor = false
+LockButton.Parent = TitleBar
+
+local LockCorner = Instance.new("UICorner")
+LockCorner.CornerRadius = UDim.new(0, 6)
+LockCorner.Parent = LockButton
+
+local LockStroke = Instance.new("UIStroke")
+LockStroke.Color = SakuraTheme.SakuraPink
+LockStroke.Thickness = 1
+LockStroke.Parent = LockButton
+
+LockButton.MouseButton1Click:Connect(function()
+    UIPositionLock = not UIPositionLock
+    if UIPositionLock then
+        LockButton.Text = "🔒 UI LOCKED"
+        LockButton.BackgroundColor3 = SakuraTheme.SecondaryBg
+        LockButton.TextColor3 = SakuraTheme.SakuraLight
+        LockStroke.Color = SakuraTheme.SakuraPink
+    else
+        LockButton.Text = "🔓 UI UNLOCKED"
+        LockButton.BackgroundColor3 = SakuraTheme.NeonRedActive
+        LockButton.TextColor3 = SakuraTheme.TextPrimary
+        LockStroke.Color = Color3.fromRGB(255, 255, 255)
+    end
+end)
+
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Size = UDim2.new(0, 26, 0, 26)
+CloseButton.Position = UDim2.new(1, -34, 0.5, -13)
+CloseButton.BackgroundColor3 = Color3.fromRGB(45, 25, 35)
+CloseButton.Text = "✕"
+CloseButton.TextColor3 = SakuraTheme.SakuraLight
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.TextSize = 12
+CloseButton.Parent = TitleBar
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 6)
+CloseCorner.Parent = CloseButton
+
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+MakeElementDraggable(MainFrame, TitleBar)
