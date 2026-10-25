@@ -1,198 +1,132 @@
---[[
-    SAKURA DUELS — SISTEMA DE LLAVES
-    Versión mejorada
-]]
+-- Sakura Key System (versión estable)
 
 local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
-local CONFIG = {
-    Enabled = true,                 -- true = pide llave | false = deja pasar a todos
-    KeyCaseInsensitive = true,      -- no importa mayúsculas/minúsculas
-
-    -- Usuarios que entran sin escribir llave
-    BypassUsers = {
-        -- ["nombre1"] = true,
-        -- ["nombre2"] = true,
-    },
-
-    -- Llaves maestras (sirven para cualquier usuario)
-    MasterKeys = {
-        -- "sakura",
-        -- "admin123",
-    },
-
-    -- Lista blanca: [usuario] = "llave"
-    Whitelist = {
-        ["elinsanidinu"] = "1234",
-        -- ["amigo1"] = "5678",
-        -- ["amigo2"] = "abcd",
-    },
-}
-
-----------------------------------------------------------------
--- Funciones internas
-----------------------------------------------------------------
-local function normalize(value)
-    value = tostring(value or "")
-    value = value:gsub("^%s+", ""):gsub("%s+$", "") -- quita espacios
-
-    if CONFIG.KeyCaseInsensitive then
-        value = value:lower()
-    end
-
-    return value
-end
-
-local function validate(username, enteredKey)
-    if not CONFIG.Enabled then
-        return true, "Sistema desactivado"
-    end
-
-    if type(username) \~= "string" or type(enteredKey) \~= "string" then
-        return false, "Datos inválidos"
-    end
-
-    username = username:lower()
-    enteredKey = normalize(enteredKey)
-
-    -- 1. Bypass
-    if CONFIG.BypassUsers[username] then
-        return true, "Acceso autorizado (bypass)"
-    end
-
-    -- 2. Llaves maestras
-    for _, masterKey in ipairs(CONFIG.MasterKeys) do
-        if enteredKey \~= "" and enteredKey == normalize(masterKey) then
-            return true, "Acceso autorizado (master key)"
-        end
-    end
-
-    -- 3. Whitelist
-    local expectedKey = CONFIG.Whitelist[username]
-
-    if not expectedKey then
-        return false, "Usuario no autorizado"
-    end
-
-    if enteredKey == "" then
-        return false, "Escribe una llave"
-    end
-
-    if enteredKey \~= normalize(expectedKey) then
-        return false, "Llave incorrecta"
-    end
-
-    return true, "Acceso concedido"
-end
-
-----------------------------------------------------------------
--- Ejemplo de uso con interfaz simple
-----------------------------------------------------------------
-local function createKeyUI(onSuccess)
-    local parent = game:GetService("CoreGui")
-    pcall(function()
-        if gethui then parent = gethui() end
-    end)
-
-    -- Limpiar anterior
-    pcall(function()
-        local old = parent:FindFirstChild("SakuraKeyUI")
-        if old then old:Destroy() end
-    end)
-
-    local screen = Instance.new("ScreenGui")
-    screen.Name = "SakuraKeyUI"
-    screen.ResetOnSpawn = false
-    screen.IgnoreGuiInset = true
-    screen.DisplayOrder = 9999
-    screen.Parent = parent
-
-    local main = Instance.new("Frame")
-    main.Size = UDim2.fromOffset(300, 200)
-    main.Position = UDim2.new(0.5, -150, 0.5, -100)
-    main.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-    main.BorderSizePixel = 0
-    main.Parent = screen
-    Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
-
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 45)
-    title.BackgroundTransparency = 1
-    title.Text = "🌸 Sakura Duels"
-    title.Font = Enum.Font.GothamBold
-    title.TextSize = 20
-    title.TextColor3 = Color3.fromRGB(255, 140, 180)
-    title.Parent = main
-
-    local box = Instance.new("TextBox")
-    box.Size = UDim2.new(1, -40, 0, 40)
-    box.Position = UDim2.fromOffset(20, 60)
-    box.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    box.BorderSizePixel = 0
-    box.PlaceholderText = "Escribe tu llave..."
-    box.Text = ""
-    box.Font = Enum.Font.Gotham
-    box.TextSize = 14
-    box.TextColor3 = Color3.fromRGB(240, 240, 248)
-    box.ClearTextOnFocus = false
-    box.Parent = main
-    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 8)
-
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -40, 0, 40)
-    btn.Position = UDim2.fromOffset(20, 115)
-    btn.BackgroundColor3 = Color3.fromRGB(255, 130, 170)
-    btn.BorderSizePixel = 0
-    btn.Text = "Verificar"
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 14
-    btn.TextColor3 = Color3.fromRGB(20, 20, 28)
-    btn.AutoButtonColor = false
-    btn.Parent = main
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-
-    local status = Instance.new("TextLabel")
-    status.Size = UDim2.new(1, -20, 0, 25)
-    status.Position = UDim2.fromOffset(10, 165)
-    status.BackgroundTransparency = 1
-    status.Text = ""
-    status.Font = Enum.Font.Gotham
-    status.TextSize = 12
-    status.TextColor3 = Color3.fromRGB(150, 150, 165)
-    status.Parent = main
-
-    local function check()
-        local ok, message = validate(LocalPlayer.Name, box.Text)
-
-        status.Text = message
-        status.TextColor3 = ok and Color3.fromRGB(100, 220, 150) or Color3.fromRGB(255, 90, 110)
-
-        if ok then
-            btn.Text = "Entrando..."
-            btn.Active = false
-            task.wait(0.6)
-            screen:Destroy()
-            if onSuccess then
-                onSuccess()
-            end
-        end
-    end
-
-    btn.MouseButton1Click:Connect(check)
-    box.FocusLost:Connect(function(enter)
-        if enter then check() end
-    end)
-end
-
-----------------------------------------------------------------
--- Iniciar
-----------------------------------------------------------------
-createKeyUI(function()
-    print("[Sakura] Acceso concedido — aquí va tu script principal")
-    -- Pegar aquí el resto de tu script
+-- Parent más compatible
+local parent = CoreGui
+pcall(function()
+	if gethui then parent = gethui() end
 end)
 
+-- Borrar anterior
+pcall(function()
+	local old = parent:FindFirstChild("SakuraKeyUI")
+	if old then old:Destroy() end
+end)
+
+local screen = Instance.new("ScreenGui")
+screen.Name = "SakuraKeyUI"
+screen.ResetOnSpawn = false
+screen.IgnoreGuiInset = true
+screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screen.DisplayOrder = 9999
+screen.Parent = parent
+
+-- Panel
+local main = Instance.new("Frame")
+main.Size = UDim2.fromOffset(300, 200)
+main.Position = UDim2.new(0.5, -150, 0.5, -100)
+main.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+main.BorderSizePixel = 0
+main.Parent = screen
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = main
+
+-- Título
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 45)
+title.BackgroundTransparency = 1
+title.Text = "🌸 Sakura Duels"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 20
+title.TextColor3 = Color3.fromRGB(255, 140, 180)
+title.Parent = main
+
+-- Caja de texto
+local box = Instance.new("TextBox")
+box.Size = UDim2.new(1, -40, 0, 40)
+box.Position = UDim2.fromOffset(20, 60)
+box.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+box.BorderSizePixel = 0
+box.PlaceholderText = "Escribe tu llave..."
+box.Text = ""
+box.Font = Enum.Font.Gotham
+box.TextSize = 14
+box.TextColor3 = Color3.fromRGB(240, 240, 248)
+box.ClearTextOnFocus = false
+box.Parent = main
+
+local boxCorner = Instance.new("UICorner")
+boxCorner.CornerRadius = UDim.new(0, 8)
+boxCorner.Parent = box
+
+-- Botón
+local btn = Instance.new("TextButton")
+btn.Size = UDim2.new(1, -40, 0, 40)
+btn.Position = UDim2.fromOffset(20, 115)
+btn.BackgroundColor3 = Color3.fromRGB(255, 130, 170)
+btn.BorderSizePixel = 0
+btn.Text = "Verificar"
+btn.Font = Enum.Font.GothamBold
+btn.TextSize = 14
+btn.TextColor3 = Color3.fromRGB(20, 20, 28)
+btn.AutoButtonColor = false
+btn.Parent = main
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 8)
+btnCorner.Parent = btn
+
+-- Estado
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1, -20, 0, 25)
+status.Position = UDim2.fromOffset(10, 165)
+status.BackgroundTransparency = 1
+status.Text = ""
+status.Font = Enum.Font.Gotham
+status.TextSize = 12
+status.TextColor3 = Color3.fromRGB(150, 150, 165)
+status.Parent = main
+
+-- Lógica de la llave
+local KEY = "1234"
+
+local function check()
+	local text = box.Text
+
+	if text == KEY then
+		status.Text = "Key correcta ✓"
+		status.TextColor3 = Color3.fromRGB(100, 220, 150)
+		btn.Text = "Entrando..."
+		btn.Active = false
+
+		task.wait(0.6)
+		screen:Destroy()
+
+		-- ============================
+		-- AQUÍ VA TU SCRIPT PRINCIPAL
+		-- ============================
+		print("Acceso concedido")
+
+	else
+		status.Text = "Key incorrecta"
+		status.TextColor3 = Color3.fromRGB(255, 90, 110)
+	end
+end
+
+btn.MouseButton1Click:Connect(check)
+
+box.FocusLost:Connect(function(enter)
+	if enter then
+		check()
+	end
+end)
+
+print("Sakura Key UI cargado")
 
 -- 🌸sakura duels🌸 INTRO test (do not edit)
 (function()
