@@ -1,641 +1,743 @@
 --=============================================================
---  DELTA UI  ·  menú flotante + funciones
---  · Walk Speed · Infinite Jump · ESP
+--  SAKURA SCRIPTS  ·  v1.1 (más estable)
 --=============================================================
+
+local success, err = pcall(function()
 
 local Players          = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService     = game:GetService("TweenService")
 local RunService       = game:GetService("RunService")
-local PlayerGui        = Players.LocalPlayer:WaitForChild("PlayerGui")
-local Camera           = workspace.CurrentCamera
+local CoreGui          = game:GetService("CoreGui")
 local LocalPlayer      = Players.LocalPlayer
+local Camera           = workspace.CurrentCamera
 
-local T = {
-	accentA = Color3.fromRGB(158, 118, 255),
-	accentB = Color3.fromRGB( 72, 202, 255),
-	panel   = Color3.fromRGB(18, 18, 26),
-	panelHi = Color3.fromRGB(34, 34, 46),
-	text    = Color3.fromRGB(240, 240, 248),
-	dim     = Color3.fromRGB(136, 138, 156),
+-- Esperar a que el jugador exista
+if not LocalPlayer then
+	LocalPlayer = Players.PlayerAdded:Wait()
+end
+
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
+
+-- Colores
+local C = {
+	bg      = Color3.fromRGB(14, 14, 16),
+	panel   = Color3.fromRGB(22, 22, 26),
+	panel2  = Color3.fromRGB(32, 32, 38),
+	text    = Color3.fromRGB(245, 245, 250),
+	dim     = Color3.fromRGB(145, 145, 160),
+	accent  = Color3.fromRGB(255, 145, 175),
 }
 
-local prev = PlayerGui:FindFirstChild("DeltaUI")
-if prev then prev:Destroy() end
-
-----------------------------------------------------------------
--- helpers
-----------------------------------------------------------------
-local function new(class, props, children)
-	local o = Instance.new(class)
-	local parent = props and props.Parent
-	for k, v in pairs(props or {}) do
-		if k \~= "Parent" then o[k] = v end
+-- Limpiar versión anterior
+pcall(function()
+	for _, v in ipairs({PlayerGui, CoreGui}) do
+		local old = v:FindFirstChild("SakuraScripts")
+		if old then old:Destroy() end
 	end
-	for _, c in ipairs(children or {}) do c.Parent = o end
-	if parent then o.Parent = parent end
-	return o
+end)
+
+----------------------------------------------------------------
+-- Parent seguro
+----------------------------------------------------------------
+local function getParent()
+	local ok, gui = pcall(function()
+		if gethui then return gethui() end
+		if get_hidden_gui then return get_hidden_gui() end
+		return nil
+	end)
+	if ok and gui then return gui end
+
+	-- syn
+	if syn and syn.protect_gui then
+		local sg = Instance.new("ScreenGui")
+		syn.protect_gui(sg)
+		sg.Parent = CoreGui
+		return sg
+	end
+
+	return PlayerGui
 end
 
-local function round(o, r)
-	return new("UICorner", { CornerRadius = UDim.new(0, r), Parent = o })
-end
+local parentGui = getParent()
 
-local function gradient(o, a, b, rot)
-	return new("UIGradient", {
-		ColorSequence = ColorSequence.new(a, b),
-		Rotation = rot or 45,
-		Parent = o,
-	})
-end
+local screen = Instance.new("ScreenGui")
+screen.Name = "SakuraScripts"
+screen.ResetOnSpawn = false
+screen.IgnoreGuiInset = true
+screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screen.DisplayOrder = 999
+screen.Parent = parentGui
 
-local function dragify(handle, target, onTap)
-	target = target or handle
-	local dragging, moved, startInput, startPos = false, false, nil, nil
-
-	handle.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
-			dragging, moved = true, false
-			startInput = input.Position
-			startPos   = target.Position
+----------------------------------------------------------------
+-- Helpers
+----------------------------------------------------------------
+local function new(class, props)
+	local obj = Instance.new(class)
+	if props then
+		for k, v in pairs(props) do
+			obj[k] = v
 		end
-	end)
+	end
+	return obj
+end
 
-	UserInputService.InputChanged:Connect(function(input)
-		if not dragging then return end
-		if input.UserInputType \~= Enum.UserInputType.MouseMovement
-		and input.UserInputType \~= Enum.UserInputType.Touch then return end
-		local d = input.Position - startInput
-		if math.abs(d.X) > 4 or math.abs(d.Y) > 4 then moved = true end
-		local vp = Camera.ViewportSize
-		local sz = target.AbsoluteSize
-		target.Position = UDim2.new(
-			0, math.clamp(startPos.X.Offset + d.X, 0, math.max(0, vp.X - sz.X)),
-			0, math.clamp(startPos.Y.Offset + d.Y, 0, math.max(0, vp.Y - sz.Y))
-		)
-	end)
-
-	UserInputService.InputEnded:Connect(function(input)
-		if not dragging then return end
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
-			dragging = false
-			if not moved and onTap then onTap() end
-		end
-	end)
+local function corner(obj, r)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, r or 8)
+	c.Parent = obj
+	return c
 end
 
 ----------------------------------------------------------------
--- ESTADO DE LAS FUNCIONES
+-- Estado
 ----------------------------------------------------------------
 local State = {
-	AutoRun       = false,
-	InfiniteJump  = false,
-	WalkSpeed     = 16,
-	ESP           = false,
-	ShowFPS       = false,
+	InfiniteJump = false,
+	WalkSpeed    = 16,
+	ESP          = false,
+	ESPColor     = C.accent,
+	Fly          = false,
 }
 
 ----------------------------------------------------------------
--- WALK SPEED
+-- Walk Speed
 ----------------------------------------------------------------
 local function applyWalkSpeed()
 	local char = LocalPlayer.Character
-	if not char then return end
-	local hum = char:FindFirstChildOfClass("Humanoid")
-	if hum then
-		hum.WalkSpeed = State.WalkSpeed
+	if char then
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		if hum then hum.WalkSpeed = State.WalkSpeed end
 	end
 end
 
 LocalPlayer.CharacterAdded:Connect(function()
-	task.wait(0.3)
+	task.wait(0.5)
 	applyWalkSpeed()
 end)
 
 ----------------------------------------------------------------
--- INFINITE JUMP
+-- Infinite Jump
 ----------------------------------------------------------------
 local jumpConn
-local function setInfiniteJump(enabled)
+local function setInfiniteJump(on)
 	if jumpConn then
 		jumpConn:Disconnect()
 		jumpConn = nil
 	end
-	if enabled then
+	if on then
 		jumpConn = UserInputService.JumpRequest:Connect(function()
 			local char = LocalPlayer.Character
-			if not char then return end
-			local hum = char:FindFirstChildOfClass("Humanoid")
-			if hum then
-				hum:ChangeState(Enum.HumanoidStateType.Jumping)
+			if char then
+				local hum = char:FindFirstChildOfClass("Humanoid")
+				if hum then
+					hum:ChangeState(Enum.HumanoidStateType.Jumping)
+				end
 			end
 		end)
 	end
 end
 
 ----------------------------------------------------------------
--- ESP (nombres + highlight)
+-- Fly
 ----------------------------------------------------------------
-local espFolder = Instance.new("Folder")
-espFolder.Name = "DeltaESP"
-espFolder.Parent = PlayerGui
+local flyConn, flyBV, flyBG
 
-local function clearESP()
-	for _, v in ipairs(espFolder:GetChildren()) do
-		v:Destroy()
+local function stopFly()
+	if flyConn then flyConn:Disconnect() flyConn = nil end
+	if flyBV then flyBV:Destroy() flyBV = nil end
+	if flyBG then flyBG:Destroy() flyBG = nil end
+	local char = LocalPlayer.Character
+	if char then
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		if hum then hum.PlatformStand = false end
 	end
 end
 
-local function createESP(player)
-	if player == LocalPlayer then return end
-	if not player.Character then return end
+local function setFly(on)
+	stopFly()
+	if not on then return end
 
-	local char = player.Character
+	local char = LocalPlayer.Character
+	if not char then return end
+	local root = char:FindFirstChild("HumanoidRootPart")
+	local hum  = char:FindFirstChildOfClass("Humanoid")
+	if not root or not hum then return end
+
+	flyBV = Instance.new("BodyVelocity")
+	flyBV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+	flyBV.Velocity = Vector3.zero
+	flyBV.Parent = root
+
+	flyBG = Instance.new("BodyGyro")
+	flyBG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+	flyBG.P = 9e4
+	flyBG.Parent = root
+
+	hum.PlatformStand = true
+
+	flyConn = RunService.RenderStepped:Connect(function()
+		if not State.Fly or not root.Parent then
+			stopFly()
+			State.Fly = false
+			return
+		end
+		local cam = Camera.CFrame
+		local move = Vector3.zero
+		if UserInputService:IsKeyDown(Enum.KeyCode.W) then move += cam.LookVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.S) then move -= cam.LookVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.A) then move -= cam.RightVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.D) then move += cam.RightVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move += Vector3.yAxis end
+		if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then move -= Vector3.yAxis end
+
+		flyBV.Velocity = move.Magnitude > 0 and move.Unit * 55 or Vector3.zero
+		flyBG.CFrame = CFrame.new(root.Position, root.Position + cam.LookVector)
+	end)
+end
+
+----------------------------------------------------------------
+-- ESP
+----------------------------------------------------------------
+local espFolder = Instance.new("Folder")
+espFolder.Name = "ESP_Folder"
+espFolder.Parent = screen
+
+local function clearESP()
+	espFolder:ClearAllChildren()
+end
+
+local function createESP(plr)
+	if plr == LocalPlayer then return end
+	local char = plr.Character
+	if not char then return end
 	local head = char:FindFirstChild("Head")
 	if not head then return end
 
-	-- Highlight
-	local highlight = Instance.new("Highlight")
-	highlight.Name = player.Name
-	highlight.Adornee = char
-	highlight.FillColor = T.accentA
-	highlight.OutlineColor = T.accentB
-	highlight.FillTransparency = 0.7
-	highlight.OutlineTransparency = 0.2
-	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-	highlight.Parent = espFolder
+	local hl = Instance.new("Highlight")
+	hl.Adornee = char
+	hl.FillColor = State.ESPColor
+	hl.OutlineColor = State.ESPColor
+	hl.FillTransparency = 0.65
+	hl.OutlineTransparency = 0.2
+	hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	hl.Parent = espFolder
 
-	-- Nombre
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = player.Name .. "_Name"
-	billboard.Adornee = head
-	billboard.Size = UDim2.fromOffset(120, 30)
-	billboard.StudsOffset = Vector3.new(0, 2.5, 0)
-	billboard.AlwaysOnTop = true
-	billboard.Parent = espFolder
+	local bb = Instance.new("BillboardGui")
+	bb.Adornee = head
+	bb.Size = UDim2.fromOffset(100, 24)
+	bb.StudsOffset = Vector3.new(0, 2.4, 0)
+	bb.AlwaysOnTop = true
+	bb.Parent = espFolder
 
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, 0, 1, 0)
-	label.BackgroundTransparency = 1
-	label.Text = player.DisplayName
-	label.TextColor3 = T.text
-	label.TextStrokeTransparency = 0.4
-	label.Font = Enum.Font.GothamBold
-	label.TextSize = 13
-	label.Parent = billboard
+	local txt = Instance.new("TextLabel")
+	txt.Size = UDim2.new(1, 0, 1, 0)
+	txt.BackgroundTransparency = 1
+	txt.Text = plr.DisplayName
+	txt.TextColor3 = State.ESPColor
+	txt.TextStrokeTransparency = 0.5
+	txt.Font = Enum.Font.GothamBold
+	txt.TextSize = 12
+	txt.Parent = bb
 end
 
 local function refreshESP()
 	clearESP()
-	if not State.ESP then return end
-	for _, plr in ipairs(Players:GetPlayers()) do
-		createESP(plr)
+	if State.ESP then
+		for _, p in ipairs(Players:GetPlayers()) do
+			createESP(p)
+		end
 	end
 end
 
-Players.PlayerAdded:Connect(function(plr)
-	plr.CharacterAdded:Connect(function()
+local function setESPColor(col)
+	State.ESPColor = col
+	for _, obj in ipairs(espFolder:GetChildren()) do
+		if obj:IsA("Highlight") then
+			obj.FillColor = col
+			obj.OutlineColor = col
+		elseif obj:IsA("BillboardGui") then
+			local t = obj:FindFirstChildOfClass("TextLabel")
+			if t then t.TextColor3 = col end
+		end
+	end
+end
+
+Players.PlayerAdded:Connect(function(p)
+	p.CharacterAdded:Connect(function()
 		if State.ESP then
-			task.wait(0.5)
-			createESP(plr)
+			task.wait(0.8)
+			createESP(p)
 		end
 	end)
 end)
 
-Players.PlayerRemoving:Connect(function(plr)
-	local h = espFolder:FindFirstChild(plr.Name)
-	if h then h:Destroy() end
-	local n = espFolder:FindFirstChild(plr.Name .. "_Name")
-	if n then n:Destroy() end
-end)
-
 ----------------------------------------------------------------
--- GUI
+-- UI
 ----------------------------------------------------------------
-local gui = new("ScreenGui", {
-	Name = "DeltaUI",
-	ResetOnSpawn = false,
-	IgnoreGuiInset = true,
-	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-	DisplayOrder = 500,
-	Parent = PlayerGui,
-})
-
---===================== BOTÓN FLOTANTE =========================
+-- Botón flotante
 local btn = new("TextButton", {
-	Name = "FloatButton",
-	Parent = gui,
-	Position = UDim2.new(0, 36, 0, 150),
-	Size = UDim2.fromOffset(56, 56),
-	BackgroundColor3 = T.panel,
+	Parent = screen,
+	Name = "OpenBtn",
+	Position = UDim2.new(0, 20, 0.35, 0),
+	Size = UDim2.fromOffset(52, 52),
+	BackgroundColor3 = C.panel,
 	BorderSizePixel = 0,
-	Text = "", AutoButtonColor = false, Active = true,
-	ZIndex = 10,
+	Text = "🌸",
+	TextSize = 22,
+	AutoButtonColor = false,
+	ZIndex = 50,
 })
-round(btn, 28)
-gradient(new("UIStroke", {
-	Color = T.text, Thickness = 1.4, Transparency = 0.5, Parent = btn,
-}), T.accentA, T.accentB)
+corner(btn, 26)
 
-local halo = new("Frame", {
+local btnStroke = new("UIStroke", {
 	Parent = btn,
-	AnchorPoint = Vector2.new(0.5, 0.5),
-	Position = UDim2.new(0.5, 0, 0.5, 0),
-	Size = UDim2.fromOffset(96, 96),
-	BackgroundColor3 = T.accentA,
-	BackgroundTransparency = 0.9,
-	BorderSizePixel = 0, ZIndex = 9,
+	Color = C.accent,
+	Thickness = 2,
+	Transparency = 0.3,
 })
-round(halo, 48)
 
-local lines = {}
-for i = -1, 1 do
-	local l = new("Frame", {
-		Parent = btn,
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.5, i * 7),
-		Size = UDim2.fromOffset(20, 2),
-		BackgroundColor3 = T.text,
-		BorderSizePixel = 0, ZIndex = 11,
-	})
-	round(l, 1)
-	lines[i] = l
-end
-
---====================== VENTANA ===============================
-local root = new("CanvasGroup", {
-	Name = "Menu",
-	Parent = gui,
-	Position = UDim2.new(0, 36, 0, 220),
-	Size = UDim2.fromOffset(300, 400),
-	BackgroundTransparency = 1,
-	GroupTransparency = 1,
-	Visible = false,
-	ZIndex = 3,
-})
-local pop = new("UIScale", { Scale = 0.9, Parent = root })
-
-new("Frame", {
-	Parent = root,
-	Position = UDim2.fromOffset(0, 10),
-	Size = UDim2.new(1, 0, 1, -10),
-	BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-	BackgroundTransparency = 0.55,
-	BorderSizePixel = 0, ZIndex = 1,
-}, { new("UICorner", { CornerRadius = UDim.new(0, 16) }) })
-
+-- Ventana
 local main = new("Frame", {
+	Parent = screen,
 	Name = "Main",
-	Parent = root,
-	Size = UDim2.new(1, 0, 1, -10),
-	BackgroundColor3 = T.panel,
+	Position = UDim2.new(0, 20, 0.35, 65),
+	Size = UDim2.fromOffset(270, 400),
+	BackgroundColor3 = C.bg,
 	BorderSizePixel = 0,
-	ClipsDescendants = true,
-	ZIndex = 2,
+	Visible = false,
+	ZIndex = 40,
 })
-round(main, 16)
-local mStroke = new("UIStroke", { Color = T.text, Thickness = 1.2, Transparency = 0.8, Parent = main })
-new("UIGradient", {
-	ColorSequence = ColorSequence.new(T.accentA, T.accentB),
-	Rotation = 90,
-	Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.2),
-		NumberSequenceKeypoint.new(1, 0.9),
-	}),
-	Parent = mStroke,
-})
+corner(main, 12)
 
-local sheen = new("Frame", {
+new("UIStroke", {
 	Parent = main,
-	Size = UDim2.new(1, 0, 0, 130),
-	BackgroundColor3 = T.accentA,
-	BackgroundTransparency = 0.92,
-	BorderSizePixel = 0, ZIndex = 2,
-})
-new("UIGradient", {
-	Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0),
-		NumberSequenceKeypoint.new(1, 1),
-	}),
-	Rotation = 90,
-	Parent = sheen,
+	Color = Color3.fromRGB(55, 55, 65),
+	Thickness = 1,
 })
 
-local accent = new("Frame", {
-	Parent = main,
-	Size = UDim2.new(1, 0, 0, 2),
-	BackgroundColor3 = T.accentA,
-	BorderSizePixel = 0, ZIndex = 3,
-})
-gradient(accent, T.accentA, T.accentB, 0)
-
---====================== CABECERA ==============================
+-- Header
 local header = new("Frame", {
-	Name = "Header",
 	Parent = main,
-	Position = UDim2.fromOffset(0, 2),
 	Size = UDim2.new(1, 0, 0, 50),
-	BackgroundTransparency = 1,
-	Active = true, ZIndex = 4,
+	BackgroundColor3 = C.panel,
+	BorderSizePixel = 0,
+	ZIndex = 41,
 })
+corner(header, 12)
 
-local dot = new("Frame", {
+new("Frame", { -- fix bottom corners of header
 	Parent = header,
-	Position = UDim2.fromOffset(16, 21),
-	Size = UDim2.fromOffset(9, 9),
-	BackgroundColor3 = T.accentA,
-	BorderSizePixel = 0, ZIndex = 5,
+	Position = UDim2.new(0, 0, 1, -12),
+	Size = UDim2.new(1, 0, 0, 12),
+	BackgroundColor3 = C.panel,
+	BorderSizePixel = 0,
+	ZIndex = 41,
 })
-round(dot, 5)
-gradient(dot, T.accentA, T.accentB)
 
 new("TextLabel", {
-	Parent = header, BackgroundTransparency = 1,
-	Position = UDim2.fromOffset(34, 11),
-	Size = UDim2.fromOffset(150, 17),
-	Font = Enum.Font.GothamBold, Text = "DELTA",
-	TextSize = 14, TextColor3 = T.text,
-	TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 5,
+	Parent = header,
+	Position = UDim2.fromOffset(16, 9),
+	Size = UDim2.fromOffset(180, 18),
+	BackgroundTransparency = 1,
+	Text = "SAKURA SCRIPTS",
+	Font = Enum.Font.GothamBold,
+	TextSize = 14,
+	TextColor3 = C.text,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 42,
 })
+
 new("TextLabel", {
-	Parent = header, BackgroundTransparency = 1,
-	Position = UDim2.fromOffset(34, 27),
-	Size = UDim2.fromOffset(150, 13),
-	Font = Enum.Font.Gotham, Text = "movement · vision",
-	TextSize = 10, TextColor3 = T.dim,
-	TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 5,
+	Parent = header,
+	Position = UDim2.fromOffset(16, 27),
+	Size = UDim2.fromOffset(180, 14),
+	BackgroundTransparency = 1,
+	Text = "elegant utilities",
+	Font = Enum.Font.Gotham,
+	TextSize = 11,
+	TextColor3 = C.dim,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 42,
 })
 
-local function iconBtn(glyph, xo)
-	local b = new("TextButton", {
-		Parent = header,
-		Position = UDim2.new(1, xo, 0.5, -13),
-		Size = UDim2.fromOffset(26, 26),
-		BackgroundColor3 = T.panelHi, BackgroundTransparency = 0.3,
-		BorderSizePixel = 0, Text = glyph,
-		Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = T.dim,
-		AutoButtonColor = false, ZIndex = 6,
-	})
-	round(b, 8)
-	return b
-end
-
-local minBtn   = iconBtn("–", -66)
-local closeBtn = iconBtn("×", -36)
-
-new("Frame", {
-	Parent = main,
-	Position = UDim2.fromOffset(0, 52),
-	Size = UDim2.new(1, 0, 0, 1),
-	BackgroundColor3 = T.text, BackgroundTransparency = 0.9,
-	BorderSizePixel = 0, ZIndex = 4,
+local close = new("TextButton", {
+	Parent = header,
+	Position = UDim2.new(1, -38, 0.5, -11),
+	Size = UDim2.fromOffset(22, 22),
+	BackgroundColor3 = C.panel2,
+	BorderSizePixel = 0,
+	Text = "×",
+	Font = Enum.Font.GothamBold,
+	TextSize = 15,
+	TextColor3 = C.dim,
+	AutoButtonColor = false,
+	ZIndex = 42,
 })
+corner(close, 6)
 
---====================== CONTENIDO =============================
+-- Body
 local body = new("Frame", {
-	Name = "Body",
 	Parent = main,
 	Position = UDim2.fromOffset(0, 54),
-	Size = UDim2.new(1, 0, 1, -84),
-	BackgroundTransparency = 1, ZIndex = 4,
+	Size = UDim2.new(1, 0, 1, -54),
+	BackgroundTransparency = 1,
+	ZIndex = 41,
 })
 
-local function section(y, text)
-	return new("TextLabel", {
-		Parent = body, BackgroundTransparency = 1,
+local function label(y, text)
+	new("TextLabel", {
+		Parent = body,
 		Position = UDim2.fromOffset(16, y),
-		Size = UDim2.new(1, -32, 0, 13),
-		Font = Enum.Font.GothamBold, Text = text,
-		TextSize = 9.5, TextColor3 = T.dim,
-		TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 5,
+		Size = UDim2.new(1, -32, 0, 14),
+		BackgroundTransparency = 1,
+		Text = text,
+		Font = Enum.Font.GothamBold,
+		TextSize = 10,
+		TextColor3 = C.dim,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 42,
 	})
 end
 
-local function rowSwitch(y, label, default, callback)
-	local state = default
+local function switch(y, name, callback)
+	local on = false
 	local row = new("Frame", {
 		Parent = body,
 		Position = UDim2.fromOffset(16, y),
 		Size = UDim2.new(1, -32, 0, 28),
-		BackgroundTransparency = 1, Active = true, ZIndex = 5,
+		BackgroundTransparency = 1,
+		ZIndex = 42,
 	})
+
 	new("TextLabel", {
-		Parent = row, BackgroundTransparency = 1,
-		Size = UDim2.new(1, -52, 1, 0),
-		Font = Enum.Font.Gotham, Text = label,
-		TextSize = 12, TextColor3 = T.text,
-		TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 5,
+		Parent = row,
+		Size = UDim2.new(1, -48, 1, 0),
+		BackgroundTransparency = 1,
+		Text = name,
+		Font = Enum.Font.Gotham,
+		TextSize = 13,
+		TextColor3 = C.text,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 42,
 	})
+
 	local track = new("TextButton", {
 		Parent = row,
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, 0, 0.5, 0),
 		Size = UDim2.fromOffset(36, 19),
-		BackgroundColor3 = state and T.accentA or T.panelHi,
-		BorderSizePixel = 0, Text = "",
-		AutoButtonColor = false, ZIndex = 5,
+		BackgroundColor3 = C.panel2,
+		BorderSizePixel = 0,
+		Text = "",
+		AutoButtonColor = false,
+		ZIndex = 42,
 	})
-	round(track, 10)
+	corner(track, 10)
+
 	local knob = new("Frame", {
 		Parent = track,
 		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, state and 19 or 3, 0.5, 0),
+		Position = UDim2.new(0, 3, 0.5, 0),
 		Size = UDim2.fromOffset(13, 13),
-		BackgroundColor3 = T.text,
-		BorderSizePixel = 0, ZIndex = 6,
+		BackgroundColor3 = Color3.new(1,1,1),
+		BorderSizePixel = 0,
+		ZIndex = 43,
 	})
-	round(knob, 7)
+	corner(knob, 7)
 
 	track.MouseButton1Click:Connect(function()
-		state = not state
-		TweenService:Create(track, TweenInfo.new(0.16), {
-			BackgroundColor3 = state and T.accentA or T.panelHi,
+		on = not on
+		TweenService:Create(track, TweenInfo.new(0.15), {
+			BackgroundColor3 = on and C.accent or C.panel2
 		}):Play()
-		TweenService:Create(knob, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {
-			Position = UDim2.new(0, state and 19 or 3, 0.5, 0),
+		TweenService:Create(knob, TweenInfo.new(0.15), {
+			Position = UDim2.new(0, on and 20 or 3, 0.5, 0)
 		}):Play()
-		if callback then callback(state) end
+		callback(on)
 	end)
-	return row
 end
 
-local function rowSlider(y, label, minV, maxV, default, callback)
+local function slider(y, name, minV, maxV, def, callback)
 	local row = new("Frame", {
 		Parent = body,
 		Position = UDim2.fromOffset(16, y),
-		Size = UDim2.new(1, -32, 0, 40),
-		BackgroundTransparency = 1, ZIndex = 5,
+		Size = UDim2.new(1, -32, 0, 42),
+		BackgroundTransparency = 1,
+		ZIndex = 42,
 	})
+
 	new("TextLabel", {
-		Parent = row, BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 15),
-		Font = Enum.Font.Gotham, Text = label,
-		TextSize = 12, TextColor3 = T.text,
-		TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 5,
+		Parent = row,
+		Size = UDim2.new(0.6, 0, 0, 16),
+		BackgroundTransparency = 1,
+		Text = name,
+		Font = Enum.Font.Gotham,
+		TextSize = 13,
+		TextColor3 = C.text,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 42,
 	})
+
 	local val = new("TextLabel", {
-		Parent = row, BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 15),
-		Font = Enum.Font.GothamBold, Text = tostring(default),
-		TextSize = 11.5, TextColor3 = T.accentB,
-		TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 5,
+		Parent = row,
+		Size = UDim2.new(1, 0, 0, 16),
+		BackgroundTransparency = 1,
+		Text = tostring(def),
+		Font = Enum.Font.GothamBold,
+		TextSize = 12,
+		TextColor3 = C.accent,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		ZIndex = 42,
 	})
+
 	local track = new("Frame", {
 		Parent = row,
-		Position = UDim2.fromOffset(0, 25),
+		Position = UDim2.fromOffset(0, 26),
 		Size = UDim2.new(1, 0, 0, 5),
-		BackgroundColor3 = T.panelHi,
-		BorderSizePixel = 0, Active = true, ZIndex = 5,
+		BackgroundColor3 = C.panel2,
+		BorderSizePixel = 0,
+		ZIndex = 42,
 	})
-	round(track, 3)
+	corner(track, 3)
 
-	local rel0 = (default - minV) / (maxV - minV)
 	local fill = new("Frame", {
 		Parent = track,
-		Size = UDim2.new(rel0, 0, 1, 0),
-		BackgroundColor3 = T.accentA,
-		BorderSizePixel = 0, ZIndex = 6,
+		Size = UDim2.new((def-minV)/(maxV-minV), 0, 1, 0),
+		BackgroundColor3 = C.accent,
+		BorderSizePixel = 0,
+		ZIndex = 43,
 	})
-	round(fill, 3)
-	gradient(fill, T.accentA, T.accentB, 0)
+	corner(fill, 3)
 
 	local knob = new("Frame", {
 		Parent = track,
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(rel0, 0, 0.5, 0),
+		Position = UDim2.new((def-minV)/(maxV-minV), 0, 0.5, 0),
 		Size = UDim2.fromOffset(12, 12),
-		BackgroundColor3 = T.text,
-		BorderSizePixel = 0, Active = true, ZIndex = 7,
+		BackgroundColor3 = Color3.new(1,1,1),
+		BorderSizePixel = 0,
+		ZIndex = 44,
 	})
-	round(knob, 6)
+	corner(knob, 6)
 
-	local dragging = false
-	local function setFromX(absX)
-		local rel = math.clamp((absX - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
-		fill.Size = UDim2.new(rel, 0, 1, 0)
-		knob.Position = UDim2.new(rel, 0, 0.5, 0)
-		local value = math.floor(minV + (maxV - minV) * rel + 0.5)
-		val.Text = tostring(value)
-		if callback then callback(value) end
+	local hold = false
+	local function update(x)
+		local r = math.clamp((x - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
+		fill.Size = UDim2.new(r, 0, 1, 0)
+		knob.Position = UDim2.new(r, 0, 0.5, 0)
+		local v = math.floor(minV + (maxV - minV) * r + 0.5)
+		val.Text = tostring(v)
+		callback(v)
 	end
 
-	local function grab(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
-			dragging = true
-			setFromX(input.Position.X)
-		end
-	end
-	knob.InputBegan:Connect(grab)
-	track.InputBegan:Connect(grab)
-	UserInputService.InputChanged:Connect(function(input)
-		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
-		or input.UserInputType == Enum.UserInputType.Touch) then
-			setFromX(input.Position.X)
+	track.InputBegan:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			hold = true
+			update(i.Position.X)
 		end
 	end)
-	UserInputService.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
-			dragging = false
+	knob.InputBegan:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			hold = true
 		end
 	end)
-	return row
+	UserInputService.InputChanged:Connect(function(i)
+		if hold and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+			update(i.Position.X)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			hold = false
+		end
+	end)
 end
 
--- CONTROLES
-section(6, "MOVEMENT")
-rowSwitch(22, "Infinite Jump", false, function(on)
-	State.InfiniteJump = on
-	setInfiniteJump(on)
+-- Controles
+label(6, "MOVEMENT")
+switch(24, "Infinite Jump", function(v)
+	State.InfiniteJump = v
+	setInfiniteJump(v)
 end)
-
-rowSlider(54, "Walk Speed", 16, 250, 16, function(value)
-	State.WalkSpeed = value
+switch(56, "Fly", function(v)
+	State.Fly = v
+	setFly(v)
+end)
+slider(90, "Walk Speed", 16, 250, 16, function(v)
+	State.WalkSpeed = v
 	applyWalkSpeed()
 end)
 
-section(110, "VISION")
-rowSwitch(126, "ESP (Players)", false, function(on)
-	State.ESP = on
+label(150, "VISION")
+switch(168, "ESP", function(v)
+	State.ESP = v
 	refreshESP()
 end)
 
---====================== PIE ===================================
-new("Frame", {
-	Parent = main,
-	Position = UDim2.new(0, 0, 1, -27),
-	Size = UDim2.new(1, 0, 0, 1),
-	BackgroundColor3 = T.text, BackgroundTransparency = 0.9,
-	BorderSizePixel = 0, ZIndex = 4,
-})
+-- Colores ESP
 new("TextLabel", {
-	Parent = main, BackgroundTransparency = 1,
-	Position = UDim2.new(0, 0, 1, -24),
-	Size = UDim2.new(1, 0, 0, 20),
-	Font = Enum.Font.Gotham, Text = "delta  ·  movement + vision",
-	TextSize = 10, TextColor3 = T.dim, ZIndex = 4,
+	Parent = body,
+	Position = UDim2.fromOffset(16, 206),
+	Size = UDim2.new(1, -32, 0, 14),
+	BackgroundTransparency = 1,
+	Text = "ESP Color",
+	Font = Enum.Font.Gotham,
+	TextSize = 12,
+	TextColor3 = C.text,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 42,
 })
 
---====================== LÓGICA UI =============================
-local isOpen, hideToken = false, 0
-local TI = TweenInfo.new(0.26, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local cols = {
+	Color3.fromRGB(255, 145, 175),
+	Color3.fromRGB(255, 100, 130),
+	Color3.fromRGB(120, 190, 255),
+	Color3.fromRGB(120, 255, 170),
+	Color3.fromRGB(255, 210, 100),
+	Color3.fromRGB(240, 240, 245),
+}
 
-local function setMenu(state)
-	isOpen = state
-	hideToken += 1
-	local token = hideToken
-	if state then root.Visible = true end
+local activeStroke
+for i, col in ipairs(cols) do
+	local b = new("TextButton", {
+		Parent = body,
+		Position = UDim2.fromOffset(16 + (i-1)*38, 226),
+		Size = UDim2.fromOffset(30, 24),
+		BackgroundColor3 = col,
+		BorderSizePixel = 0,
+		Text = "",
+		AutoButtonColor = false,
+		ZIndex = 42,
+	})
+	corner(b, 5)
+	local st = new("UIStroke", {
+		Parent = b,
+		Color = Color3.new(1,1,1),
+		Thickness = 2,
+		Transparency = i == 1 and 0 or 1,
+	})
+	if i == 1 then activeStroke = st end
 
-	if state then
-		local vp = Camera.ViewportSize
-		local bp, bs = btn.AbsolutePosition, btn.AbsoluteSize
-		local w, h = root.AbsoluteSize.X, root.AbsoluteSize.Y
-		local x = math.clamp(bp.X, 8, math.max(8, vp.X - w - 8))
-		local y = (bp.Y + bs.Y + 14 + h > vp.Y) and (bp.Y - h - 14) or (bp.Y + bs.Y + 14)
-		root.Position = UDim2.fromOffset(x, math.clamp(y, 8, math.max(8, vp.Y - h - 8)))
-	end
-
-	TweenService:Create(root, TI, { GroupTransparency = state and 0 or 1 }):Play()
-	TweenService:Create(pop, TI, { Scale = state and 1 or 0.88 }):Play()
-	TweenService:Create(halo, TI, { BackgroundTransparency = state and 0.75 or 0.9 }):Play()
-	TweenService:Create(lines[0], TI, { BackgroundTransparency = state and 1 or 0 }):Play()
-	TweenService:Create(lines[-1], TI, {
-		Rotation = state and 45 or 0,
-		Position = UDim2.new(0.5, 0, 0.5, state and 0 or -7),
-	}):Play()
-	TweenService:Create(lines[1], TI, {
-		Rotation = state and -45 or 0,
-		Position = UDim2.new(0.5, 0, 0.5, state and 0 or 7),
-	}):Play()
-
-	if not state then
-		task.delay(0.28, function()
-			if token == hideToken then root.Visible = false end
-		end)
-	end
+	b.MouseButton1Click:Connect(function()
+		if activeStroke then activeStroke.Transparency = 1 end
+		st.Transparency = 0
+		activeStroke = st
+		setESPColor(col)
+	end)
 end
 
-dragify(btn, nil, function() setMenu(not isOpen) end)
-dragify(header, root)
-closeBtn.MouseButton1Click:Connect(function() setMenu(false) end)
+new("TextLabel", {
+	Parent = body,
+	Position = UDim2.fromOffset(0, 270),
+	Size = UDim2.new(1, 0, 0, 18),
+	BackgroundTransparency = 1,
+	Text = "Right Shift  ·  toggle menu",
+	Font = Enum.Font.Gotham,
+	TextSize = 11,
+	TextColor3 = C.dim,
+	ZIndex = 42,
+})
 
-local minimized = false
-minBtn.MouseButton1Click:Connect(function()
-	minimized = not minimized
-	TweenService:Create(root, TI, {
-		Size = minimized and UDim2.fromOffset(300, 62) or UDim2.fromOffset(300, 400),
-	}):Play()
-	TweenService:Create(minBtn, TI, { Text = minimized and "+" or "–" }):Play()
+----------------------------------------------------------------
+-- Drag + Toggle
+----------------------------------------------------------------
+local open = false
+
+local function toggle()
+	open = not open
+	main.Visible = open
+end
+
+-- Drag del botón
+do
+	local dragging, moved, start, startPos
+	btn.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			moved = false
+			start = input.Position
+			startPos = btn.Position
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if not dragging then return end
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			local d = input.Position - start
+			if math.abs(d.X) > 5 or math.abs(d.Y) > 5 then moved = true end
+			btn.Position = UDim2.new(0, startPos.X.Offset + d.X, 0, startPos.Y.Offset + d.Y)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			if dragging and not moved then toggle() end
+			dragging = false
+		end
+	end)
+end
+
+-- Drag de la ventana
+do
+	local dragging, start, startPos
+	header.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			start = input.Position
+			startPos = main.Position
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if not dragging then return end
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			local d = input.Position - start
+			main.Position = UDim2.new(0, startPos.X.Offset + d.X, 0, startPos.Y.Offset + d.Y)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+end
+
+close.MouseButton1Click:Connect(function()
+	open = false
+	main.Visible = false
 end)
 
-UserInputService.InputBegan:Connect(function(input, gp)
-	if gp then return end
+UserInputService.InputBegan:Connect(function(input, gpe)
+	if gpe then return end
 	if input.KeyCode == Enum.KeyCode.RightShift then
-		setMenu(not isOpen)
+		toggle()
 	end
 end)
 
-setMenu(true)
+-- Notificación de carga
+local notif = new("TextLabel", {
+	Parent = screen,
+	Position = UDim2.new(0.5, -100, 0.1, 0),
+	Size = UDim2.fromOffset(200, 32),
+	BackgroundColor3 = C.panel,
+	BorderSizePixel = 0,
+	Text = "Sakura Scripts loaded",
+	Font = Enum.Font.GothamBold,
+	TextSize = 13,
+	TextColor3 = C.accent,
+	ZIndex = 100,
+})
+corner(notif, 8)
+
+task.delay(2.5, function()
+	if notif then notif:Destroy() end
+end)
+
+-- Abrir al inicio
+toggle()
+
+print("[Sakura Scripts] Loaded successfully")
+
+end)
+
+if not success then
+	warn("[Sakura Scripts] Error:", err)
+end
