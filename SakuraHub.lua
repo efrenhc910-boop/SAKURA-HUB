@@ -1,132 +1,250 @@
--- Sakura Key System (versión estable)
+-- =========================================================
+--  SAKURA SCRIPTS - DELTA EXECUTOR (ACTUALIZADO)
+--  Sistema de Claves + Anti-pantallas dobles + Código Principal
+-- =========================================================
 
 local Players = game:GetService("Players")
-local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
--- Parent más compatible
-local parent = CoreGui
-pcall(function()
-	if gethui then parent = gethui() end
-end)
-
--- Borrar anterior
-pcall(function()
-	local old = parent:FindFirstChild("SakuraKeyUI")
-	if old then old:Destroy() end
-end)
-
-local screen = Instance.new("ScreenGui")
-screen.Name = "SakuraKeyUI"
-screen.ResetOnSpawn = false
-screen.IgnoreGuiInset = true
-screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-screen.DisplayOrder = 9999
-screen.Parent = parent
-
--- Panel
-local main = Instance.new("Frame")
-main.Size = UDim2.fromOffset(300, 200)
-main.Position = UDim2.new(0.5, -150, 0.5, -100)
-main.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-main.BorderSizePixel = 0
-main.Parent = screen
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
-corner.Parent = main
-
--- Título
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 45)
-title.BackgroundTransparency = 1
-title.Text = "🌸 Sakura Duels"
-title.Font = Enum.Font.GothamBold
-title.TextSize = 20
-title.TextColor3 = Color3.fromRGB(255, 140, 180)
-title.Parent = main
-
--- Caja de texto
-local box = Instance.new("TextBox")
-box.Size = UDim2.new(1, -40, 0, 40)
-box.Position = UDim2.fromOffset(20, 60)
-box.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-box.BorderSizePixel = 0
-box.PlaceholderText = "Escribe tu llave..."
-box.Text = ""
-box.Font = Enum.Font.Gotham
-box.TextSize = 14
-box.TextColor3 = Color3.fromRGB(240, 240, 248)
-box.ClearTextOnFocus = false
-box.Parent = main
-
-local boxCorner = Instance.new("UICorner")
-boxCorner.CornerRadius = UDim.new(0, 8)
-boxCorner.Parent = box
-
--- Botón
-local btn = Instance.new("TextButton")
-btn.Size = UDim2.new(1, -40, 0, 40)
-btn.Position = UDim2.fromOffset(20, 115)
-btn.BackgroundColor3 = Color3.fromRGB(255, 130, 170)
-btn.BorderSizePixel = 0
-btn.Text = "Verificar"
-btn.Font = Enum.Font.GothamBold
-btn.TextSize = 14
-btn.TextColor3 = Color3.fromRGB(20, 20, 28)
-btn.AutoButtonColor = false
-btn.Parent = main
-
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 8)
-btnCorner.Parent = btn
-
--- Estado
-local status = Instance.new("TextLabel")
-status.Size = UDim2.new(1, -20, 0, 25)
-status.Position = UDim2.fromOffset(10, 165)
-status.BackgroundTransparency = 1
-status.Text = ""
-status.Font = Enum.Font.Gotham
-status.TextSize = 12
-status.TextColor3 = Color3.fromRGB(150, 150, 165)
-status.Parent = main
-
--- Lógica de la llave
-local KEY = "1234"
-
-local function check()
-	local text = box.Text
-
-	if text == KEY then
-		status.Text = "Key correcta ✓"
-		status.TextColor3 = Color3.fromRGB(100, 220, 150)
-		btn.Text = "Entrando..."
-		btn.Active = false
-
-		task.wait(0.6)
-		screen:Destroy()
-
-		-- ============================
-		-- AQUÍ VA TU SCRIPT PRINCIPAL
-		-- ============================
-		print("Acceso concedido")
-
-	else
-		status.Text = "Key incorrecta"
-		status.TextColor3 = Color3.fromRGB(255, 90, 110)
-	end
+-- 0. EVITAR PANTALLAS DOBLES (Elimina instancias anteriores si las hay)
+if LocalPlayer.PlayerGui:FindFirstChild("SakuraScriptsUI") then
+    LocalPlayer.PlayerGui.SakuraScriptsUI:Destroy()
+end
+if gethui then
+    for _, gui in ipairs(gethui():GetChildren()) do
+        if gui.Name == "SakuraScriptsUI" then
+            gui:Destroy()
+        end
+    end
 end
 
-btn.MouseButton1Click:Connect(check)
+-----------------------------------------------------------
+-- 1. BASE DE DATOS DE CLAVES Y USUARIOS (WHITELIST)
+-----------------------------------------------------------
+local DatabaseClaves = {
+    ["ELINSANIDINu"] = "1234",
+    ["ELINSANIDINU"] = "1234", -- Soporte para variantes de mayúsculas
+    ["UsuarioEjemplo"] = "Sakura2026",
+}
 
-box.FocusLost:Connect(function(enter)
-	if enter then
-		check()
-	end
+-----------------------------------------------------------
+-- 2. CREACIÓN DE LA INTERFAZ (UI) ESTILO SAKURA
+-----------------------------------------------------------
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "SakuraScriptsUI"
+ScreenGui.ResetOnSpawn = false
+
+if gethui then
+    ScreenGui.Parent = gethui()
+elseif syn and syn.protect_gui then
+    syn.protect_gui(ScreenGui)
+    ScreenGui.Parent = CoreGui
+else
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+-- Marco Principal
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 360, 0, 260)
+MainFrame.Position = UDim2.new(0.5, -180, 0.5, -130)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 20, 28)
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = MainFrame
+
+local UIGradient = Instance.new("UIGradient")
+UIGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(35, 22, 38)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 15, 25))
+})
+UIGradient.Rotation = 45
+UIGradient.Parent = MainFrame
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(255, 130, 180)
+UIStroke.Thickness = 1.5
+UIStroke.Transparency = 0.3
+UIStroke.Parent = MainFrame
+
+-- Barra Superior (Title Bar)
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.BackgroundTransparency = 1
+TitleBar.Parent = MainFrame
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(1, -40, 1, 0)
+TitleLabel.Position = UDim2.new(0, 15, 0, 0)
+TitleLabel.Text = "🌸 Sakura Scripts | Key System"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 180, 210)
+TitleLabel.TextSize = 15
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Parent = TitleBar
+
+-- Subtítulo / Información del Usuario
+local UserInfoLabel = Instance.new("TextLabel")
+UserInfoLabel.Size = UDim2.new(1, -30, 0, 20)
+UserInfoLabel.Position = UDim2.new(0, 15, 0, 45)
+UserInfoLabel.Text = "Usuario detectado: " .. LocalPlayer.Name
+UserInfoLabel.TextColor3 = Color3.fromRGB(180, 160, 190)
+UserInfoLabel.TextSize = 12
+UserInfoLabel.Font = Enum.Font.Gotham
+UserInfoLabel.TextXAlignment = Enum.TextXAlignment.Left
+UserInfoLabel.BackgroundTransparency = 1
+UserInfoLabel.Parent = MainFrame
+
+-- Campo de Texto (Key Box)
+local KeyInput = Instance.new("TextBox")
+KeyInput.Name = "KeyInput"
+KeyInput.Size = UDim2.new(1, -30, 0, 42)
+KeyInput.Position = UDim2.new(0, 15, 0, 75)
+KeyInput.BackgroundColor3 = Color3.fromRGB(40, 30, 45)
+KeyInput.Text = ""
+KeyInput.PlaceholderText = "Ingresa tu clave aquí..."
+KeyInput.PlaceholderColor3 = Color3.fromRGB(120, 100, 130)
+KeyInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeyInput.TextSize = 14
+KeyInput.Font = Enum.Font.Gotham
+KeyInput.ClearTextOnFocus = false
+KeyInput.Parent = MainFrame
+
+local InputCorner = Instance.new("UICorner")
+InputCorner.CornerRadius = UDim.new(0, 8)
+InputCorner.Parent = KeyInput
+
+local InputStroke = Instance.new("UIStroke")
+InputStroke.Color = Color3.fromRGB(80, 50, 90)
+InputStroke.Thickness = 1
+InputStroke.Parent = KeyInput
+
+-- Botón de Verificación
+local VerifyButton = Instance.new("TextButton")
+VerifyButton.Name = "VerifyButton"
+VerifyButton.Size = UDim2.new(1, -30, 0, 40)
+VerifyButton.Position = UDim2.new(0, 15, 0, 130)
+VerifyButton.BackgroundColor3 = Color3.fromRGB(235, 100, 160)
+VerifyButton.Text = "VERIFICAR CLAVE"
+VerifyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+VerifyButton.TextSize = 13
+VerifyButton.Font = Enum.Font.GothamBold
+VerifyButton.AutoButtonColor = false
+VerifyButton.Parent = MainFrame
+
+local BtnCorner = Instance.new("UICorner")
+BtnCorner.CornerRadius = UDim.new(0, 8)
+BtnCorner.Parent = VerifyButton
+
+-- Mensaje de Estado
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Name = "StatusLabel"
+StatusLabel.Size = UDim2.new(1, -30, 0, 30)
+StatusLabel.Position = UDim2.new(0, 15, 0, 180)
+StatusLabel.Text = ""
+StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+StatusLabel.TextSize = 12
+StatusLabel.Font = Enum.Font.GothamMedium
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.TextWrapped = true
+StatusLabel.Parent = MainFrame
+
+-- Firma de Ejecutor
+local ExecutorLabel = Instance.new("TextLabel")
+ExecutorLabel.Size = UDim2.new(1, 0, 0, 20)
+ExecutorLabel.Position = UDim2.new(0, 0, 1, -22)
+ExecutorLabel.Text = "Delta Executor Compatible ✨"
+ExecutorLabel.TextColor3 = Color3.fromRGB(100, 80, 110)
+ExecutorLabel.TextSize = 10
+ExecutorLabel.Font = Enum.Font.Gotham
+ExecutorLabel.BackgroundTransparency = 1
+ExecutorLabel.Parent = MainFrame
+
+-----------------------------------------------------------
+-- 3. SISTEMA DE ARRASTRE (DRAGGABLE) SUAVE
+-----------------------------------------------------------
+local dragging, dragInput, dragStart, startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    TweenService:Create(MainFrame, TweenInfo.new(0.08), {
+        Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    }):Play()
+end
+
+TitleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
 end)
 
-print("Sakura Key UI cargado")
+TitleBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+-----------------------------------------------------------
+-- 4. LÓGICA DE VERIFICACIÓN Y EJECUCIÓN
+-----------------------------------------------------------
+local function ValidarAcceso()
+    local userActual = LocalPlayer.Name
+    local claveIngresada = KeyInput.Text
+    local claveCorrecta = DatabaseClaves[userActual]
+
+    if claveCorrecta then
+        if claveIngresada == claveCorrecta then
+            StatusLabel.TextColor3 = Color3.fromRGB(120, 255, 150)
+            StatusLabel.Text = "✓ Acceso Concedido. ¡Iniciando script!"
+            
+            -- Transición suave de salida del menú de claves
+            task.wait(1)
+            TweenService:Create(MainFrame, TweenInfo.new(0.4), {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1}):Play()
+            task.wait(0.4)
+            ScreenGui:Destroy()
+            
+            -----------------------------------------------------------
+            -- ACÁ ABAJO EL RESTO DE TU CÓDIGO
+            -----------------------------------------------------------
+            print("[Sakura Scripts] Clave correcta. Ejecutando script principal...")
+            
+            -- [ Ejemplo: Coloca tus funciones, hubs o scripts aquí ]
+            -- loadstring(game:HttpGet("TU_LINK_DE_SCRIPT_PRINCIPAL"))()
+
+        else
+            StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            StatusLabel.Text = "✕ Clave incorrecta para el usuario " .. userActual
+        end
+    else
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        StatusLabel.Text = "✕ El usuario '" .. userActual .. "' no está registrado."
+    end
+end
+
+VerifyButton.MouseButton1Click:Connect(ValidarAcceso)
+
 
 -- 🌸sakura duels🌸 INTRO test (do not edit)
 (function()
