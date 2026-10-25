@@ -1,4 +1,4 @@
--- 🌸sakura duels🌸 INTRO (do not edit)
+-- 🌸sakura duels🌸 INTRO test (do not edit)
 (function()
   local ok,err=pcall(function()
     local pl=game:GetService("Players").LocalPlayer
