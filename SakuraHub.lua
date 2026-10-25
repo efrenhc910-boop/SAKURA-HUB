@@ -1,6 +1,6 @@
 -- =========================================================
---  SAKURA SCRIPTS - DELTA EXECUTOR (FINAL)
---  Sistema de Claves + Anti-pantallas dobles + Sakura Duels
+--  SAKURA SCRIPTS - DELTA EXECUTOR (CON CLAVE ADMIN)
+--  Sistema de Claves + Anti-pantallas dobles + Clave Admin
 -- =========================================================
 
 local Players = game:GetService("Players")
@@ -21,8 +21,10 @@ if gethui then
 end
 
 -----------------------------------------------------------
--- 1. BASE DE DATOS DE CLAVES Y USUARIOS (WHITELIST)
+-- 1. BASE DE DATOS DE CLAVES Y CONFIGURACIÓN DE ADMIN
 -----------------------------------------------------------
+local CLAVE_ADMIN = "SAKURA8000" -- Clave universal para administradores
+
 local DatabaseClaves = {
     ["ELINSANIDINu"] = "1234",
     ["ELINSANIDINU"] = "1234", -- Soporte para variantes de mayúsculas
@@ -223,31 +225,34 @@ end)
 local function ValidarAcceso()
     local userActual = LocalPlayer.Name
     local claveIngresada = KeyInput.Text
-    local claveCorrecta = DatabaseClaves[userActual]
+    local claveCorrectaUsuario = DatabaseClaves[userActual]
 
-    if claveCorrecta then
-        if claveIngresada == claveCorrecta then
-            StatusLabel.TextColor3 = Color3.fromRGB(120, 255, 150)
-            StatusLabel.Text = "✓ Acceso Concedido. ¡Iniciando Sakura Duels!"
-            
-            -- Transición suave de salida del menú de claves
-            task.wait(1)
-            TweenService:Create(MainFrame, TweenInfo.new(0.4), {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1}):Play()
-            task.wait(0.4)
-            ScreenGui:Destroy()
-            
-            -----------------------------------------------------------
-            -- ACÁ ABAJO EL RESTO DE TU CÓDIGO
-            -----------------------------------------------------------
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/steal-a-brain-rot/Sakura-duels/refs/heads/main/Sakura%20duels"))()
+    -- Verificamos si ingresó la clave Admin O la clave correspondiente a su usuario
+    local esAdmin = (claveIngresada == CLAVE_ADMIN)
+    local esUsuarioValido = (claveCorrectaUsuario and claveIngresada == claveCorrectaUsuario)
 
+    if esAdmin or esUsuarioValido then
+        StatusLabel.TextColor3 = Color3.fromRGB(120, 255, 150)
+        if esAdmin then
+            StatusLabel.Text = "✓ Acceso Admin Concedido. ¡Iniciando!"
         else
-            StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-            StatusLabel.Text = "✕ Clave incorrecta para el usuario " .. userActual
+            StatusLabel.Text = "✓ Acceso Concedido. ¡Iniciando!"
         end
+        
+        -- Transición suave de salida del menú de claves
+        task.wait(1)
+        TweenService:Create(MainFrame, TweenInfo.new(0.4), {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1}):Play()
+        task.wait(0.4)
+        ScreenGui:Destroy()
+        
+        -----------------------------------------------------------
+        -- ACÁ ABAJO EL RESTO DE TU CÓDIGO
+        -----------------------------------------------------------
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/steal-a-brain-rot/Sakura-duels/refs/heads/main/Sakura%20duels"))()
+
     else
         StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-        StatusLabel.Text = "✕ El usuario '" .. userActual .. "' no está registrado."
+        StatusLabel.Text = "✕ Clave incorrecta."
     end
 end
 
