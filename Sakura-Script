@@ -545,4 +545,9 @@ end
 local function executeStealV2(prompt)
     -- V2: the existing half-hold timing, kept as a separate mode.
     if not Steal.Data[prompt] then
-        Steal.Da
+        Steal.Data[prompt]={hold={},trigger={},ready=true}
+    end
+    return executeStealV1(prompt)
+end
+
+-- Pega la parte 2 acá, dentro del código como comentario
