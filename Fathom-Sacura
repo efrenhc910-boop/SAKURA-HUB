@@ -1,0 +1,392 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+--// CONFIG
+local CORRECT_KEY = "ELINSANIDINu"
+local ESP_COLOR = Color3.fromRGB(0, 255, 120)
+local ACCENT = Color3.fromRGB(0, 220, 120)          -- Verde neón
+local DARK_BG = Color3.fromRGB(15, 15, 18)
+local DARK_CARD = Color3.fromRGB(25, 25, 30)
+local DARK_ROW = Color3.fromRGB(32, 32, 38)
+
+local espEnabled = false
+local fullbrightEnabled = false
+local espObjects = {}
+local menuSize = 1
+local sliding = false
+
+local originalBrightness = Lighting.Brightness
+local originalClockTime = Lighting.ClockTime
+local originalFogEnd = Lighting.FogEnd
+local originalGlobalShadows = Lighting.GlobalShadows
+
+--// SCREEN GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SakuraHub"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = playerGui
+
+local function addCorner(obj, radius)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius or 8)
+	c.Parent = obj
+end
+
+local function addStroke(obj, color, thick)
+	local s = Instance.new("UIStroke")
+	s.Color = color
+	s.Thickness = thick or 1.5
+	s.Parent = obj
+end
+
+--// ========== KEY SYSTEM ==========
+local keyFrame = Instance.new("Frame")
+keyFrame.Size = UDim2.new(0, 360, 0, 230)
+keyFrame.Position = UDim2.new(0.5, -180, 0.5, -115)
+keyFrame.BackgroundColor3 = DARK_BG
+keyFrame.Parent = screenGui
+addCorner(keyFrame, 12)
+addStroke(keyFrame, ACCENT, 2)
+
+local keyTitle = Instance.new("TextLabel", keyFrame)
+keyTitle.Size = UDim2.new(1, 0, 0, 50)
+keyTitle.Position = UDim2.new(0, 0, 0, 15)
+keyTitle.BackgroundTransparency = 1
+keyTitle.Text = "SAKURA HUB"
+keyTitle.TextColor3 = ACCENT
+keyTitle.Font = Enum.Font.GothamBlack
+keyTitle.TextSize = 24
+
+local keyBox = Instance.new("TextBox", keyFrame)
+keyBox.Size = UDim2.new(0.85, 0, 0, 42)
+keyBox.Position = UDim2.new(0.075, 0, 0, 85)
+keyBox.BackgroundColor3 = DARK_CARD
+keyBox.TextColor3 = Color3.fromRGB(255,255,255)
+keyBox.PlaceholderText = "Ingresa la llave..."
+keyBox.PlaceholderColor3 = Color3.fromRGB(120,120,120)
+keyBox.Font = Enum.Font.Gotham
+keyBox.TextSize = 15
+keyBox.Text = ""
+addCorner(keyBox, 8)
+
+local submitBtn = Instance.new("TextButton", keyFrame)
+submitBtn.Size = UDim2.new(0.85, 0, 0, 44)
+submitBtn.Position = UDim2.new(0.075, 0, 0, 145)
+submitBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 70)
+submitBtn.Text = "VERIFICAR LLAVE"
+submitBtn.TextColor3 = Color3.fromRGB(255,255,255)
+submitBtn.Font = Enum.Font.GothamBold
+submitBtn.TextSize = 15
+addCorner(submitBtn, 8)
+
+--// BOTÓN FLOTANTE
+local openBtn = Instance.new("TextButton")
+openBtn.Size = UDim2.new(0, 50, 0, 50)
+openBtn.Position = UDim2.new(0, 15, 0.5, -25)
+openBtn.BackgroundColor3 = DARK_BG
+openBtn.Text = "SH"
+openBtn.TextColor3 = ACCENT
+openBtn.Font = Enum.Font.GothamBlack
+openBtn.TextSize = 16
+openBtn.Visible = false
+openBtn.Parent = screenGui
+addCorner(openBtn, 25)
+addStroke(openBtn, ACCENT, 2)
+
+--// ========== MENÚ PRINCIPAL ==========
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 340, 0, 420)
+mainFrame.Position = UDim2.new(0, 80, 0.5, -210)
+mainFrame.BackgroundColor3 = DARK_BG
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+addCorner(mainFrame, 12)
+addStroke(mainFrame, ACCENT, 2)
+
+-- Top Bar
+local topBar = Instance.new("Frame", mainFrame)
+topBar.Size = UDim2.new(1, 0, 0, 46)
+topBar.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+topBar.BorderSizePixel = 0
+addCorner(topBar, 12)
+
+local mainTitle = Instance.new("TextLabel", topBar)
+mainTitle.Size = UDim2.new(1, -50, 1, 0)
+mainTitle.Position = UDim2.new(0, 14, 0, 0)
+mainTitle.BackgroundTransparency = 1
+mainTitle.Text = "SAKURA HUB"
+mainTitle.TextColor3 = ACCENT
+mainTitle.Font = Enum.Font.GothamBlack
+mainTitle.TextSize = 17
+mainTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local closeX = Instance.new("TextButton", topBar)
+closeX.Size = UDim2.new(0, 36, 0, 36)
+closeX.Position = UDim2.new(1, -42, 0.5, -18)
+closeX.BackgroundColor3 = Color3.fromRGB(160, 40, 40)
+closeX.Text = "X"
+closeX.TextColor3 = Color3.fromRGB(255,255,255)
+closeX.Font = Enum.Font.GothamBold
+closeX.TextSize = 16
+addCorner(closeX, 8)
+
+-- Scrolling Content
+local scroll = Instance.new("ScrollingFrame", mainFrame)
+scroll.Size = UDim2.new(1, -16, 1, -110)
+scroll.Position = UDim2.new(0, 8, 0, 54)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.ScrollBarThickness = 3
+scroll.ScrollBarImageColor3 = ACCENT
+scroll.CanvasSize = UDim2.new(0, 0, 0, 280)
+
+local listLayout = Instance.new("UIListLayout", scroll)
+listLayout.Padding = UDim.new(0, 8)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- Función para crear filas
+local function createRow(text, order)
+	local row = Instance.new("Frame")
+	row.Size = UDim2.new(1, 0, 0, 48)
+	row.BackgroundColor3 = DARK_ROW
+	row.LayoutOrder = order
+	addCorner(row, 8)
+
+	local label = Instance.new("TextLabel", row)
+	label.Size = UDim2.new(0.70, 0, 1, 0)
+	label.Position = UDim2.new(0, 12, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextColor3 = Color3.fromRGB(240, 240, 240)
+	label.Font = Enum.Font.GothamMedium
+	label.TextSize = 14
+	label.TextXAlignment = Enum.TextXAlignment.Left
+
+	local btn = Instance.new("TextButton", row)
+	btn.Size = UDim2.new(0, 70, 0, 30)
+	btn.Position = UDim2.new(1, -82, 0.5, -15)
+	btn.BackgroundColor3 = Color3.fromRGB(50, 50, 58)
+	btn.Text = "OFF"
+	btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 13
+	addCorner(btn, 6)
+
+	return row, btn
+end
+
+-- Filas
+local espRow, espBtn = createRow("ESP NPCs", 1)
+espRow.Parent = scroll
+
+local fullbrightRow, fullbrightBtn = createRow("Iluminar Mapa (Fullbright)", 2)
+fullbrightRow.Parent = scroll
+
+-- Tabs inferiores
+local tabBar = Instance.new("Frame", mainFrame)
+tabBar.Size = UDim2.new(1, -16, 0, 42)
+tabBar.Position = UDim2.new(0, 8, 1, -50)
+tabBar.BackgroundTransparency = 1
+
+local tabESP = Instance.new("TextButton", tabBar)
+tabESP.Size = UDim2.new(0.48, 0, 1, 0)
+tabESP.Position = UDim2.new(0, 0, 0, 0)
+tabESP.BackgroundColor3 = Color3.fromRGB(0, 140, 60)
+tabESP.Text = "ESP"
+tabESP.TextColor3 = Color3.fromRGB(255,255,255)
+tabESP.Font = Enum.Font.GothamBold
+tabESP.TextSize = 14
+addCorner(tabESP, 8)
+
+local tabConfig = Instance.new("TextButton", tabBar)
+tabConfig.Size = UDim2.new(0.48, 0, 1, 0)
+tabConfig.Position = UDim2.new(0.52, 0, 0, 0)
+tabConfig.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
+tabConfig.Text = "CONFIG"
+tabConfig.TextColor3 = Color3.fromRGB(180,180,180)
+tabConfig.Font = Enum.Font.GothamBold
+tabConfig.TextSize = 14
+addCorner(tabConfig, 8)
+
+--// ESP + FULLBRIGHT LOGIC
+local function isEnemyNPC(model)
+	local name = string.lower(model.Name)
+	return string.find(name, "grins") or string.find(name, "worth") or string.find(name, "grin")
+end
+
+local function applyESP(model)
+	if espObjects[model] then return end
+	if not isEnemyNPC(model) then return end
+	if Players:GetPlayerFromCharacter(model) then return end
+
+	local root = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Torso") or model:FindFirstChild("UpperTorso") or model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
+	if not root then return end
+
+	local highlight = Instance.new("Highlight")
+	highlight.Adornee = model
+	highlight.FillColor = ESP_COLOR
+	highlight.OutlineColor = Color3.fromRGB(0, 255, 140)
+	highlight.FillTransparency = 0.5
+	highlight.OutlineTransparency = 0
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.Parent = model
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Adornee = root
+	billboard.Size = UDim2.new(0, 220, 0, 45)
+	billboard.StudsOffset = Vector3.new(0, 4, 0)
+	billboard.AlwaysOnTop = true
+	billboard.Parent = model
+
+	local nameLabel = Instance.new("TextLabel", billboard)
+	nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.TextColor3 = ESP_COLOR
+	nameLabel.TextStrokeTransparency = 0
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextSize = 13
+	nameLabel.Text = model.Name
+
+	local distLabel = Instance.new("TextLabel", billboard)
+	distLabel.Size = UDim2.new(1, 0, 0.5, 0)
+	distLabel.Position = UDim2.new(0, 0, 0.5, 0)
+	distLabel.BackgroundTransparency = 1
+	distLabel.TextColor3 = ESP_COLOR
+	distLabel.TextStrokeTransparency = 0
+	distLabel.Font = Enum.Font.Gotham
+	distLabel.TextSize = 12
+	distLabel.Text = "0 studs"
+
+	espObjects[model] = {Highlight = highlight, Billboard = billboard, DistLabel = distLabel, Root = root}
+end
+
+local function clearESP()
+	for _, data in pairs(espObjects) do
+		if data.Highlight then data.Highlight:Destroy() end
+		if data.Billboard then data.Billboard:Destroy() end
+	end
+	table.clear(espObjects)
+end
+
+local function scan()
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Model") then applyESP(obj) end
+	end
+end
+
+local function toggleFullbright(state)
+	if state then
+		Lighting.Brightness = 2.8
+		Lighting.ClockTime = 14
+		Lighting.FogEnd = 100000
+		Lighting.GlobalShadows = false
+	else
+		Lighting.Brightness = originalBrightness
+		Lighting.ClockTime = originalClockTime
+		Lighting.FogEnd = originalFogEnd
+		Lighting.GlobalShadows = originalGlobalShadows
+	end
+end
+
+RunService.RenderStepped:Connect(function()
+	if not espEnabled then return end
+	local char = player.Character
+	local myRoot = char and char:FindFirstChild("HumanoidRootPart")
+	if not myRoot then return end
+	for model, data in pairs(espObjects) do
+		if model.Parent and data.Root and data.Root.Parent then
+			data.DistLabel.Text = math.floor((myRoot.Position - data.Root.Position).Magnitude) .. " studs"
+		else
+			if data.Highlight then data.Highlight:Destroy() end
+			if data.Billboard then data.Billboard:Destroy() end
+			espObjects[model] = nil
+		end
+	end
+end)
+
+workspace.DescendantAdded:Connect(function(obj)
+	if espEnabled and obj:IsA("Model") then
+		task.wait(0.3)
+		applyESP(obj)
+	end
+end)
+
+--// ARRASTRAR
+local dragging, dragStart, startPos
+topBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = mainFrame.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then dragging = false end
+		end)
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+end)
+
+--// EVENTOS
+submitBtn.MouseButton1Click:Connect(function()
+	if keyBox.Text == CORRECT_KEY then
+		keyFrame.Visible = false
+		mainFrame.Visible = true
+		openBtn.Visible = true
+	else
+		submitBtn.BackgroundColor3 = Color3.fromRGB(160, 40, 40)
+		submitBtn.Text = "LLAVE INCORRECTA"
+		task.wait(1)
+		submitBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 70)
+		submitBtn.Text = "VERIFICAR LLAVE"
+	end
+end)
+
+closeX.MouseButton1Click:Connect(function()
+	mainFrame.Visible = false
+end)
+
+openBtn.MouseButton1Click:Connect(function()
+	mainFrame.Visible = not mainFrame.Visible
+end)
+
+espBtn.MouseButton1Click:Connect(function()
+	espEnabled = not espEnabled
+	if espEnabled then
+		espBtn.Text = "ON"
+		espBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 60)
+		espBtn.TextColor3 = Color3.fromRGB(255,255,255)
+		scan()
+	else
+		espBtn.Text = "OFF"
+		espBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 58)
+		espBtn.TextColor3 = Color3.fromRGB(200,200,200)
+		clearESP()
+	end
+end)
+
+fullbrightBtn.MouseButton1Click:Connect(function()
+	fullbrightEnabled = not fullbrightEnabled
+	toggleFullbright(fullbrightEnabled)
+	if fullbrightEnabled then
+		fullbrightBtn.Text = "ON"
+		fullbrightBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 60)
+		fullbrightBtn.TextColor3 = Color3.fromRGB(255,255,255)
+	else
+		fullbrightBtn.Text = "OFF"
+		fullbrightBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 58)
+		fullbrightBtn.TextColor3 = Color3.fromRGB(200,200,200)
+	end
+end)
+
+print("Sakura Hub - Estilo Premium cargado")
