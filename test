@@ -7,9 +7,6 @@ local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- ==================================================
--- TEMAS
--- ==================================================
 local ThemePresets = {
 	NeonRed = {
 		Accent = Color3.fromRGB(255, 78, 120),
@@ -17,7 +14,6 @@ local ThemePresets = {
 		Background = Color3.fromRGB(18, 12, 16),
 		Panel = Color3.fromRGB(31, 23, 28),
 		Card = Color3.fromRGB(42, 30, 36),
-		Row = Color3.fromRGB(49, 35, 42),
 		Text = Color3.fromRGB(250, 248, 252),
 		Dim = Color3.fromRGB(170, 170, 185),
 		Success = Color3.fromRGB(255, 97, 138),
@@ -28,7 +24,6 @@ local ThemePresets = {
 		Background = Color3.fromRGB(20, 12, 23),
 		Panel = Color3.fromRGB(32, 22, 36),
 		Card = Color3.fromRGB(44, 30, 47),
-		Row = Color3.fromRGB(52, 35, 54),
 		Text = Color3.fromRGB(250, 245, 255),
 		Dim = Color3.fromRGB(180, 170, 190),
 		Success = Color3.fromRGB(255, 110, 210),
@@ -39,7 +34,6 @@ local ThemePresets = {
 		Background = Color3.fromRGB(10, 18, 15),
 		Panel = Color3.fromRGB(18, 28, 23),
 		Card = Color3.fromRGB(23, 38, 30),
-		Row = Color3.fromRGB(29, 45, 35),
 		Text = Color3.fromRGB(245, 255, 247),
 		Dim = Color3.fromRGB(170, 180, 175),
 		Success = Color3.fromRGB(82, 255, 165),
@@ -50,7 +44,6 @@ local ThemePresets = {
 		Background = Color3.fromRGB(10, 18, 28),
 		Panel = Color3.fromRGB(18, 28, 40),
 		Card = Color3.fromRGB(25, 39, 53),
-		Row = Color3.fromRGB(31, 47, 61),
 		Text = Color3.fromRGB(241, 247, 255),
 		Dim = Color3.fromRGB(170, 185, 200),
 		Success = Color3.fromRGB(96, 180, 255),
@@ -59,9 +52,6 @@ local ThemePresets = {
 
 local theme = ThemePresets.NeonPink
 
--- ==================================================
--- HELPERS
--- ==================================================
 local function make(className, props)
 	local obj = Instance.new(className)
 	for key, value in pairs(props or {}) do
@@ -93,13 +83,7 @@ local function stroke(obj, color, thickness)
 	return s
 end
 
--- ==================================================
--- VARIABLES
--- ==================================================
 local menuOpen = false
-local panelMode = "Funciones"
-local menusize = 1
-
 local espEnabled = false
 local playerEspEnabled = false
 local noclipEnabled = false
@@ -113,9 +97,6 @@ local originalClockTime = Lighting.ClockTime
 local originalFogEnd = Lighting.FogEnd
 local originalGlobalShadows = Lighting.GlobalShadows
 
--- ==================================================
--- GUI
--- ==================================================
 local screenGui = make("ScreenGui", {
 	Name = "SakuraHub",
 	ResetOnSpawn = false,
@@ -207,16 +188,6 @@ local panel = make("Frame", {
 })
 round(panel, 16)
 
-local footer = make("Frame", {
-	Parent = root,
-	BackgroundColor3 = theme.Background,
-	BackgroundTransparency = 0.12,
-	BorderSizePixel = 0,
-	Position = UDim2.new(0, 0, 1, -22),
-	Size = UDim2.new(1, 0, 0, 22),
-})
-round(footer, 16)
-
 local function createTab(label, y, selected)
 	local btn = make("TextButton", {
 		Parent = sidebar,
@@ -304,18 +275,6 @@ local function createSliderRow(parent, label, y, minValue, maxValue, defaultValu
 	})
 	round(row, 10)
 
-	local info = make("TextLabel", {
-		Parent = row,
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 14, 0, 6),
-		Size = UDim2.new(1, -64, 0, 18),
-		Text = label,
-		TextColor3 = theme.Text,
-		Font = Enum.Font.GothamSemibold,
-		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Left,
-	})
-
 	local valueText = make("TextLabel", {
 		Parent = row,
 		BackgroundTransparency = 1,
@@ -326,6 +285,18 @@ local function createSliderRow(parent, label, y, minValue, maxValue, defaultValu
 		Font = Enum.Font.GothamBold,
 		TextSize = 11,
 		TextXAlignment = Enum.TextXAlignment.Right,
+	})
+
+	local info = make("TextLabel", {
+		Parent = row,
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 14, 0, 6),
+		Size = UDim2.new(1, -64, 0, 18),
+		Text = label,
+		TextColor3 = theme.Text,
+		Font = Enum.Font.GothamSemibold,
+		TextSize = 12,
+		TextXAlignment = Enum.TextXAlignment.Left,
 	})
 
 	local track = make("Frame", {
@@ -432,8 +403,6 @@ local function setToggle(button, enabled)
 end
 
 local function showPanel(mode)
-	panelMode = mode
-
 	if mode == "Funciones" then
 		functionsPanel.Visible = true
 		configPanel.Visible = false
@@ -451,19 +420,13 @@ local function showPanel(mode)
 	end
 end
 
--- ==================================================
--- FILAS DE FUNCIONES
--- ==================================================
 local espPlayersRow, espPlayersToggle = createToggleRow(functionsPanel, "ESP Players", 14)
 local espFathomRow, espFathomToggle = createToggleRow(functionsPanel, "ESP Fathom", 52)
 local fullbrightRow, fullbrightToggle = createToggleRow(functionsPanel, "Fullbright", 90)
 
--- ==================================================
--- PANEL CONFIG
--- ==================================================
 local sizeSlider = createSliderRow(configPanel, "Tamaño del menú", 18, 70, 130, 100, function(v)
-	menusize = v / 100
-	root.Size = UDim2.new(0, 700 * menusize, 0, 300 * menusize)
+	local scale = v / 100
+	root.Size = UDim2.new(0, 700 * scale, 0, 300 * scale)
 end)
 
 local colorLabel = make("TextLabel", {
@@ -497,9 +460,6 @@ greenBtn.Position = UDim2.new(0, 96, 0.5, -18)
 local blueBtn = createColorButton(colorStrip, Color3.fromRGB(90, 180, 255), "Azul")
 blueBtn.Position = UDim2.new(0, 144, 0.5, -18)
 
--- ==================================================
--- BOTÓN FLOTANTE
--- ==================================================
 local floatButton = make("TextButton", {
 	Parent = screenGui,
 	BackgroundColor3 = theme.Background,
@@ -542,9 +502,6 @@ closeBtn.MouseButton1Click:Connect(function()
 	floatButton.Text = "🌸"
 end)
 
--- ==================================================
--- DETECCIÓN DE NPC
--- ==================================================
 local function isEnemyNPC(model)
 	if not model or not model:IsA("Model") then return false end
 	local name = string.lower(model.Name)
@@ -574,9 +531,6 @@ local function isEnemyNPC(model)
 	return false
 end
 
--- ==================================================
--- ESP
--- ==================================================
 local function applyESP(model)
 	if not model or not model:IsA("Model") then return end
 	if espObjects[model] then return end
@@ -634,9 +588,6 @@ local function scanESP()
 	end
 end
 
--- ==================================================
--- NO CLIP
--- ==================================================
 local function toggleNoClip(state)
 	if state then
 		if player.Character then
@@ -657,9 +608,6 @@ local function toggleNoClip(state)
 	end
 end
 
--- ==================================================
--- FULLBRIGHT
--- ==================================================
 local function toggleFullbright(state)
 	if state then
 		Lighting.Brightness = 2.5
@@ -674,9 +622,6 @@ local function toggleFullbright(state)
 	end
 end
 
--- ==================================================
--- PLAYER ESP
--- ==================================================
 local function togglePlayerESP(state)
 	if state then
 		for _, plr in ipairs(Players:GetPlayers()) do
@@ -700,9 +645,6 @@ local function togglePlayerESP(state)
 	end
 end
 
--- ==================================================
--- TOGGLES
--- ==================================================
 espPlayersToggle.MouseButton1Click:Connect(function()
 	espEnabled = not espEnabled
 	setToggle(espPlayersToggle, espEnabled)
@@ -725,9 +667,6 @@ fullbrightToggle.MouseButton1Click:Connect(function()
 	toggleFullbright(fullbrightEnabled)
 end)
 
--- ==================================================
--- NO CLIP TOGGLE
--- ==================================================
 local noclipBtn = make("TextButton", {
 	Parent = functionsPanel,
 	BackgroundColor3 = theme.Card,
@@ -748,4 +687,73 @@ noclipBtn.MouseButton1Click:Connect(function()
 	toggleNoClip(noclipEnabled)
 end)
 
--- ===========
+funcsTab.MouseButton1Click:Connect(function()
+	showPanel("Funciones")
+end)
+
+configTab.MouseButton1Click:Connect(function()
+	showPanel("Configuración")
+end)
+
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+topBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = root.Position
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		root.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+Workspace.DescendantAdded:Connect(function(desc)
+	if espEnabled and desc:IsA("Model") then
+		task.wait(0.2)
+		if isEnemyNPC(desc) then
+			applyESP(desc)
+		end
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	if noclipEnabled and player.Character then
+		for _, part in ipairs(player.Character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = false
+			end
+		end
+	end
+end)
+
+player.CharacterAdded:Connect(function(char)
+	task.wait(0.1)
+	if noclipEnabled then
+		for _, part in ipairs(char:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = false
+			end
+		end
+	end
+end)
+
+showPanel("Funciones")
+print("Sakura Hub cargado correctamente.")
