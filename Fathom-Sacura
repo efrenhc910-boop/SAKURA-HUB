@@ -1,392 +1,423 @@
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+
 local player = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
 local playerGui = player:WaitForChild("PlayerGui")
 
---// CONFIG
-local CORRECT_KEY = "ELINSANIDINu"
-local ESP_COLOR = Color3.fromRGB(0, 255, 120)
-local ACCENT = Color3.fromRGB(0, 220, 120)          -- Verde neón
-local DARK_BG = Color3.fromRGB(15, 15, 18)
-local DARK_CARD = Color3.fromRGB(25, 25, 30)
-local DARK_ROW = Color3.fromRGB(32, 32, 38)
-
 local espEnabled = false
-local fullbrightEnabled = false
-local espObjects = {}
-local menuSize = 1
-local sliding = false
+local camLockEnabled = false
+local selectedTarget = nil
+local playerHighlightObjects = {}
 
-local originalBrightness = Lighting.Brightness
-local originalClockTime = Lighting.ClockTime
-local originalFogEnd = Lighting.FogEnd
-local originalGlobalShadows = Lighting.GlobalShadows
-
---// SCREEN GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "SakuraHub"
-screenGui.ResetOnSpawn = false
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-screenGui.Parent = playerGui
-
-local function addCorner(obj, radius)
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, radius or 8)
-	c.Parent = obj
-end
-
-local function addStroke(obj, color, thick)
-	local s = Instance.new("UIStroke")
-	s.Color = color
-	s.Thickness = thick or 1.5
-	s.Parent = obj
-end
-
---// ========== KEY SYSTEM ==========
-local keyFrame = Instance.new("Frame")
-keyFrame.Size = UDim2.new(0, 360, 0, 230)
-keyFrame.Position = UDim2.new(0.5, -180, 0.5, -115)
-keyFrame.BackgroundColor3 = DARK_BG
-keyFrame.Parent = screenGui
-addCorner(keyFrame, 12)
-addStroke(keyFrame, ACCENT, 2)
-
-local keyTitle = Instance.new("TextLabel", keyFrame)
-keyTitle.Size = UDim2.new(1, 0, 0, 50)
-keyTitle.Position = UDim2.new(0, 0, 0, 15)
-keyTitle.BackgroundTransparency = 1
-keyTitle.Text = "SAKURA HUB"
-keyTitle.TextColor3 = ACCENT
-keyTitle.Font = Enum.Font.GothamBlack
-keyTitle.TextSize = 24
-
-local keyBox = Instance.new("TextBox", keyFrame)
-keyBox.Size = UDim2.new(0.85, 0, 0, 42)
-keyBox.Position = UDim2.new(0.075, 0, 0, 85)
-keyBox.BackgroundColor3 = DARK_CARD
-keyBox.TextColor3 = Color3.fromRGB(255,255,255)
-keyBox.PlaceholderText = "Ingresa la llave..."
-keyBox.PlaceholderColor3 = Color3.fromRGB(120,120,120)
-keyBox.Font = Enum.Font.Gotham
-keyBox.TextSize = 15
-keyBox.Text = ""
-addCorner(keyBox, 8)
-
-local submitBtn = Instance.new("TextButton", keyFrame)
-submitBtn.Size = UDim2.new(0.85, 0, 0, 44)
-submitBtn.Position = UDim2.new(0.075, 0, 0, 145)
-submitBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 70)
-submitBtn.Text = "VERIFICAR LLAVE"
-submitBtn.TextColor3 = Color3.fromRGB(255,255,255)
-submitBtn.Font = Enum.Font.GothamBold
-submitBtn.TextSize = 15
-addCorner(submitBtn, 8)
-
---// BOTÓN FLOTANTE
-local openBtn = Instance.new("TextButton")
-openBtn.Size = UDim2.new(0, 50, 0, 50)
-openBtn.Position = UDim2.new(0, 15, 0.5, -25)
-openBtn.BackgroundColor3 = DARK_BG
-openBtn.Text = "SH"
-openBtn.TextColor3 = ACCENT
-openBtn.Font = Enum.Font.GothamBlack
-openBtn.TextSize = 16
-openBtn.Visible = false
-openBtn.Parent = screenGui
-addCorner(openBtn, 25)
-addStroke(openBtn, ACCENT, 2)
-
---// ========== MENÚ PRINCIPAL ==========
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 340, 0, 420)
-mainFrame.Position = UDim2.new(0, 80, 0.5, -210)
-mainFrame.BackgroundColor3 = DARK_BG
-mainFrame.Visible = false
-mainFrame.Parent = screenGui
-addCorner(mainFrame, 12)
-addStroke(mainFrame, ACCENT, 2)
-
--- Top Bar
-local topBar = Instance.new("Frame", mainFrame)
-topBar.Size = UDim2.new(1, 0, 0, 46)
-topBar.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-topBar.BorderSizePixel = 0
-addCorner(topBar, 12)
-
-local mainTitle = Instance.new("TextLabel", topBar)
-mainTitle.Size = UDim2.new(1, -50, 1, 0)
-mainTitle.Position = UDim2.new(0, 14, 0, 0)
-mainTitle.BackgroundTransparency = 1
-mainTitle.Text = "SAKURA HUB"
-mainTitle.TextColor3 = ACCENT
-mainTitle.Font = Enum.Font.GothamBlack
-mainTitle.TextSize = 17
-mainTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-local closeX = Instance.new("TextButton", topBar)
-closeX.Size = UDim2.new(0, 36, 0, 36)
-closeX.Position = UDim2.new(1, -42, 0.5, -18)
-closeX.BackgroundColor3 = Color3.fromRGB(160, 40, 40)
-closeX.Text = "X"
-closeX.TextColor3 = Color3.fromRGB(255,255,255)
-closeX.Font = Enum.Font.GothamBold
-closeX.TextSize = 16
-addCorner(closeX, 8)
-
--- Scrolling Content
-local scroll = Instance.new("ScrollingFrame", mainFrame)
-scroll.Size = UDim2.new(1, -16, 1, -110)
-scroll.Position = UDim2.new(0, 8, 0, 54)
-scroll.BackgroundTransparency = 1
-scroll.BorderSizePixel = 0
-scroll.ScrollBarThickness = 3
-scroll.ScrollBarImageColor3 = ACCENT
-scroll.CanvasSize = UDim2.new(0, 0, 0, 280)
-
-local listLayout = Instance.new("UIListLayout", scroll)
-listLayout.Padding = UDim.new(0, 8)
-listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
--- Función para crear filas
-local function createRow(text, order)
-	local row = Instance.new("Frame")
-	row.Size = UDim2.new(1, 0, 0, 48)
-	row.BackgroundColor3 = DARK_ROW
-	row.LayoutOrder = order
-	addCorner(row, 8)
-
-	local label = Instance.new("TextLabel", row)
-	label.Size = UDim2.new(0.70, 0, 1, 0)
-	label.Position = UDim2.new(0, 12, 0, 0)
-	label.BackgroundTransparency = 1
-	label.Text = text
-	label.TextColor3 = Color3.fromRGB(240, 240, 240)
-	label.Font = Enum.Font.GothamMedium
-	label.TextSize = 14
-	label.TextXAlignment = Enum.TextXAlignment.Left
-
-	local btn = Instance.new("TextButton", row)
-	btn.Size = UDim2.new(0, 70, 0, 30)
-	btn.Position = UDim2.new(1, -82, 0.5, -15)
-	btn.BackgroundColor3 = Color3.fromRGB(50, 50, 58)
-	btn.Text = "OFF"
-	btn.TextColor3 = Color3.fromRGB(200, 200, 200)
-	btn.Font = Enum.Font.GothamBold
-	btn.TextSize = 13
-	addCorner(btn, 6)
-
-	return row, btn
-end
-
--- Filas
-local espRow, espBtn = createRow("ESP NPCs", 1)
-espRow.Parent = scroll
-
-local fullbrightRow, fullbrightBtn = createRow("Iluminar Mapa (Fullbright)", 2)
-fullbrightRow.Parent = scroll
-
--- Tabs inferiores
-local tabBar = Instance.new("Frame", mainFrame)
-tabBar.Size = UDim2.new(1, -16, 0, 42)
-tabBar.Position = UDim2.new(0, 8, 1, -50)
-tabBar.BackgroundTransparency = 1
-
-local tabESP = Instance.new("TextButton", tabBar)
-tabESP.Size = UDim2.new(0.48, 0, 1, 0)
-tabESP.Position = UDim2.new(0, 0, 0, 0)
-tabESP.BackgroundColor3 = Color3.fromRGB(0, 140, 60)
-tabESP.Text = "ESP"
-tabESP.TextColor3 = Color3.fromRGB(255,255,255)
-tabESP.Font = Enum.Font.GothamBold
-tabESP.TextSize = 14
-addCorner(tabESP, 8)
-
-local tabConfig = Instance.new("TextButton", tabBar)
-tabConfig.Size = UDim2.new(0.48, 0, 1, 0)
-tabConfig.Position = UDim2.new(0.52, 0, 0, 0)
-tabConfig.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
-tabConfig.Text = "CONFIG"
-tabConfig.TextColor3 = Color3.fromRGB(180,180,180)
-tabConfig.Font = Enum.Font.GothamBold
-tabConfig.TextSize = 14
-addCorner(tabConfig, 8)
-
---// ESP + FULLBRIGHT LOGIC
-local function isEnemyNPC(model)
-	local name = string.lower(model.Name)
-	return string.find(name, "grins") or string.find(name, "worth") or string.find(name, "grin")
-end
-
-local function applyESP(model)
-	if espObjects[model] then return end
-	if not isEnemyNPC(model) then return end
-	if Players:GetPlayerFromCharacter(model) then return end
-
-	local root = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Torso") or model:FindFirstChild("UpperTorso") or model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
-	if not root then return end
-
-	local highlight = Instance.new("Highlight")
-	highlight.Adornee = model
-	highlight.FillColor = ESP_COLOR
-	highlight.OutlineColor = Color3.fromRGB(0, 255, 140)
-	highlight.FillTransparency = 0.5
-	highlight.OutlineTransparency = 0
-	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-	highlight.Parent = model
-
-	local billboard = Instance.new("BillboardGui")
-	billboard.Adornee = root
-	billboard.Size = UDim2.new(0, 220, 0, 45)
-	billboard.StudsOffset = Vector3.new(0, 4, 0)
-	billboard.AlwaysOnTop = true
-	billboard.Parent = model
-
-	local nameLabel = Instance.new("TextLabel", billboard)
-	nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.TextColor3 = ESP_COLOR
-	nameLabel.TextStrokeTransparency = 0
-	nameLabel.Font = Enum.Font.GothamBold
-	nameLabel.TextSize = 13
-	nameLabel.Text = model.Name
-
-	local distLabel = Instance.new("TextLabel", billboard)
-	distLabel.Size = UDim2.new(1, 0, 0.5, 0)
-	distLabel.Position = UDim2.new(0, 0, 0.5, 0)
-	distLabel.BackgroundTransparency = 1
-	distLabel.TextColor3 = ESP_COLOR
-	distLabel.TextStrokeTransparency = 0
-	distLabel.Font = Enum.Font.Gotham
-	distLabel.TextSize = 12
-	distLabel.Text = "0 studs"
-
-	espObjects[model] = {Highlight = highlight, Billboard = billboard, DistLabel = distLabel, Root = root}
-end
-
-local function clearESP()
-	for _, data in pairs(espObjects) do
-		if data.Highlight then data.Highlight:Destroy() end
-		if data.Billboard then data.Billboard:Destroy() end
-	end
-	table.clear(espObjects)
-end
-
-local function scan()
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj:IsA("Model") then applyESP(obj) end
-	end
-end
-
-local function toggleFullbright(state)
-	if state then
-		Lighting.Brightness = 2.8
-		Lighting.ClockTime = 14
-		Lighting.FogEnd = 100000
-		Lighting.GlobalShadows = false
-	else
-		Lighting.Brightness = originalBrightness
-		Lighting.ClockTime = originalClockTime
-		Lighting.FogEnd = originalFogEnd
-		Lighting.GlobalShadows = originalGlobalShadows
-	end
-end
-
-RunService.RenderStepped:Connect(function()
-	if not espEnabled then return end
-	local char = player.Character
-	local myRoot = char and char:FindFirstChild("HumanoidRootPart")
-	if not myRoot then return end
-	for model, data in pairs(espObjects) do
-		if model.Parent and data.Root and data.Root.Parent then
-			data.DistLabel.Text = math.floor((myRoot.Position - data.Root.Position).Magnitude) .. " studs"
-		else
-			if data.Highlight then data.Highlight:Destroy() end
-			if data.Billboard then data.Billboard:Destroy() end
-			espObjects[model] = nil
+local function make(className, props)
+	local obj = Instance.new(className)
+	for key, value in pairs(props or {}) do
+		if key ~= "Parent" then
+			obj[key] = value
 		end
 	end
+	if props and props.Parent then
+		obj.Parent = props.Parent
+	end
+	return obj
+end
+
+local function round(obj, radius)
+	local c = make("UICorner", {
+		CornerRadius = UDim.new(0, radius or 12),
+		Parent = obj,
+	})
+	return c
+end
+
+local function stroke(obj, color, thickness)
+	local s = make("UIStroke", {
+		Color = color,
+		Thickness = thickness or 1.2,
+		Transparency = 0.15,
+		Parent = obj,
+	})
+	return s
+end
+
+local screenGui = make("ScreenGui", {
+	Name = "SimpleCamMenu",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+	Parent = playerGui,
+})
+
+local root = make("Frame", {
+	Parent = screenGui,
+	Name = "Root",
+	BackgroundColor3 = Color3.fromRGB(17, 12, 20),
+	BackgroundTransparency = 0.2,
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 24, 0.5, -150),
+	Size = UDim2.new(0, 520, 0, 250),
+	Visible = false,
+})
+round(root, 18)
+stroke(root, Color3.fromRGB(255, 92, 200), 1.5)
+
+local topBar = make("Frame", {
+	Parent = root,
+	BackgroundColor3 = Color3.fromRGB(20, 12, 23),
+	BackgroundTransparency = 0.08,
+	BorderSizePixel = 0,
+	Size = UDim2.new(1, 0, 0, 46),
+})
+round(topBar, 18)
+
+local title = make("TextLabel", {
+	Parent = topBar,
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 18, 0, 0),
+	Size = UDim2.new(0, 220, 1, 0),
+	Text = "Sakura Hub",
+	TextColor3 = Color3.fromRGB(255, 92, 200),
+	Font = Enum.Font.GothamBlack,
+	TextSize = 18,
+	TextXAlignment = Enum.TextXAlignment.Left,
+})
+
+local glowBar = make("Frame", {
+	Parent = topBar,
+	BackgroundColor3 = Color3.fromRGB(255, 92, 200),
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 0, 1, -3),
+	Size = UDim2.new(1, 0, 0, 3),
+})
+round(glowBar, 3)
+
+local sidebar = make("Frame", {
+	Parent = root,
+	BackgroundColor3 = Color3.fromRGB(34, 25, 38),
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 0, 0, 46),
+	Size = UDim2.new(0, 150, 1, -46),
+})
+round(sidebar, 12)
+
+local panel = make("Frame", {
+	Parent = root,
+	BackgroundColor3 = Color3.fromRGB(34, 25, 38),
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 165, 0, 55),
+	Size = UDim2.new(1, -175, 1, -65),
+})
+round(panel, 14)
+
+local function createTab(label, y, selected)
+	local btn = make("TextButton", {
+		Parent = sidebar,
+		BackgroundColor3 = selected and Color3.fromRGB(255, 92, 200) or Color3.fromRGB(44, 30, 47),
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 9, 0, y),
+		Size = UDim2.new(1, -18, 0, 42),
+		Text = label,
+		TextColor3 = selected and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 170, 190),
+		Font = Enum.Font.GothamBold,
+		TextSize = 13,
+		AutoButtonColor = false,
+	})
+	round(btn, 10)
+	stroke(btn, Color3.fromRGB(255, 92, 200), selected and 2 or 1)
+	return btn
+end
+
+local funcsTab = createTab("Funciones", 10, true)
+local listTab = createTab("Lista", 58, false)
+
+local function showPanel(mode)
+	if mode == "Funciones" then
+		funcsPanel.Visible = true
+		listFrame.Visible = false
+		funcsTab.BackgroundColor3 = Color3.fromRGB(255, 92, 200)
+		funcsTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+		listTab.BackgroundColor3 = Color3.fromRGB(44, 30, 47)
+		listTab.TextColor3 = Color3.fromRGB(180, 170, 190)
+	else
+		funcsPanel.Visible = false
+		listFrame.Visible = true
+		listTab.BackgroundColor3 = Color3.fromRGB(255, 92, 200)
+		listTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+		funcsTab.BackgroundColor3 = Color3.fromRGB(44, 30, 47)
+		funcsTab.TextColor3 = Color3.fromRGB(180, 170, 190)
+	end
+end
+
+local funcsPanel = make("Frame", {
+	Parent = panel,
+	BackgroundTransparency = 1,
+	Size = UDim2.new(1, 0, 1, 0),
+	Visible = true,
+})
+
+local listFrame = make("ScrollingFrame", {
+	Parent = panel,
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	Size = UDim2.new(1, 0, 1, 0),
+	Visible = false,
+	CanvasSize = UDim2.new(0, 0, 0, 600),
+	ScrollBarThickness = 4,
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+})
+
+local listLayout = make("UIListLayout", {
+	Parent = listFrame,
+	Padding = UDim.new(0, 8),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+})
+
+local function createToggleRow(parent, label, y)
+	local row = make("Frame", {
+		Parent = parent,
+		BackgroundColor3 = Color3.fromRGB(44, 30, 47),
+		BackgroundTransparency = 0.12,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 12, 0, y),
+		Size = UDim2.new(1, -24, 0, 32),
+	})
+	round(row, 10)
+
+	local textLabel = make("TextLabel", {
+		Parent = row,
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 12, 0, 0),
+		Size = UDim2.new(1, -90, 1, 0),
+		Text = label,
+		TextColor3 = Color3.fromRGB(250, 245, 255),
+		Font = Enum.Font.GothamSemibold,
+		TextSize = 12,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+
+	local toggle = make("TextButton", {
+		Parent = row,
+		BackgroundColor3 = Color3.fromRGB(44, 30, 47),
+		BorderSizePixel = 0,
+		Position = UDim2.new(1, -72, 0.5, -11),
+		Size = UDim2.new(0, 60, 0, 22),
+		Text = "OFF",
+		TextColor3 = Color3.fromRGB(180, 170, 190),
+		Font = Enum.Font.GothamBold,
+		TextSize = 10,
+		AutoButtonColor = false,
+	})
+	round(toggle, 12)
+	stroke(toggle, Color3.fromRGB(255, 92, 200), 1)
+
+	return row, toggle
+end
+
+local espRow, espToggle = createToggleRow(funcsPanel, "ESP Player", 14)
+local camRow, camToggle = createToggleRow(funcsPanel, "Cam Lock", 52)
+
+local function setToggle(button, enabled)
+	if enabled then
+		button.Text = "ON"
+		button.BackgroundColor3 = Color3.fromRGB(255, 110, 210)
+		button.TextColor3 = Color3.fromRGB(255, 255, 255)
+	else
+		button.Text = "OFF"
+		button.BackgroundColor3 = Color3.fromRGB(44, 30, 47)
+		button.TextColor3 = Color3.fromRGB(180, 170, 190)
+	end
+end
+
+local floatButton = make("TextButton", {
+	Parent = screenGui,
+	BackgroundColor3 = Color3.fromRGB(17, 12, 20),
+	BackgroundTransparency = 0.12,
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 20, 0.5, -28),
+	Size = UDim2.new(0, 56, 0, 56),
+	Text = "🌸",
+	TextColor3 = Color3.fromRGB(255, 92, 200),
+	Font = Enum.Font.GothamBlack,
+	TextScaled = true,
+	AutoButtonColor = false,
+})
+round(floatButton, 18)
+stroke(floatButton, Color3.fromRGB(255, 92, 200), 2)
+
+floatButton.MouseButton1Click:Connect(function()
+	root.Visible = not root.Visible
 end)
 
-workspace.DescendantAdded:Connect(function(obj)
-	if espEnabled and obj:IsA("Model") then
-		task.wait(0.3)
-		applyESP(obj)
+local closeBtn = make("TextButton", {
+	Parent = topBar,
+	BackgroundColor3 = Color3.fromRGB(255, 92, 200),
+	BorderSizePixel = 0,
+	Position = UDim2.new(1, -34, 0.5, -14),
+	Size = UDim2.new(0, 28, 0, 28),
+	Text = "×",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	Font = Enum.Font.GothamBlack,
+	TextSize = 15,
+	AutoButtonColor = false,
+})
+round(closeBtn, 8)
+
+closeBtn.MouseButton1Click:Connect(function()
+	root.Visible = false
+end)
+
+local function updatePlayerList()
+	for _, child in ipairs(listFrame:GetChildren()) do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
+	end
+
+	for _, plr in ipairs(Players:GetPlayers()) do
+		local btn = make("TextButton", {
+			Parent = listFrame,
+			BackgroundColor3 = Color3.fromRGB(44, 30, 47),
+			BorderSizePixel = 0,
+			Size = UDim2.new(1, -10, 0, 28),
+			Text = plr.Name,
+			TextColor3 = Color3.fromRGB(250, 245, 255),
+			Font = Enum.Font.GothamSemibold,
+			TextSize = 12,
+			AutoButtonColor = false,
+		})
+		round(btn, 8)
+		stroke(btn, Color3.fromRGB(255, 92, 200), 1)
+
+		btn.MouseButton1Click:Connect(function()
+			selectedTarget = plr
+			camLockEnabled = true
+			setToggle(camToggle, true)
+			showPanel("Funciones")
+		end)
+	end
+end
+
+updatePlayerList()
+
+Players.PlayerAdded:Connect(function()
+	task.wait(0.1)
+	updatePlayerList()
+end)
+
+Players.PlayerRemoving:Connect(function()
+	task.wait(0.1)
+	updatePlayerList()
+end)
+
+local function applyPlayerESP(plr)
+	if plr == player then return end
+	if playerHighlightObjects[plr] then return end
+
+	local highlight = Instance.new("Highlight")
+	highlight.Adornee = plr.Character
+	highlight.FillColor = Color3.fromRGB(255, 92, 200)
+	highlight.OutlineColor = Color3.fromRGB(255, 145, 230)
+	highlight.FillTransparency = 0.4
+	highlight.OutlineTransparency = 0
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.Parent = Workspace
+
+	playerHighlightObjects[plr] = highlight
+end
+
+local function clearPlayerESP()
+	for _, highlight in pairs(playerHighlightObjects) do
+		if highlight then highlight:Destroy() end
+	end
+	playerHighlightObjects = {}
+end
+
+espToggle.MouseButton1Click:Connect(function()
+	espEnabled = not espEnabled
+	setToggle(espToggle, espEnabled)
+
+	if espEnabled then
+		for _, plr in ipairs(Players:GetPlayers()) do
+			if plr ~= player and plr.Character then
+				applyPlayerESP(plr)
+			end
+		end
+	else
+		clearPlayerESP()
 	end
 end)
 
---// ARRASTRAR
-local dragging, dragStart, startPos
+camToggle.MouseButton1Click:Connect(function()
+	camLockEnabled = not camLockEnabled
+	setToggle(camToggle, camLockEnabled)
+
+	if not camLockEnabled then
+		selectedTarget = nil
+	end
+end)
+
+Players.PlayerAdded:Connect(function(plr)
+	plr.CharacterAdded:Connect(function()
+		if espEnabled and plr ~= player then
+			applyPlayerESP(plr)
+		end
+	end)
+end)
+
+local dragStart
+local dragStartPos
+local dragging = false
+
 topBar.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		dragging = true
 		dragStart = input.Position
-		startPos = mainFrame.Position
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then dragging = false end
-		end)
+		dragStartPos = root.Position
 	end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
 		local delta = input.Position - dragStart
-		mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		root.Position = UDim2.new(
+			dragStartPos.X.Scale,
+			dragStartPos.X.Offset + delta.X,
+			dragStartPos.Y.Scale,
+			dragStartPos.Y.Offset + delta.Y
+		)
 	end
 end)
 
---// EVENTOS
-submitBtn.MouseButton1Click:Connect(function()
-	if keyBox.Text == CORRECT_KEY then
-		keyFrame.Visible = false
-		mainFrame.Visible = true
-		openBtn.Visible = true
-	else
-		submitBtn.BackgroundColor3 = Color3.fromRGB(160, 40, 40)
-		submitBtn.Text = "LLAVE INCORRECTA"
-		task.wait(1)
-		submitBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 70)
-		submitBtn.Text = "VERIFICAR LLAVE"
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
 	end
 end)
 
-closeX.MouseButton1Click:Connect(function()
-	mainFrame.Visible = false
+funcsTab.MouseButton1Click:Connect(function()
+	showPanel("Funciones")
 end)
 
-openBtn.MouseButton1Click:Connect(function()
-	mainFrame.Visible = not mainFrame.Visible
+listTab.MouseButton1Click:Connect(function()
+	showPanel("Lista")
 end)
 
-espBtn.MouseButton1Click:Connect(function()
-	espEnabled = not espEnabled
-	if espEnabled then
-		espBtn.Text = "ON"
-		espBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 60)
-		espBtn.TextColor3 = Color3.fromRGB(255,255,255)
-		scan()
-	else
-		espBtn.Text = "OFF"
-		espBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 58)
-		espBtn.TextColor3 = Color3.fromRGB(200,200,200)
-		clearESP()
+RunService.RenderStepped:Connect(function()
+	if camLockEnabled and selectedTarget and selectedTarget.Character and selectedTarget.Character:FindFirstChild("HumanoidRootPart") then
+		local targetRoot = selectedTarget.Character.HumanoidRootPart
+		local myRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+
+		if myRoot then
+			local lookAt = CFrame.lookAt(
+				camera.CFrame.Position,
+				targetRoot.Position
+			)
+
+			camera.CFrame = camera.CFrame:Lerp(lookAt, 0.22)
+		end
 	end
 end)
 
-fullbrightBtn.MouseButton1Click:Connect(function()
-	fullbrightEnabled = not fullbrightEnabled
-	toggleFullbright(fullbrightEnabled)
-	if fullbrightEnabled then
-		fullbrightBtn.Text = "ON"
-		fullbrightBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 60)
-		fullbrightBtn.TextColor3 = Color3.fromRGB(255,255,255)
-	else
-		fullbrightBtn.Text = "OFF"
-		fullbrightBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 58)
-		fullbrightBtn.TextColor3 = Color3.fromRGB(200,200,200)
-	end
-end)
-
-print("Sakura Hub - Estilo Premium cargado")
+showPanel("Funciones")
