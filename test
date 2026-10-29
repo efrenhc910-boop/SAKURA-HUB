@@ -726,4 +726,83 @@ end)
 
 player.CharacterAdded:Connect(function(char)
 	task.wait(0.1)
-	local humanoid = char:FindFirst
+	local humanoid = char:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.WalkSpeed = walkSpeedValue
+	end
+
+	if noclipEnabled then
+		for _, part in ipairs(char:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = false
+			end
+		end
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	if not espEnabled then return end
+
+	local myRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not myRoot then return end
+
+	for model, data in pairs(espObjects) do
+		if model.Parent and data.Root and data.Root.Parent then
+			data.DistLabel.Text = math.floor((myRoot.Position - data.Root.Position).Magnitude) .. " studs"
+		else
+			if data.Highlight then data.Highlight:Destroy() end
+			if data.Billboard then data.Billboard:Destroy() end
+			espObjects[model] = nil
+		end
+	end
+end)
+
+-- ==================================================
+-- TABS
+-- ==================================================
+funcsTab.MouseButton1Click:Connect(function()
+	showPanel("Funciones")
+end)
+
+configTab.MouseButton1Click:Connect(function()
+	showPanel("Configuración")
+end)
+
+-- ==================================================
+-- DRAG UI
+-- ==================================================
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+topBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = root.Position
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		root.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+-- ==================================================
+-- INICIALIZAR
+-- ==================================================
+showPanel("Funciones")
+print("Sakura Hub cargado correctamente.")
