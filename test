@@ -7,6 +7,9 @@ local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
+-- ==================================================
+-- TEMAS
+-- ==================================================
 local ThemePresets = {
 	NeonRed = {
 		Accent = Color3.fromRGB(255, 78, 120),
@@ -52,6 +55,9 @@ local ThemePresets = {
 
 local theme = ThemePresets.NeonPink
 
+-- ==================================================
+-- HELPERS
+-- ==================================================
 local function make(className, props)
 	local obj = Instance.new(className)
 	for key, value in pairs(props or {}) do
@@ -83,20 +89,26 @@ local function stroke(obj, color, thickness)
 	return s
 end
 
+-- ==================================================
+-- VARIABLES
+-- ==================================================
 local menuOpen = false
 local espEnabled = false
 local playerEspEnabled = false
 local noclipEnabled = false
 local fullbrightEnabled = false
 
-local espObjects = {}
-local playerHighlightObjects = {}
+local npcEspObjects = {}
+local fathomESPObjects = {}
 
 local originalBrightness = Lighting.Brightness
 local originalClockTime = Lighting.ClockTime
 local originalFogEnd = Lighting.FogEnd
 local originalGlobalShadows = Lighting.GlobalShadows
 
+-- ==================================================
+-- GUI
+-- ==================================================
 local screenGui = make("ScreenGui", {
 	Name = "SakuraHub",
 	ResetOnSpawn = false,
@@ -209,19 +221,30 @@ end
 local funcsTab = createTab("Funciones", 10, true)
 local configTab = createTab("Configuración", 58, false)
 
-local functionsPanel = make("Frame", {
-	Parent = panel,
-	BackgroundTransparency = 1,
-	Size = UDim2.new(1, 0, 1, 0),
-	Visible = true,
-})
+local function createScrollingPanel(parent)
+	local scroll = make("ScrollingFrame", {
+		Parent = parent,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 0, 0, 0),
+		Size = UDim2.new(1, 0, 1, 0),
+		CanvasSize = UDim2.new(0, 0, 0, 600),
+		ScrollBarThickness = 4,
+		ScrollBarImageColor3 = theme.Accent,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	})
+	local list = make("UIListLayout", {
+		Parent = scroll,
+		Padding = UDim.new(0, 8),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	})
+	return scroll
+end
 
-local configPanel = make("Frame", {
-	Parent = panel,
-	BackgroundTransparency = 1,
-	Size = UDim2.new(1, 0, 1, 0),
-	Visible = false,
-})
+local functionsPanel = createScrollingPanel(panel)
+local configPanel = createScrollingPanel(panel)
+functionsPanel.Visible = true
+configPanel.Visible = false
 
 local function createToggleRow(parent, label, y)
 	local row = make("Frame", {
@@ -229,8 +252,8 @@ local function createToggleRow(parent, label, y)
 		BackgroundColor3 = theme.Card,
 		BackgroundTransparency = 0.12,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0, 12, 0, y),
 		Size = UDim2.new(1, -24, 0, 32),
+		LayoutOrder = y,
 	})
 	round(row, 10)
 
@@ -270,22 +293,10 @@ local function createSliderRow(parent, label, y, minValue, maxValue, defaultValu
 		BackgroundColor3 = theme.Card,
 		BackgroundTransparency = 0.12,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0, 12, 0, y),
 		Size = UDim2.new(1, -24, 0, 62),
+		LayoutOrder = y,
 	})
 	round(row, 10)
-
-	local valueText = make("TextLabel", {
-		Parent = row,
-		BackgroundTransparency = 1,
-		Position = UDim2.new(1, -66, 0, 8),
-		Size = UDim2.new(0, 50, 0, 18),
-		Text = tostring(defaultValue),
-		TextColor3 = theme.Accent,
-		Font = Enum.Font.GothamBold,
-		TextSize = 11,
-		TextXAlignment = Enum.TextXAlignment.Right,
-	})
 
 	local info = make("TextLabel", {
 		Parent = row,
@@ -297,6 +308,18 @@ local function createSliderRow(parent, label, y, minValue, maxValue, defaultValu
 		Font = Enum.Font.GothamSemibold,
 		TextSize = 12,
 		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+
+	local valueText = make("TextLabel", {
+		Parent = row,
+		BackgroundTransparency = 1,
+		Position = UDim2.new(1, -66, 0, 8),
+		Size = UDim2.new(0, 50, 0, 18),
+		Text = tostring(defaultValue),
+		TextColor3 = theme.Accent,
+		Font = Enum.Font.GothamBold,
+		TextSize = 11,
+		TextXAlignment = Enum.TextXAlignment.Right,
 	})
 
 	local track = make("Frame", {
@@ -420,11 +443,20 @@ local function showPanel(mode)
 	end
 end
 
-local espPlayersRow, espPlayersToggle = createToggleRow(functionsPanel, "ESP Players", 14)
-local espFathomRow, espFathomToggle = createToggleRow(functionsPanel, "ESP Fathom", 52)
-local fullbrightRow, fullbrightToggle = createToggleRow(functionsPanel, "Fullbright", 90)
+-- ==================================================
+-- FILAS FUNCIONES
+-- ==================================================
+local espPlayersRow, espPlayersToggle = createToggleRow(functionsPanel, "ESP Players", 1)
+local espFathomRow, espFathomToggle = createToggleRow(functionsPanel, "ESP Fathom", 2)
+local fullbrightRow, fullbrightToggle = createToggleRow(functionsPanel, "Fullbright", 3)
+local noclipRow, noclipToggle = createToggleRow(functionsPanel, "NoClip", 4)
 
-local sizeSlider = createSliderRow(configPanel, "Tamaño del menú", 18, 70, 130, 100, function(v)
+local espRows = { espPlayersRow, espFathomRow, fullbrightRow, noclipRow }
+
+-- ==================================================
+-- PANEL CONFIG
+-- ==================================================
+local sizeSlider = createSliderRow(configPanel, "Tamaño del menú", 1, 70, 130, 100, function(v)
 	local scale = v / 100
 	root.Size = UDim2.new(0, 700 * scale, 0, 300 * scale)
 end)
@@ -460,6 +492,9 @@ greenBtn.Position = UDim2.new(0, 96, 0.5, -18)
 local blueBtn = createColorButton(colorStrip, Color3.fromRGB(90, 180, 255), "Azul")
 blueBtn.Position = UDim2.new(0, 144, 0.5, -18)
 
+-- ==================================================
+-- BOTÓN FLOTANTE
+-- ==================================================
 local floatButton = make("TextButton", {
 	Parent = screenGui,
 	BackgroundColor3 = theme.Background,
@@ -502,42 +537,39 @@ closeBtn.MouseButton1Click:Connect(function()
 	floatButton.Text = "🌸"
 end)
 
-local function isEnemyNPC(model)
-	if not model or not model:IsA("Model") then return false end
-	local name = string.lower(model.Name)
-
-	local patterns = {
-		"grins",
-		"grin",
-		"ginsworth",
-		"gins",
-		"worth",
-		"whort",
-		"wort",
-		"npc",
-		"enemy",
-		"bot",
-		"grunt",
-		"mob",
-		"guard"
-	}
-
-	for _, pattern in ipairs(patterns) do
-		if string.find(name, pattern, 1, true) then
-			return true
-		end
-	end
-
-	return false
+-- ==================================================
+-- DETECCIÓN
+-- ==================================================
+local function isNPCName(name)
+	if not name then return false end
+	local n = string.lower(name)
+	return string.find(n, "grins", 1, true)
+		or string.find(n, "worth", 1, true)
+		or string.find(n, "grin", 1, true)
+		or string.find(n, "ginsworth", 1, true)
+		or string.find(n, "whort", 1, true)
 end
 
-local function applyESP(model)
-	if not model or not model:IsA("Model") then return end
-	if espObjects[model] then return end
-	if Players:GetPlayerFromCharacter(model) then return end
-	if not isEnemyNPC(model) then return end
+local function isFathomPlayer(plr)
+	if not plr or not plr:IsA("Player") then return false end
+	local name = string.lower(plr.Name)
+	return string.find(name, "fathom", 1, true) ~= nil
+end
 
-	local rootPart = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Torso") or model:FindFirstChild("UpperTorso") or model.PrimaryPart
+-- ==================================================
+-- NPC ESP
+-- ==================================================
+local function addNPCESP(model)
+	if not model or not model:IsA("Model") then return end
+	if npcEspObjects[model] then return end
+	if Players:GetPlayerFromCharacter(model) then return end
+	if not isNPCName(model.Name) then return end
+
+	local rootPart = model:FindFirstChild("HumanoidRootPart")
+		or model:FindFirstChild("Torso")
+		or model:FindFirstChild("UpperTorso")
+		or model.PrimaryPart
+
 	if not rootPart then return end
 
 	local highlight = make("Highlight", {
@@ -554,206 +586,141 @@ local function applyESP(model)
 		Parent = Workspace,
 		Adornee = rootPart,
 		AlwaysOnTop = true,
-		Size = UDim2.new(0, 160, 0, 24),
-		StudsOffset = Vector3.new(0, 3.2, 0),
+		Size = UDim2.new(0, 180, 0, 32),
+		StudsOffset = Vector3.new(0, 3.5, 0),
 	})
 
 	local label = make("TextLabel", {
 		Parent = billboard,
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 1, 0),
+		Size = UDim2.new(1, 0, 0.5, 0),
+		Position = UDim2.new(0, 0, 0, 0),
 		Text = model.Name,
 		TextColor3 = theme.Text,
-		TextStrokeTransparency = 0.3,
+		TextStrokeTransparency = 0.2,
 		Font = Enum.Font.GothamBold,
 		TextSize = 12,
 	})
 
-	espObjects[model] = { highlight = highlight, billboard = billboard, label = label }
+	local distLabel = make("TextLabel", {
+		Parent = billboard,
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0.5, 0),
+		Position = UDim2.new(0, 0, 0.5, 0),
+		Text = "0 studs",
+		TextColor3 = theme.Accent,
+		TextStrokeTransparency = 0.2,
+		Font = Enum.Font.Gotham,
+		TextSize = 11,
+	})
+
+	npcEspObjects[model] = {
+		highlight = highlight,
+		billboard = billboard,
+		label = label,
+		distLabel = distLabel,
+		rootPart = rootPart,
+	}
 end
 
-local function clearESP()
-	for model, v in pairs(espObjects) do
+local function clearNPCESP()
+	for model, v in pairs(npcEspObjects) do
 		if v.highlight then v.highlight:Destroy() end
 		if v.billboard then v.billboard:Destroy() end
-		espObjects[model] = nil
+		npcEspObjects[model] = nil
 	end
 end
 
-local function scanESP()
+local function scanNPCESP()
 	for _, obj in ipairs(Workspace:GetDescendants()) do
 		if obj:IsA("Model") then
-			applyESP(obj)
+			addNPCESP(obj)
 		end
 	end
 end
 
-local function toggleNoClip(state)
-	if state then
-		if player.Character then
-			for _, part in ipairs(player.Character:GetDescendants()) do
-				if part:IsA("BasePart") then
-					part.CanCollide = false
-				end
-			end
-		end
-	else
-		if player.Character then
-			for _, part in ipairs(player.Character:GetDescendants()) do
-				if part:IsA("BasePart") then
-					part.CanCollide = true
-				end
-			end
+-- ==================================================
+-- FATHOM ESP
+-- ==================================================
+local function addFathomESP(plr)
+	if not plr or not plr:IsA("Player") then return end
+	if fathomESPObjects[plr] then return end
+	if not isFathomPlayer(plr) then return end
+	if not plr.Character then return end
+
+	local rootPart = plr.Character:FindFirstChild("HumanoidRootPart")
+	if not rootPart then return end
+
+	local highlight = make("Highlight", {
+		Parent = Workspace,
+		Adornee = plr.Character,
+		FillColor = Color3.fromRGB(255, 200, 120),
+		OutlineColor = Color3.fromRGB(255, 255, 200),
+		FillTransparency = 0.45,
+		OutlineTransparency = 0,
+		DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
+	})
+
+	local billboard = make("BillboardGui", {
+		Parent = Workspace,
+		Adornee = rootPart,
+		AlwaysOnTop = true,
+		Size = UDim2.new(0, 180, 0, 32),
+		StudsOffset = Vector3.new(0, 3.5, 0),
+	})
+
+	local label = make("TextLabel", {
+		Parent = billboard,
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0.5, 0),
+		Position = UDim2.new(0, 0, 0, 0),
+		Text = plr.Name,
+		TextColor3 = Color3.fromRGB(255, 230, 150),
+		TextStrokeTransparency = 0.2,
+		Font = Enum.Font.GothamBold,
+		TextSize = 12,
+	})
+
+	local distLabel = make("TextLabel", {
+		Parent = billboard,
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0.5, 0),
+		Position = UDim2.new(0, 0, 0.5, 0),
+		Text = "0 studs",
+		TextColor3 = Color3.fromRGB(255, 240, 170),
+		TextStrokeTransparency = 0.2,
+		Font = Enum.Font.Gotham,
+		TextSize = 11,
+	})
+
+	fathomESPObjects[plr] = {
+		highlight = highlight,
+		billboard = billboard,
+		label = label,
+		distLabel = distLabel,
+		rootPart = rootPart,
+	}
+end
+
+local function clearFathomESP()
+	for plr, v in pairs(fathomESPObjects) do
+		if v.highlight then v.highlight:Destroy() end
+		if v.billboard then v.billboard:Destroy() end
+		fathomESPObjects[plr] = nil
+	end
+end
+
+local function updateFathomESP()
+	for plr, v in pairs(fathomESPObjects) do
+		if plr and plr.Character and v.rootPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+			local dist = math.floor((player.Character.HumanoidRootPart.Position - v.rootPart.Position).Magnitude)
+			v.distLabel.Text = tostring(dist) .. " studs"
 		end
 	end
 end
 
+-- ==================================================
+-- FULLBRIGHT
+-- ==================================================
 local function toggleFullbright(state)
-	if state then
-		Lighting.Brightness = 2.5
-		Lighting.ClockTime = 14
-		Lighting.FogEnd = 100000
-		Lighting.GlobalShadows = false
-	else
-		Lighting.Brightness = originalBrightness
-		Lighting.ClockTime = originalClockTime
-		Lighting.FogEnd = originalFogEnd
-		Lighting.GlobalShadows = originalGlobalShadows
-	end
-end
-
-local function togglePlayerESP(state)
-	if state then
-		for _, plr in ipairs(Players:GetPlayers()) do
-			if plr ~= player and plr.Character then
-				local h = make("Highlight", {
-					Parent = Workspace,
-					Adornee = plr.Character,
-					FillColor = theme.Accent,
-					OutlineColor = theme.Accent2,
-					FillTransparency = 0.35,
-					OutlineTransparency = 0,
-				})
-				playerHighlightObjects[plr] = h
-			end
-		end
-	else
-		for _, h in pairs(playerHighlightObjects) do
-			if h then h:Destroy() end
-		end
-		playerHighlightObjects = {}
-	end
-end
-
-espPlayersToggle.MouseButton1Click:Connect(function()
-	espEnabled = not espEnabled
-	setToggle(espPlayersToggle, espEnabled)
-	if espEnabled then
-		scanESP()
-	else
-		clearESP()
-	end
-end)
-
-espFathomToggle.MouseButton1Click:Connect(function()
-	playerEspEnabled = not playerEspEnabled
-	setToggle(espFathomToggle, playerEspEnabled)
-	togglePlayerESP(playerEspEnabled)
-end)
-
-fullbrightToggle.MouseButton1Click:Connect(function()
-	fullbrightEnabled = not fullbrightEnabled
-	setToggle(fullbrightToggle, fullbrightEnabled)
-	toggleFullbright(fullbrightEnabled)
-end)
-
-local noclipBtn = make("TextButton", {
-	Parent = functionsPanel,
-	BackgroundColor3 = theme.Card,
-	BorderSizePixel = 0,
-	Position = UDim2.new(0, 12, 0, 130),
-	Size = UDim2.new(1, -24, 0, 32),
-	Text = "NoClip",
-	TextColor3 = theme.Text,
-	Font = Enum.Font.GothamSemibold,
-	TextSize = 12,
-})
-round(noclipBtn, 10)
-stroke(noclipBtn, theme.Accent, 1)
-
-noclipBtn.MouseButton1Click:Connect(function()
-	noclipEnabled = not noclipEnabled
-	setToggle(noclipBtn, noclipEnabled)
-	toggleNoClip(noclipEnabled)
-end)
-
-funcsTab.MouseButton1Click:Connect(function()
-	showPanel("Funciones")
-end)
-
-configTab.MouseButton1Click:Connect(function()
-	showPanel("Configuración")
-end)
-
-local dragging = false
-local dragStart = nil
-local startPos = nil
-
-topBar.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStart = input.Position
-		startPos = root.Position
-	end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-		local delta = input.Position - dragStart
-		root.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
-		)
-	end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = false
-	end
-end)
-
-Workspace.DescendantAdded:Connect(function(desc)
-	if espEnabled and desc:IsA("Model") then
-		task.wait(0.2)
-		if isEnemyNPC(desc) then
-			applyESP(desc)
-		end
-	end
-end)
-
-RunService.RenderStepped:Connect(function()
-	if noclipEnabled and player.Character then
-		for _, part in ipairs(player.Character:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.CanCollide = false
-			end
-		end
-	end
-end)
-
-player.CharacterAdded:Connect(function(char)
-	task.wait(0.1)
-	if noclipEnabled then
-		for _, part in ipairs(char:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.CanCollide = false
-			end
-		end
-	end
-end)
-
-showPanel("Funciones")
-print("Sakura Hub cargado correctamente.")
+	if state the
