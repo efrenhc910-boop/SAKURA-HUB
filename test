@@ -720,4 +720,36 @@ topBar.InputBegan:Connect(function(input)
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.To
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		root.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+-- ==================================================
+-- TABS
+-- ==================================================
+funcsTab.MouseButton1Click:Connect(function()
+	showPanel("Funciones")
+end)
+
+configTab.MouseButton1Click:Connect(function()
+	showPanel("Configuración")
+end)
+
+-- ==================================================
+-- INICIALIZAR
+-- ==================================================
+showPanel("Funciones")
+print("Sakura Hub cargado correctamente.")
