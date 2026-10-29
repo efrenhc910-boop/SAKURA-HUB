@@ -44,7 +44,7 @@ local function stroke(obj, color, thickness)
 end
 
 local screenGui = make("ScreenGui", {
-	Name = "SimpleCamMenu",
+	Name = "SakuraSimpleMenu",
 	ResetOnSpawn = false,
 	IgnoreGuiInset = true,
 	Parent = playerGui,
@@ -132,24 +132,6 @@ end
 local funcsTab = createTab("Funciones", 10, true)
 local listTab = createTab("Lista", 58, false)
 
-local function showPanel(mode)
-	if mode == "Funciones" then
-		funcsPanel.Visible = true
-		listFrame.Visible = false
-		funcsTab.BackgroundColor3 = Color3.fromRGB(255, 92, 200)
-		funcsTab.TextColor3 = Color3.fromRGB(255, 255, 255)
-		listTab.BackgroundColor3 = Color3.fromRGB(44, 30, 47)
-		listTab.TextColor3 = Color3.fromRGB(180, 170, 190)
-	else
-		funcsPanel.Visible = false
-		listFrame.Visible = true
-		listTab.BackgroundColor3 = Color3.fromRGB(255, 92, 200)
-		listTab.TextColor3 = Color3.fromRGB(255, 255, 255)
-		funcsTab.BackgroundColor3 = Color3.fromRGB(44, 30, 47)
-		funcsTab.TextColor3 = Color3.fromRGB(180, 170, 190)
-	end
-end
-
 local funcsPanel = make("Frame", {
 	Parent = panel,
 	BackgroundTransparency = 1,
@@ -227,6 +209,24 @@ local function setToggle(button, enabled)
 		button.Text = "OFF"
 		button.BackgroundColor3 = Color3.fromRGB(44, 30, 47)
 		button.TextColor3 = Color3.fromRGB(180, 170, 190)
+	end
+end
+
+local function showPanel(mode)
+	if mode == "Funciones" then
+		funcsPanel.Visible = true
+		listFrame.Visible = false
+		funcsTab.BackgroundColor3 = Color3.fromRGB(255, 92, 200)
+		funcsTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+		listTab.BackgroundColor3 = Color3.fromRGB(44, 30, 47)
+		listTab.TextColor3 = Color3.fromRGB(180, 170, 190)
+	else
+		funcsPanel.Visible = false
+		listFrame.Visible = true
+		listTab.BackgroundColor3 = Color3.fromRGB(255, 92, 200)
+		listTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+		funcsTab.BackgroundColor3 = Color3.fromRGB(44, 30, 47)
+		funcsTab.TextColor3 = Color3.fromRGB(180, 170, 190)
 	end
 end
 
