@@ -1,0 +1,722 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- ==================================================
+-- COLORES / TEMAS
+-- ==================================================
+local ThemePresets = {
+	NeonRed = {
+		Accent = Color3.fromRGB(255, 78, 120),
+		Accent2 = Color3.fromRGB(255, 145, 170),
+		Background = Color3.fromRGB(18, 12, 16),
+		Panel = Color3.fromRGB(31, 23, 28),
+		Card = Color3.fromRGB(42, 30, 36),
+		Row = Color3.fromRGB(49, 35, 42),
+		Text = Color3.fromRGB(250, 248, 252),
+		Dim = Color3.fromRGB(170, 170, 185),
+		Success = Color3.fromRGB(255, 97, 138),
+	},
+	NeonPink = {
+		Accent = Color3.fromRGB(255, 92, 200),
+		Accent2 = Color3.fromRGB(255, 145, 230),
+		Background = Color3.fromRGB(20, 12, 23),
+		Panel = Color3.fromRGB(32, 22, 36),
+		Card = Color3.fromRGB(44, 30, 47),
+		Row = Color3.fromRGB(52, 35, 54),
+		Text = Color3.fromRGB(250, 245, 255),
+		Dim = Color3.fromRGB(180, 170, 190),
+		Success = Color3.fromRGB(255, 110, 210),
+	},
+	NeonGreen = {
+		Accent = Color3.fromRGB(70, 255, 145),
+		Accent2 = Color3.fromRGB(120, 255, 205),
+		Background = Color3.fromRGB(10, 18, 15),
+		Panel = Color3.fromRGB(18, 28, 23),
+		Card = Color3.fromRGB(23, 38, 30),
+		Row = Color3.fromRGB(29, 45, 35),
+		Text = Color3.fromRGB(245, 255, 247),
+		Dim = Color3.fromRGB(170, 180, 175),
+		Success = Color3.fromRGB(82, 255, 165),
+	},
+	NeonBlue = {
+		Accent = Color3.fromRGB(90, 180, 255),
+		Accent2 = Color3.fromRGB(140, 220, 255),
+		Background = Color3.fromRGB(10, 18, 28),
+		Panel = Color3.fromRGB(18, 28, 40),
+		Card = Color3.fromRGB(25, 39, 53),
+		Row = Color3.fromRGB(31, 47, 61),
+		Text = Color3.fromRGB(241, 247, 255),
+		Dim = Color3.fromRGB(170, 185, 200),
+		Success = Color3.fromRGB(96, 180, 255),
+	},
+}
+
+local theme = ThemePresets.NeonPink
+
+-- ==================================================
+-- HELPERS
+-- ==================================================
+local function make(className, properties)
+	local obj = Instance.new(className)
+	for key, value in pairs(properties or {}) do
+		obj[key] = value
+	end
+	return obj
+end
+
+local function round(obj, radius)
+	local c = make("UICorner", {
+		CornerRadius = UDim.new(0, radius or 12),
+		Parent = obj,
+	})
+	return c
+end
+
+local function stroke(obj, color, thickness)
+	local s = make("UIStroke", {
+		Color = color,
+		Thickness = thickness or 1.2,
+		Transparency = 0.15,
+		Parent = obj,
+	})
+	return s
+end
+
+local function gradient(obj, a, b, rotation)
+	local g = make("UIGradient", {
+		Rotation = rotation or 90,
+		Color = ColorSequence.new{
+			ColorSequenceKeypoint.new(0, a),
+			ColorSequenceKeypoint.new(1, b),
+		},
+		Parent = obj,
+	})
+	return g
+end
+
+-- ==================================================
+-- VARIABLES GLOBALES
+-- ==================================================
+local menuOpen = false
+local panelMode = "Funciones"
+local menusize = 1
+
+local espEnabled = false
+local playerEspEnabled = false
+local fullbrightEnabled = false
+
+local espObjects = {}
+local playerHighlightObjects = {}
+
+local originalBrightness = Lighting.Brightness
+local originalClockTime = Lighting.ClockTime
+local originalFogEnd = Lighting.FogEnd
+local originalGlobalShadows = Lighting.GlobalShadows
+
+-- ==================================================
+-- GUI
+-- ==================================================
+local screenGui = make("ScreenGui", {
+	Name = "SakuraHub",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+	Parent = playerGui,
+})
+
+local root = make("Frame", {
+	Parent = screenGui,
+	Name = "Root",
+	BackgroundColor3 = theme.Background,
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 22, 0.5, -180),
+	Size = UDim2.new(0, 520, 0, 360),
+	Visible = false,
+})
+round(root, 18)
+stroke(root, theme.Accent, 2)
+
+local topBar = make("Frame", {
+	Parent = root,
+	BackgroundColor3 = theme.Background,
+	BorderSizePixel = 0,
+	Size = UDim2.new(1, 0, 0, 52),
+})
+round(topBar, 18)
+
+local title = make("TextLabel", {
+	Parent = topBar,
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 18, 0, 0),
+	Size = UDim2.new(0, 220, 1, 0),
+	Text = "Sakura Hub",
+	TextColor3 = theme.Accent,
+	Font = Enum.Font.GothamBlack,
+	TextSize = 20,
+	TextXAlignment = Enum.TextXAlignment.Left,
+})
+
+local glowBar = make("Frame", {
+	Parent = topBar,
+	BackgroundColor3 = theme.Accent,
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 0, 1, -3),
+	Size = UDim2.new(1, 0, 0, 3),
+})
+round(glowBar, 3)
+
+local statusDot = make("Frame", {
+	Parent = topBar,
+	BackgroundColor3 = theme.Success,
+	BorderSizePixel = 0,
+	Position = UDim2.new(1, -70, 0.5, -5),
+	Size = UDim2.new(0, 10, 0, 10),
+})
+round(statusDot, 12)
+
+local statusText = make("TextLabel", {
+	Parent = topBar,
+	BackgroundTransparency = 1,
+	Position = UDim2.new(1, -150, 0, 0),
+	Size = UDim2.new(0, 90, 1, 0),
+	Text = "Online",
+	TextColor3 = theme.Dim,
+	Font = Enum.Font.GothamMedium,
+	TextSize = 12,
+	TextXAlignment = Enum.TextXAlignment.Right,
+})
+
+-- ==================================================
+-- SIDEBAR
+-- ==================================================
+local sidebar = make("Frame", {
+	Parent = root,
+	BackgroundColor3 = theme.Panel,
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 0, 0, 52),
+	Size = UDim2.new(0, 150, 1, -52),
+})
+round(sidebar, 12)
+
+local function createTab(label, y, selected)
+	local btn = make("TextButton", {
+		Parent = sidebar,
+		BackgroundColor3 = selected and theme.Accent or theme.Card,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 9, 0, y),
+		Size = UDim2.new(1, -18, 0, 42),
+		Text = label,
+		TextColor3 = selected and theme.Text or theme.Dim,
+		Font = Enum.Font.GothamBold,
+		TextSize = 13,
+		AutoButtonColor = false,
+	})
+	round(btn, 10)
+	stroke(btn, theme.Accent, selected and 2 or 1)
+	return btn
+end
+
+local funcsTab = createTab("Funciones", 10, true)
+local configTab = createTab("Configuración", 58, false)
+
+-- ==================================================
+-- PANEL PRINCIPAL
+-- ==================================================
+local panel = make("Frame", {
+	Parent = root,
+	BackgroundColor3 = theme.Panel,
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 160, 0, 58),
+	Size = UDim2.new(1, -170, 1, -70),
+})
+round(panel, 16)
+
+local functionsPanel = make("Frame", {
+	Parent = panel,
+	BackgroundTransparency = 1,
+	Size = UDim2.new(1, 0, 1, 0),
+	Visible = true,
+})
+
+local configPanel = make("Frame", {
+	Parent = panel,
+	BackgroundTransparency = 1,
+	Size = UDim2.new(1, 0, 1, 0),
+	Visible = false,
+})
+
+-- ==================================================
+-- FILAS DE TOGGLE
+-- ==================================================
+local function createToggleRow(parent, label, y)
+	local row = make("Frame", {
+		Parent = parent,
+		BackgroundColor3 = theme.Card,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 12, 0, y),
+		Size = UDim2.new(1, -24, 0, 46),
+	})
+	round(row, 10)
+
+	local textLabel = make("TextLabel", {
+		Parent = row,
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 14, 0, 0),
+		Size = UDim2.new(1, -90, 1, 0),
+		Text = label,
+		TextColor3 = theme.Text,
+		Font = Enum.Font.GothamSemibold,
+		TextSize = 13,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+
+	local toggle = make("TextButton", {
+		Parent = row,
+		BackgroundColor3 = theme.Card,
+		BorderSizePixel = 0,
+		Position = UDim2.new(1, -76, 0.5, -12),
+		Size = UDim2.new(0, 66, 0, 24),
+		Text = "OFF",
+		TextColor3 = theme.Dim,
+		Font = Enum.Font.GothamBold,
+		TextSize = 11,
+		AutoButtonColor = false,
+	})
+	round(toggle, 12)
+	stroke(toggle, theme.Accent, 1)
+
+	return row, toggle
+end
+
+-- ==================================================
+-- SLIDER
+-- ==================================================
+local function createSliderRow(parent, label, y, minValue, maxValue, defaultValue, callback)
+	local row = make("Frame", {
+		Parent = parent,
+		BackgroundColor3 = theme.Card,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 12, 0, y),
+		Size = UDim2.new(1, -24, 0, 62),
+	})
+	round(row, 10)
+
+	local info = make("TextLabel", {
+		Parent = row,
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 14, 0, 6),
+		Size = UDim2.new(1, -64, 0, 18),
+		Text = label,
+		TextColor3 = theme.Text,
+		Font = Enum.Font.GothamSemibold,
+		TextSize = 12,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+
+	local valueText = make("TextLabel", {
+		Parent = row,
+		BackgroundTransparency = 1,
+		Position = UDim2.new(1, -66, 0, 8),
+		Size = UDim2.new(0, 50, 0, 18),
+		Text = tostring(defaultValue),
+		TextColor3 = theme.Accent,
+		Font = Enum.Font.GothamBold,
+		TextSize = 11,
+		TextXAlignment = Enum.TextXAlignment.Right,
+	})
+
+	local track = make("Frame", {
+		Parent = row,
+		BackgroundColor3 = theme.Background,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 14, 0, 36),
+		Size = UDim2.new(1, -28, 0, 5),
+	})
+	round(track, 3)
+
+	local fill = make("Frame", {
+		Parent = track,
+		BackgroundColor3 = theme.Accent,
+		BorderSizePixel = 0,
+		Size = UDim2.new((defaultValue - minValue) / (maxValue - minValue), 0, 1, 0),
+	})
+	round(fill, 3)
+
+	local knob = make("Frame", {
+		Parent = track,
+		BackgroundColor3 = theme.Text,
+		BorderSizePixel = 0,
+		Position = UDim2.new((defaultValue - minValue) / (maxValue - minValue), -6, 0.5, -6),
+		Size = UDim2.new(0, 12, 0, 12),
+	})
+	round(knob, 12)
+
+	local dragging = false
+	local function updateSlider(inputX)
+		local rel = math.clamp((inputX - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+		local mapped = minValue + (maxValue - minValue) * rel
+		local val = math.floor(mapped + 0.5)
+		valueText.Text = tostring(val)
+		fill.Size = UDim2.new(rel, 0, 1, 0)
+		knob.Position = UDim2.new(rel, -6, 0.5, -6)
+		if callback then callback(val) end
+	end
+
+	track.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			updateSlider(input.Position.X)
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			updateSlider(input.Position.X)
+		end
+	end)
+
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+
+	return row
+end
+
+-- ==================================================
+-- FUNCIONES PANEL
+-- ==================================================
+local espRow, espToggle = createToggleRow(functionsPanel, "ESP NPCs", 16)
+local playerEspRow, playerEspToggle = createToggleRow(functionsPanel, "ESP Players", 72)
+local fullbrightRow, fullbrightToggle = createToggleRow(functionsPanel, "Fullbright", 128)
+
+-- ==================================================
+-- CONFIGURACIÓN PANEL
+-- ==================================================
+local sizeSlider = createSliderRow(configPanel, "Tamaño del menú", 16, 70, 130, 100, function(v)
+	menusize = v / 100
+	root.Size = UDim2.new(0, 520 * menusize, 0, 360 * menusize)
+end)
+
+local colorLabel = make("TextLabel", {
+	Parent = configPanel,
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 12, 0, 110),
+	Size = UDim2.new(1, -24, 0, 18),
+	Text = "Color del menú",
+	TextColor3 = theme.Text,
+	Font = Enum.Font.GothamBold,
+	TextSize = 12,
+	TextXAlignment = Enum.TextXAlignment.Left,
+})
+
+local colorStrip = make("Frame", {
+	Parent = configPanel,
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 12, 0, 130),
+	Size = UDim2.new(1, -24, 0, 42),
+})
+
+local function createColorButton(color, presetName)
+	local btn = make("TextButton", {
+		Parent = colorStrip,
+		BackgroundColor3 = color,
+		BorderSizePixel = 0,
+		AutoButtonColor = false,
+		Position = UDim2.new(0, 0, 0, 0),
+		Size = UDim2.new(0, 36, 0, 36),
+		Text = "",
+	})
+	round(btn, 12)
+	stroke(btn, theme.Text, 1)
+
+	btn.MouseButton1Click:Connect(function()
+		if presetName == "Rojo" then theme = ThemePresets.NeonRed end
+		if presetName == "Rosa" then theme = ThemePresets.NeonPink end
+		if presetName == "Verde" then theme = ThemePresets.NeonGreen end
+		if presetName == "Azul" then theme = ThemePresets.NeonBlue end
+
+		root.BackgroundColor3 = theme.Background
+		topBar.BackgroundColor3 = theme.Background
+		sidebar.BackgroundColor3 = theme.Panel
+		panel.BackgroundColor3 = theme.Panel
+		title.TextColor3 = theme.Accent
+		statusText.TextColor3 = theme.Dim
+		glowBar.BackgroundColor3 = theme.Accent
+		statusDot.BackgroundColor3 = theme.Success
+
+		for _, child in ipairs(functionsPanel:GetChildren()) do
+			if child:IsA("Frame") then
+				child.BackgroundColor3 = theme.Card
+			end
+		end
+
+		for _, child in ipairs(configPanel:GetChildren()) do
+			if child:IsA("Frame") then
+				child.BackgroundColor3 = theme.Card
+			end
+		end
+	end)
+
+	return btn
+end
+
+local redBtn = createColorButton(Color3.fromRGB(255, 78, 120), "Rojo")
+redBtn.Position = UDim2.new(0, 0, 0.5, -18)
+
+local pinkBtn = createColorButton(Color3.fromRGB(255, 92, 200), "Rosa")
+pinkBtn.Position = UDim2.new(0, 48, 0.5, -18)
+
+local greenBtn = createColorButton(Color3.fromRGB(70, 255, 145), "Verde")
+greenBtn.Position = UDim2.new(0, 96, 0.5, -18)
+
+local blueBtn = createColorButton(Color3.fromRGB(90, 180, 255), "Azul")
+blueBtn.Position = UDim2.new(0, 144, 0.5, -18)
+
+-- ==================================================
+-- BOTÓN FLOTANTE
+-- ==================================================
+local floatButton = make("TextButton", {
+	Parent = screenGui,
+	BackgroundColor3 = theme.Background,
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 18, 0.5, -24),
+	Size = UDim2.new(0, 54, 0, 54),
+	Text = "S",
+	TextColor3 = theme.Accent,
+	Font = Enum.Font.GothamBlack,
+	TextSize = 18,
+	AutoButtonColor = false,
+})
+round(floatButton, 18)
+stroke(floatButton, theme.Accent, 2)
+
+local floatGlow = make("Frame", {
+	Parent = floatButton,
+	BackgroundColor3 = theme.Accent,
+	BackgroundTransparency = 0.92,
+	BorderSizePixel = 0,
+	Position = UDim2.new(-0.08, 0, -0.08, 0),
+	Size = UDim2.new(1.16, 0, 1.16, 0),
+})
+round(floatGlow, 20)
+
+-- ==================================================
+-- CERRAR MENÚ
+-- ==================================================
+local closeBtn = make("TextButton", {
+	Parent = topBar,
+	BackgroundColor3 = theme.Accent,
+	BorderSizePixel = 0,
+	Position = UDim2.new(1, -34, 0.5, -14),
+	Size = UDim2.new(0, 28, 0, 28),
+	Text = "×",
+	TextColor3 = theme.Text,
+	Font = Enum.Font.GothamBlack,
+	TextSize = 15,
+	AutoButtonColor = false,
+})
+round(closeBtn, 8)
+
+closeBtn.MouseButton1Click:Connect(function()
+	menuOpen = false
+	root.Visible = false
+	floatButton.Text = "S"
+end)
+
+floatButton.MouseButton1Click:Connect(function()
+	menuOpen = not menuOpen
+	root.Visible = menuOpen
+	floatButton.Text = menuOpen and "X" or "S"
+end)
+
+-- ==================================================
+-- TOGGLE FUNCIONES
+-- ==================================================
+local function setToggle(button, enabled)
+	if enabled then
+		button.Text = "ON"
+		button.BackgroundColor3 = theme.Success
+		button.TextColor3 = Color3.fromRGB(255, 255, 255)
+	else
+		button.Text = "OFF"
+		button.BackgroundColor3 = theme.Card
+		button.TextColor3 = theme.Dim
+	end
+end
+
+local function isEnemyNPC(model)
+	if not model or not model:IsA("Model") then return false end
+	local name = string.lower(model.Name)
+	return string.find(name, "npc") or string.find(name, "grunt") or string.find(name, "bot") or string.find(name, "enemy")
+end
+
+local function applyESP(model)
+	if not model or not model:IsA("Model") then return end
+	if espObjects[model] then return end
+	if Players:GetPlayerFromCharacter(model) then return end
+	if not isEnemyNPC(model) then return end
+
+	local rootPart = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Torso") or model:FindFirstChild("UpperTorso") or model.PrimaryPart
+	if not rootPart then return end
+
+	local highlight = make("Highlight", {
+		Parent = Workspace,
+		Adornee = model,
+		FillColor = theme.Accent,
+		OutlineColor = theme.Accent2,
+		FillTransparency = 0.45,
+		OutlineTransparency = 0,
+		DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
+	})
+   
+	local billboard = make("BillboardGui", {
+		Parent = Workspace,
+		Adornee = rootPart,
+		AlwaysOnTop = true,
+		Size = UDim2.new(0, 160, 0, 24),
+		StudsOffset = Vector3.new(0, 3.2, 0),
+	})
+   
+	local label = make("TextLabel", {
+		Parent = billboard,
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 1, 0),
+		Text = model.Name,
+		TextColor3 = theme.Text,
+		TextStrokeTransparency = 0.3,
+		Font = Enum.Font.GothamBold,
+		TextSize = 12,
+	})
+   
+	espObjects[model] = { highlight = highlight, billboard = billboard, label = label }
+end
+
+local function clearESP()
+	for model, v in pairs(espObjects) do
+		if v.highlight then v.highlight:Destroy() end
+		if v.billboard then v.billboard:Destroy() end
+		espObjects[model] = nil
+	end
+end
+
+local function scanESP()
+	for _, obj in ipairs(Workspace:GetDescendants()) do
+		if obj:IsA("Model") then
+			applyESP(obj)
+		end
+	end
+end
+
+local function toggleFullbright(state)
+	if state then
+		Lighting.Brightness = 2.5
+		Lighting.ClockTime = 14
+		Lighting.FogEnd = 100000
+		Lighting.GlobalShadows = false
+	else
+		Lighting.Brightness = originalBrightness
+		Lighting.ClockTime = originalClockTime
+		Lighting.FogEnd = originalFogEnd
+		Lighting.GlobalShadows = originalGlobalShadows
+	end
+end
+
+local function togglePlayerESP(state)
+	if state then
+		for _, plr in ipairs(Players:GetPlayers()) do
+			if plr ~= player and plr.Character then
+				local h = make("Highlight", {
+					Parent = Workspace,
+					Adornee = plr.Character,
+					FillColor = theme.Accent,
+					OutlineColor = theme.Accent2,
+					FillTransparency = 0.35,
+					OutlineTransparency = 0,
+				})
+				playerHighlightObjects[plr] = h
+			end
+		end
+	else
+		for _, h in pairs(playerHighlightObjects) do
+			if h then h:Destroy() end
+		end
+		playerHighlightObjects = {}
+	end
+end
+
+espToggle.MouseButton1Click:Connect(function()
+	espEnabled = not espEnabled
+	setToggle(espToggle, espEnabled)
+	if espEnabled then
+		scanESP()
+	else
+		clearESP()
+	end
+end)
+
+playerEspToggle.MouseButton1Click:Connect(function()
+	playerEspEnabled = not playerEspEnabled
+	setToggle(playerEspToggle, playerEspEnabled)
+	togglePlayerESP(playerEspEnabled)
+end)
+
+fullbrightToggle.MouseButton1Click:Connect(function()
+	fullbrightEnabled = not fullbrightEnabled
+	setToggle(fullbrightToggle, fullbrightEnabled)
+	toggleFullbright(fullbrightEnabled)
+end)
+
+-- ==================================================
+-- TABS
+-- ==================================================
+funcsTab.MouseButton1Click:Connect(function()
+	panelMode = "Funciones"
+	functionsPanel.Visible = true
+	configPanel.Visible = false
+	funcsTab.BackgroundColor3 = theme.Accent
+	funcsTab.TextColor3 = theme.Text
+	configTab.BackgroundColor3 = theme.Card
+	configTab.TextColor3 = theme.Dim
+end)
+
+configTab.MouseButton1Click:Connect(function()
+	panelMode = "Configuración"
+	functionsPanel.Visible = false
+	configPanel.Visible = true
+	configTab.BackgroundColor3 = theme.Accent
+	configTab.TextColor3 = theme.Text
+	funcsTab.BackgroundColor3 = theme.Card
+	funcsTab.TextColor3 = theme.Dim
+end)
+
+-- ==================================================
+-- DRAG UI
+-- ==================================================
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+topBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = root.Position
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		root.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function
