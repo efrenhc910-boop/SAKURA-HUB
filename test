@@ -2,14 +2,13 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
-local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- ==================================================
--- COLORES / TEMAS
+-- TEMAS
 -- ==================================================
 local ThemePresets = {
 	NeonRed = {
@@ -63,10 +62,15 @@ local theme = ThemePresets.NeonPink
 -- ==================================================
 -- HELPERS
 -- ==================================================
-local function make(className, properties)
+local function make(className, props)
 	local obj = Instance.new(className)
-	for key, value in pairs(properties or {}) do
-		obj[key] = value
+	for key, value in pairs(props or {}) do
+		if key ~= "Parent" then
+			obj[key] = value
+		end
+	end
+	if props and props.Parent then
+		obj.Parent = props.Parent
 	end
 	return obj
 end
@@ -89,20 +93,8 @@ local function stroke(obj, color, thickness)
 	return s
 end
 
-local function gradient(obj, a, b, rotation)
-	local g = make("UIGradient", {
-		Rotation = rotation or 90,
-		Color = ColorSequence.new{
-			ColorSequenceKeypoint.new(0, a),
-			ColorSequenceKeypoint.new(1, b),
-		},
-		Parent = obj,
-	})
-	return g
-end
-
 -- ==================================================
--- VARIABLES GLOBALES
+-- VARIABLES
 -- ==================================================
 local menuOpen = false
 local panelMode = "Funciones"
@@ -110,6 +102,7 @@ local menusize = 1
 
 local espEnabled = false
 local playerEspEnabled = false
+local noclipEnabled = false
 local fullbrightEnabled = false
 
 local espObjects = {}
@@ -134,9 +127,10 @@ local root = make("Frame", {
 	Parent = screenGui,
 	Name = "Root",
 	BackgroundColor3 = theme.Background,
+	BackgroundTransparency = 0.18,
 	BorderSizePixel = 0,
-	Position = UDim2.new(0, 22, 0.5, -180),
-	Size = UDim2.new(0, 520, 0, 360),
+	Position = UDim2.new(0, 24, 0.5, -160),
+	Size = UDim2.new(0, 700, 0, 300),
 	Visible = false,
 })
 round(root, 18)
@@ -145,8 +139,9 @@ stroke(root, theme.Accent, 2)
 local topBar = make("Frame", {
 	Parent = root,
 	BackgroundColor3 = theme.Background,
+	BackgroundTransparency = 0.08,
 	BorderSizePixel = 0,
-	Size = UDim2.new(1, 0, 0, 52),
+	Size = UDim2.new(1, 0, 0, 46),
 })
 round(topBar, 18)
 
@@ -158,7 +153,7 @@ local title = make("TextLabel", {
 	Text = "Sakura Hub",
 	TextColor3 = theme.Accent,
 	Font = Enum.Font.GothamBlack,
-	TextSize = 20,
+	TextSize = 18,
 	TextXAlignment = Enum.TextXAlignment.Left,
 })
 
@@ -192,17 +187,35 @@ local statusText = make("TextLabel", {
 	TextXAlignment = Enum.TextXAlignment.Right,
 })
 
--- ==================================================
--- SIDEBAR
--- ==================================================
 local sidebar = make("Frame", {
 	Parent = root,
 	BackgroundColor3 = theme.Panel,
+	BackgroundTransparency = 0.15,
 	BorderSizePixel = 0,
-	Position = UDim2.new(0, 0, 0, 52),
-	Size = UDim2.new(0, 150, 1, -52),
+	Position = UDim2.new(0, 0, 0, 46),
+	Size = UDim2.new(0, 160, 1, -46),
 })
 round(sidebar, 12)
+
+local panel = make("Frame", {
+	Parent = root,
+	BackgroundColor3 = theme.Panel,
+	BackgroundTransparency = 0.12,
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 170, 0, 58),
+	Size = UDim2.new(1, -180, 1, -70),
+})
+round(panel, 16)
+
+local footer = make("Frame", {
+	Parent = root,
+	BackgroundColor3 = theme.Background,
+	BackgroundTransparency = 0.12,
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 0, 1, -22),
+	Size = UDim2.new(1, 0, 0, 22),
+})
+round(footer, 16)
 
 local function createTab(label, y, selected)
 	local btn = make("TextButton", {
@@ -225,18 +238,6 @@ end
 local funcsTab = createTab("Funciones", 10, true)
 local configTab = createTab("Configuración", 58, false)
 
--- ==================================================
--- PANEL PRINCIPAL
--- ==================================================
-local panel = make("Frame", {
-	Parent = root,
-	BackgroundColor3 = theme.Panel,
-	BorderSizePixel = 0,
-	Position = UDim2.new(0, 160, 0, 58),
-	Size = UDim2.new(1, -170, 1, -70),
-})
-round(panel, 16)
-
 local functionsPanel = make("Frame", {
 	Parent = panel,
 	BackgroundTransparency = 1,
@@ -251,28 +252,26 @@ local configPanel = make("Frame", {
 	Visible = false,
 })
 
--- ==================================================
--- FILAS DE TOGGLE
--- ==================================================
 local function createToggleRow(parent, label, y)
 	local row = make("Frame", {
 		Parent = parent,
 		BackgroundColor3 = theme.Card,
+		BackgroundTransparency = 0.12,
 		BorderSizePixel = 0,
 		Position = UDim2.new(0, 12, 0, y),
-		Size = UDim2.new(1, -24, 0, 46),
+		Size = UDim2.new(1, -24, 0, 32),
 	})
 	round(row, 10)
 
 	local textLabel = make("TextLabel", {
 		Parent = row,
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 14, 0, 0),
+		Position = UDim2.new(0, 12, 0, 0),
 		Size = UDim2.new(1, -90, 1, 0),
 		Text = label,
 		TextColor3 = theme.Text,
 		Font = Enum.Font.GothamSemibold,
-		TextSize = 13,
+		TextSize = 12,
 		TextXAlignment = Enum.TextXAlignment.Left,
 	})
 
@@ -280,12 +279,12 @@ local function createToggleRow(parent, label, y)
 		Parent = row,
 		BackgroundColor3 = theme.Card,
 		BorderSizePixel = 0,
-		Position = UDim2.new(1, -76, 0.5, -12),
-		Size = UDim2.new(0, 66, 0, 24),
+		Position = UDim2.new(1, -72, 0.5, -11),
+		Size = UDim2.new(0, 60, 0, 22),
 		Text = "OFF",
 		TextColor3 = theme.Dim,
 		Font = Enum.Font.GothamBold,
-		TextSize = 11,
+		TextSize = 10,
 		AutoButtonColor = false,
 	})
 	round(toggle, 12)
@@ -294,13 +293,11 @@ local function createToggleRow(parent, label, y)
 	return row, toggle
 end
 
--- ==================================================
--- SLIDER
--- ==================================================
 local function createSliderRow(parent, label, y, minValue, maxValue, defaultValue, callback)
 	local row = make("Frame", {
 		Parent = parent,
 		BackgroundColor3 = theme.Card,
+		BackgroundTransparency = 0.12,
 		BorderSizePixel = 0,
 		Position = UDim2.new(0, 12, 0, y),
 		Size = UDim2.new(1, -24, 0, 62),
@@ -390,19 +387,83 @@ local function createSliderRow(parent, label, y, minValue, maxValue, defaultValu
 	return row
 end
 
--- ==================================================
--- FUNCIONES PANEL
--- ==================================================
-local espRow, espToggle = createToggleRow(functionsPanel, "ESP NPCs", 16)
-local playerEspRow, playerEspToggle = createToggleRow(functionsPanel, "ESP Players", 72)
-local fullbrightRow, fullbrightToggle = createToggleRow(functionsPanel, "Fullbright", 128)
+local function createColorButton(parent, color, presetName)
+	local btn = make("TextButton", {
+		Parent = parent,
+		BackgroundColor3 = color,
+		BorderSizePixel = 0,
+		AutoButtonColor = false,
+		Position = UDim2.new(0, 0, 0.5, -18),
+		Size = UDim2.new(0, 36, 0, 36),
+		Text = "",
+	})
+	round(btn, 12)
+	stroke(btn, theme.Text, 1)
+
+	btn.MouseButton1Click:Connect(function()
+		if presetName == "Rojo" then theme = ThemePresets.NeonRed end
+		if presetName == "Rosa" then theme = ThemePresets.NeonPink end
+		if presetName == "Verde" then theme = ThemePresets.NeonGreen end
+		if presetName == "Azul" then theme = ThemePresets.NeonBlue end
+
+		root.BackgroundColor3 = theme.Background
+		topBar.BackgroundColor3 = theme.Background
+		sidebar.BackgroundColor3 = theme.Panel
+		panel.BackgroundColor3 = theme.Panel
+		title.TextColor3 = theme.Accent
+		statusText.TextColor3 = theme.Dim
+		glowBar.BackgroundColor3 = theme.Accent
+		statusDot.BackgroundColor3 = theme.Success
+	end)
+
+	return btn
+end
+
+local function setToggle(button, enabled)
+	if enabled then
+		button.Text = "ON"
+		button.BackgroundColor3 = theme.Success
+		button.TextColor3 = Color3.fromRGB(255, 255, 255)
+	else
+		button.Text = "OFF"
+		button.BackgroundColor3 = theme.Card
+		button.TextColor3 = theme.Dim
+	end
+end
+
+local function showPanel(mode)
+	panelMode = mode
+
+	if mode == "Funciones" then
+		functionsPanel.Visible = true
+		configPanel.Visible = false
+		funcsTab.BackgroundColor3 = theme.Accent
+		funcsTab.TextColor3 = theme.Text
+		configTab.BackgroundColor3 = theme.Card
+		configTab.TextColor3 = theme.Dim
+	else
+		functionsPanel.Visible = false
+		configPanel.Visible = true
+		configTab.BackgroundColor3 = theme.Accent
+		configTab.TextColor3 = theme.Text
+		funcsTab.BackgroundColor3 = theme.Card
+		funcsTab.TextColor3 = theme.Dim
+	end
+end
 
 -- ==================================================
--- CONFIGURACIÓN PANEL
+-- FILAS DE FUNCIONES
 -- ==================================================
-local sizeSlider = createSliderRow(configPanel, "Tamaño del menú", 16, 70, 130, 100, function(v)
+local espPlayersRow, espPlayersToggle = createToggleRow(functionsPanel, "ESP Players", 14)
+local espFathomRow, espFathomToggle = createToggleRow(functionsPanel, "ESP Fathom", 52)
+local fullbrightRow, fullbrightToggle = createToggleRow(functionsPanel, "Fullbright", 90)
+
+-- ==================================================
+-- PANEL CONFIG
+-- ==================================================
+local sizeSlider = createSliderRow(configPanel, "Tamaño del menú", 18, 70, 130, 100, function(v)
 	menusize = v / 100
-	root.Size = UDim2.new(0, 520 * menusize, 0, 360 * menusize)
+	root.Size = UDim2.new(0, 700 * menusize, 0, 300 * menusize)
 end)
 
 local colorLabel = make("TextLabel", {
@@ -424,60 +485,16 @@ local colorStrip = make("Frame", {
 	Size = UDim2.new(1, -24, 0, 42),
 })
 
-local function createColorButton(color, presetName)
-	local btn = make("TextButton", {
-		Parent = colorStrip,
-		BackgroundColor3 = color,
-		BorderSizePixel = 0,
-		AutoButtonColor = false,
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(0, 36, 0, 36),
-		Text = "",
-	})
-	round(btn, 12)
-	stroke(btn, theme.Text, 1)
-
-	btn.MouseButton1Click:Connect(function()
-		if presetName == "Rojo" then theme = ThemePresets.NeonRed end
-		if presetName == "Rosa" then theme = ThemePresets.NeonPink end
-		if presetName == "Verde" then theme = ThemePresets.NeonGreen end
-		if presetName == "Azul" then theme = ThemePresets.NeonBlue end
-
-		root.BackgroundColor3 = theme.Background
-		topBar.BackgroundColor3 = theme.Background
-		sidebar.BackgroundColor3 = theme.Panel
-		panel.BackgroundColor3 = theme.Panel
-		title.TextColor3 = theme.Accent
-		statusText.TextColor3 = theme.Dim
-		glowBar.BackgroundColor3 = theme.Accent
-		statusDot.BackgroundColor3 = theme.Success
-
-		for _, child in ipairs(functionsPanel:GetChildren()) do
-			if child:IsA("Frame") then
-				child.BackgroundColor3 = theme.Card
-			end
-		end
-
-		for _, child in ipairs(configPanel:GetChildren()) do
-			if child:IsA("Frame") then
-				child.BackgroundColor3 = theme.Card
-			end
-		end
-	end)
-
-	return btn
-end
-
-local redBtn = createColorButton(Color3.fromRGB(255, 78, 120), "Rojo")
+local redBtn = createColorButton(colorStrip, Color3.fromRGB(255, 78, 120), "Rojo")
 redBtn.Position = UDim2.new(0, 0, 0.5, -18)
 
-local pinkBtn = createColorButton(Color3.fromRGB(255, 92, 200), "Rosa")
+local pinkBtn = createColorButton(colorStrip, Color3.fromRGB(255, 92, 200), "Rosa")
 pinkBtn.Position = UDim2.new(0, 48, 0.5, -18)
 
-local greenBtn = createColorButton(Color3.fromRGB(70, 255, 145), "Verde")
+local greenBtn = createColorButton(colorStrip, Color3.fromRGB(70, 255, 145), "Verde")
 greenBtn.Position = UDim2.new(0, 96, 0.5, -18)
 
-local blueBtn = createColorButton(Color3.fromRGB(90, 180, 255), "Azul")
+local blueBtn = createColorButton(colorStrip, Color3.fromRGB(90, 180, 255), "Azul")
 blueBtn.Position = UDim2.new(0, 144, 0.5, -18)
 
 -- ==================================================
@@ -486,31 +503,25 @@ blueBtn.Position = UDim2.new(0, 144, 0.5, -18)
 local floatButton = make("TextButton", {
 	Parent = screenGui,
 	BackgroundColor3 = theme.Background,
+	BackgroundTransparency = 0.12,
 	BorderSizePixel = 0,
-	Position = UDim2.new(0, 18, 0.5, -24),
-	Size = UDim2.new(0, 54, 0, 54),
-	Text = "S",
+	Position = UDim2.new(0, 20, 0.5, -28),
+	Size = UDim2.new(0, 56, 0, 56),
+	Text = "🌸",
 	TextColor3 = theme.Accent,
 	Font = Enum.Font.GothamBlack,
-	TextSize = 18,
+	TextScaled = true,
 	AutoButtonColor = false,
 })
 round(floatButton, 18)
 stroke(floatButton, theme.Accent, 2)
 
-local floatGlow = make("Frame", {
-	Parent = floatButton,
-	BackgroundColor3 = theme.Accent,
-	BackgroundTransparency = 0.92,
-	BorderSizePixel = 0,
-	Position = UDim2.new(-0.08, 0, -0.08, 0),
-	Size = UDim2.new(1.16, 0, 1.16, 0),
-})
-round(floatGlow, 20)
+floatButton.MouseButton1Click:Connect(function()
+	menuOpen = not menuOpen
+	root.Visible = menuOpen
+	floatButton.Text = menuOpen and "✕" or "🌸"
+end)
 
--- ==================================================
--- CERRAR MENÚ
--- ==================================================
 local closeBtn = make("TextButton", {
 	Parent = topBar,
 	BackgroundColor3 = theme.Accent,
@@ -528,36 +539,44 @@ round(closeBtn, 8)
 closeBtn.MouseButton1Click:Connect(function()
 	menuOpen = false
 	root.Visible = false
-	floatButton.Text = "S"
-end)
-
-floatButton.MouseButton1Click:Connect(function()
-	menuOpen = not menuOpen
-	root.Visible = menuOpen
-	floatButton.Text = menuOpen and "X" or "S"
+	floatButton.Text = "🌸"
 end)
 
 -- ==================================================
--- TOGGLE FUNCIONES
+-- DETECCIÓN DE NPC
 -- ==================================================
-local function setToggle(button, enabled)
-	if enabled then
-		button.Text = "ON"
-		button.BackgroundColor3 = theme.Success
-		button.TextColor3 = Color3.fromRGB(255, 255, 255)
-	else
-		button.Text = "OFF"
-		button.BackgroundColor3 = theme.Card
-		button.TextColor3 = theme.Dim
-	end
-end
-
 local function isEnemyNPC(model)
 	if not model or not model:IsA("Model") then return false end
 	local name = string.lower(model.Name)
-	return string.find(name, "npc") or string.find(name, "grunt") or string.find(name, "bot") or string.find(name, "enemy")
+
+	local patterns = {
+		"grins",
+		"grin",
+		"ginsworth",
+		"gins",
+		"worth",
+		"whort",
+		"wort",
+		"npc",
+		"enemy",
+		"bot",
+		"grunt",
+		"mob",
+		"guard"
+	}
+
+	for _, pattern in ipairs(patterns) do
+		if string.find(name, pattern, 1, true) then
+			return true
+		end
+	end
+
+	return false
 end
 
+-- ==================================================
+-- ESP
+-- ==================================================
 local function applyESP(model)
 	if not model or not model:IsA("Model") then return end
 	if espObjects[model] then return end
@@ -576,7 +595,7 @@ local function applyESP(model)
 		OutlineTransparency = 0,
 		DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
 	})
-   
+
 	local billboard = make("BillboardGui", {
 		Parent = Workspace,
 		Adornee = rootPart,
@@ -584,7 +603,7 @@ local function applyESP(model)
 		Size = UDim2.new(0, 160, 0, 24),
 		StudsOffset = Vector3.new(0, 3.2, 0),
 	})
-   
+
 	local label = make("TextLabel", {
 		Parent = billboard,
 		BackgroundTransparency = 1,
@@ -595,7 +614,7 @@ local function applyESP(model)
 		Font = Enum.Font.GothamBold,
 		TextSize = 12,
 	})
-   
+
 	espObjects[model] = { highlight = highlight, billboard = billboard, label = label }
 end
 
@@ -615,6 +634,32 @@ local function scanESP()
 	end
 end
 
+-- ==================================================
+-- NO CLIP
+-- ==================================================
+local function toggleNoClip(state)
+	if state then
+		if player.Character then
+			for _, part in ipairs(player.Character:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = false
+				end
+			end
+		end
+	else
+		if player.Character then
+			for _, part in ipairs(player.Character:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = true
+				end
+			end
+		end
+	end
+end
+
+-- ==================================================
+-- FULLBRIGHT
+-- ==================================================
 local function toggleFullbright(state)
 	if state then
 		Lighting.Brightness = 2.5
@@ -629,6 +674,9 @@ local function toggleFullbright(state)
 	end
 end
 
+-- ==================================================
+-- PLAYER ESP
+-- ==================================================
 local function togglePlayerESP(state)
 	if state then
 		for _, plr in ipairs(Players:GetPlayers()) do
@@ -652,9 +700,12 @@ local function togglePlayerESP(state)
 	end
 end
 
-espToggle.MouseButton1Click:Connect(function()
+-- ==================================================
+-- TOGGLES
+-- ==================================================
+espPlayersToggle.MouseButton1Click:Connect(function()
 	espEnabled = not espEnabled
-	setToggle(espToggle, espEnabled)
+	setToggle(espPlayersToggle, espEnabled)
 	if espEnabled then
 		scanESP()
 	else
@@ -662,9 +713,9 @@ espToggle.MouseButton1Click:Connect(function()
 	end
 end)
 
-playerEspToggle.MouseButton1Click:Connect(function()
+espFathomToggle.MouseButton1Click:Connect(function()
 	playerEspEnabled = not playerEspEnabled
-	setToggle(playerEspToggle, playerEspEnabled)
+	setToggle(espFathomToggle, playerEspEnabled)
 	togglePlayerESP(playerEspEnabled)
 end)
 
@@ -675,57 +726,26 @@ fullbrightToggle.MouseButton1Click:Connect(function()
 end)
 
 -- ==================================================
--- TABS
+-- NO CLIP TOGGLE
 -- ==================================================
-funcsTab.MouseButton1Click:Connect(function()
-	panelMode = "Funciones"
-	functionsPanel.Visible = true
-	configPanel.Visible = false
-	funcsTab.BackgroundColor3 = theme.Accent
-	funcsTab.TextColor3 = theme.Text
-	configTab.BackgroundColor3 = theme.Card
-	configTab.TextColor3 = theme.Dim
+local noclipBtn = make("TextButton", {
+	Parent = functionsPanel,
+	BackgroundColor3 = theme.Card,
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 12, 0, 130),
+	Size = UDim2.new(1, -24, 0, 32),
+	Text = "NoClip",
+	TextColor3 = theme.Text,
+	Font = Enum.Font.GothamSemibold,
+	TextSize = 12,
+})
+round(noclipBtn, 10)
+stroke(noclipBtn, theme.Accent, 1)
+
+noclipBtn.MouseButton1Click:Connect(function()
+	noclipEnabled = not noclipEnabled
+	setToggle(noclipBtn, noclipEnabled)
+	toggleNoClip(noclipEnabled)
 end)
 
-configTab.MouseButton1Click:Connect(function()
-	panelMode = "Configuración"
-	functionsPanel.Visible = false
-	configPanel.Visible = true
-	configTab.BackgroundColor3 = theme.Accent
-	configTab.TextColor3 = theme.Text
-	funcsTab.BackgroundColor3 = theme.Card
-	funcsTab.TextColor3 = theme.Dim
-end)
-
--- ==================================================
--- DRAG UI
--- ==================================================
-local dragging = false
-local dragStart = nil
-local startPos = nil
-
-topBar.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStart = input.Position
-		startPos = root.Position
-	end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-		local delta = input.Position - dragStart
-		root.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
-		)
-	end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = false
-	end
-end)
+-- ===========
