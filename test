@@ -725,4 +725,168 @@ end
 
 -- ==================================================
 -- FULLBRIGHT
--- ========================================
+-- ==================================================
+local function toggleFullbright(state)
+	if state then
+		Lighting.Brightness = 2.5
+		Lighting.ClockTime = 14
+		Lighting.FogEnd = 100000
+		Lighting.GlobalShadows = false
+	else
+		Lighting.Brightness = originalBrightness
+		Lighting.ClockTime = originalClockTime
+		Lighting.FogEnd = originalFogEnd
+		Lighting.GlobalShadows = originalGlobalShadows
+	end
+end
+
+-- ==================================================
+-- NO CLIP
+-- ==================================================
+local function toggleNoClip(state)
+	if state then
+		if player.Character then
+			for _, part in ipairs(player.Character:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = false
+				end
+			end
+		end
+	else
+		if player.Character then
+			for _, part in ipairs(player.Character:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = true
+				end
+			end
+		end
+	end
+end
+
+-- ==================================================
+-- TOGGLES
+-- ==================================================
+espPlayersToggle.MouseButton1Click:Connect(function()
+	espEnabled = not espEnabled
+	setToggle(espPlayersToggle, espEnabled)
+	if espEnabled then
+		scanESP()
+	else
+		clearESP()
+	end
+end)
+
+espFathomToggle.MouseButton1Click:Connect(function()
+	playerEspEnabled = not playerEspEnabled
+	setToggle(espFathomToggle, playerEspEnabled)
+	togglePlayerESP(playerEspEnabled)
+end)
+
+fullbrightToggle.MouseButton1Click:Connect(function()
+	fullbrightEnabled = not fullbrightEnabled
+	setToggle(fullbrightToggle, fullbrightEnabled)
+	toggleFullbright(fullbrightEnabled)
+end)
+
+-- ==================================================
+-- NO CLIP TOGGLE
+-- ==================================================
+local noclipBtn = make("TextButton", {
+	Parent = functionsPanel,
+	BackgroundColor3 = theme.Card,
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 12, 0, 130),
+	Size = UDim2.new(1, -24, 0, 32),
+	Text = "NoClip",
+	TextColor3 = theme.Text,
+	Font = Enum.Font.GothamSemibold,
+	TextSize = 12,
+})
+round(noclipBtn, 10)
+stroke(noclipBtn, theme.Accent, 1)
+
+noclipBtn.MouseButton1Click:Connect(function()
+	noclipEnabled = not noclipEnabled
+	setToggle(noclipBtn, noclipEnabled)
+	toggleNoClip(noclipEnabled)
+end)
+
+-- ==================================================
+-- TABS
+-- ==================================================
+funcsTab.MouseButton1Click:Connect(function()
+	showPanel("Funciones")
+end)
+
+configTab.MouseButton1Click:Connect(function()
+	showPanel("Configuración")
+end)
+
+-- ==================================================
+-- DRAG UI
+-- ==================================================
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+topBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = root.Position
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		root.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+-- ==================================================
+-- EVENTOS
+-- ==================================================
+Workspace.DescendantAdded:Connect(function(desc)
+	if espEnabled and desc:IsA("Model") then
+		task.wait(0.2)
+		if isEnemyNPC(desc) then
+			applyESP(desc)
+		end
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	if noclipEnabled and player.Character then
+		for _, part in ipairs(player.Character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = false
+			end
+		end
+	end
+end)
+
+player.CharacterAdded:Connect(function(char)
+	task.wait(0.1)
+	if noclipEnabled then
+		for _, part in ipairs(char:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = false
+			end
+		end
+	end
+end)
+
+showPanel("Funciones")
+print("Sakura Hub cargado correctamente.")
