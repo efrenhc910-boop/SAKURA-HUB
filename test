@@ -90,7 +90,7 @@ local function stroke(obj, color, thickness)
 end
 
 -- ==================================================
--- VARIABLES
+-- ESTADO
 -- ==================================================
 local menuOpen = false
 local espEnabled = false
@@ -132,7 +132,7 @@ stroke(root, theme.Accent, 2)
 local topBar = make("Frame", {
 	Parent = root,
 	BackgroundColor3 = theme.Background,
-	BackgroundTransparency = 0.08,
+	BackgroundTransparency = 0.09,
 	BorderSizePixel = 0,
 	Size = UDim2.new(1, 0, 0, 46),
 })
@@ -221,7 +221,7 @@ end
 local funcsTab = createTab("Funciones", 10, true)
 local configTab = createTab("Configuración", 58, false)
 
-local function createScrollingPanel(parent)
+local function createScrollPanel(parent)
 	local scroll = make("ScrollingFrame", {
 		Parent = parent,
 		BackgroundTransparency = 1,
@@ -233,27 +233,32 @@ local function createScrollingPanel(parent)
 		ScrollBarImageColor3 = theme.Accent,
 		AutomaticCanvasSize = Enum.AutomaticSize.Y,
 	})
-	local list = make("UIListLayout", {
+
+	local layout = make("UIListLayout", {
 		Parent = scroll,
 		Padding = UDim.new(0, 8),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 	})
+
 	return scroll
 end
 
-local functionsPanel = createScrollingPanel(panel)
-local configPanel = createScrollingPanel(panel)
+local functionsPanel = createScrollPanel(panel)
+local configPanel = createScrollPanel(panel)
 functionsPanel.Visible = true
 configPanel.Visible = false
 
-local function createToggleRow(parent, label, y)
+-- ==================================================
+-- CREADOR DE FILAS
+-- ==================================================
+local function createToggleRow(parent, label, order)
 	local row = make("Frame", {
 		Parent = parent,
 		BackgroundColor3 = theme.Card,
 		BackgroundTransparency = 0.12,
 		BorderSizePixel = 0,
 		Size = UDim2.new(1, -24, 0, 32),
-		LayoutOrder = y,
+		LayoutOrder = order,
 	})
 	round(row, 10)
 
@@ -287,14 +292,14 @@ local function createToggleRow(parent, label, y)
 	return row, toggle
 end
 
-local function createSliderRow(parent, label, y, minValue, maxValue, defaultValue, callback)
+local function createSliderRow(parent, label, order, minValue, maxValue, defaultValue, callback)
 	local row = make("Frame", {
 		Parent = parent,
 		BackgroundColor3 = theme.Card,
 		BackgroundTransparency = 0.12,
 		BorderSizePixel = 0,
 		Size = UDim2.new(1, -24, 0, 62),
-		LayoutOrder = y,
+		LayoutOrder = order,
 	})
 	round(row, 10)
 
@@ -444,17 +449,15 @@ local function showPanel(mode)
 end
 
 -- ==================================================
--- FILAS FUNCIONES
+-- FILAS DE FUNCIONES
 -- ==================================================
 local espPlayersRow, espPlayersToggle = createToggleRow(functionsPanel, "ESP Players", 1)
 local espFathomRow, espFathomToggle = createToggleRow(functionsPanel, "ESP Fathom", 2)
 local fullbrightRow, fullbrightToggle = createToggleRow(functionsPanel, "Fullbright", 3)
 local noclipRow, noclipToggle = createToggleRow(functionsPanel, "NoClip", 4)
 
-local espRows = { espPlayersRow, espFathomRow, fullbrightRow, noclipRow }
-
 -- ==================================================
--- PANEL CONFIG
+-- CONFIGURACIÓN
 -- ==================================================
 local sizeSlider = createSliderRow(configPanel, "Tamaño del menú", 1, 70, 130, 100, function(v)
 	local scale = v / 100
@@ -517,6 +520,7 @@ floatButton.MouseButton1Click:Connect(function()
 	floatButton.Text = menuOpen and "✕" or "🌸"
 end)
 
+-- cerrar
 local closeBtn = make("TextButton", {
 	Parent = topBar,
 	BackgroundColor3 = theme.Accent,
@@ -538,224 +542,29 @@ closeBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ==================================================
--- DETECCIÓN
+-- Detección de target
 -- ==================================================
-local function isNPCName(name)
+local function matchesTargetName(name)
 	if not name then return false end
 	local n = string.lower(name)
+
 	return string.find(n, "grins", 1, true)
-		or string.find(n, "worth", 1, true)
 		or string.find(n, "grin", 1, true)
+		or string.find(n, "worth", 1, true)
+		or string.find(n, "whord", 1, true)
+		or string.find(n, "whod", 1, true)
 		or string.find(n, "ginsworth", 1, true)
-		or string.find(n, "whort", 1, true)
-end
-
-local function isFathomPlayer(plr)
-	if not plr or not plr:IsA("Player") then return false end
-	local name = string.lower(plr.Name)
-	return string.find(name, "fathom", 1, true) ~= nil
-end
-
--- ==================================================
--- NPC ESP
--- ==================================================
-local function addNPCESP(model)
-	if not model or not model:IsA("Model") then return end
-	if npcEspObjects[model] then return end
-	if Players:GetPlayerFromCharacter(model) then return end
-	if not isNPCName(model.Name) then return end
-
-	local rootPart = model:FindFirstChild("HumanoidRootPart")
-		or model:FindFirstChild("Torso")
-		or model:FindFirstChild("UpperTorso")
-		or model.PrimaryPart
-
-	if not rootPart then return end
-
-	local highlight = make("Highlight", {
-		Parent = Workspace,
-		Adornee = model,
-		FillColor = theme.Accent,
-		OutlineColor = theme.Accent2,
-		FillTransparency = 0.45,
-		OutlineTransparency = 0,
-		DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
-	})
-
-	local billboard = make("BillboardGui", {
-		Parent = Workspace,
-		Adornee = rootPart,
-		AlwaysOnTop = true,
-		Size = UDim2.new(0, 180, 0, 32),
-		StudsOffset = Vector3.new(0, 3.5, 0),
-	})
-
-	local label = make("TextLabel", {
-		Parent = billboard,
-		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0.5, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Text = model.Name,
-		TextColor3 = theme.Text,
-		TextStrokeTransparency = 0.2,
-		Font = Enum.Font.GothamBold,
-		TextSize = 12,
-	})
-
-	local distLabel = make("TextLabel", {
-		Parent = billboard,
-		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0.5, 0),
-		Position = UDim2.new(0, 0, 0.5, 0),
-		Text = "0 studs",
-		TextColor3 = theme.Accent,
-		TextStrokeTransparency = 0.2,
-		Font = Enum.Font.Gotham,
-		TextSize = 11,
-	})
-
-	npcEspObjects[model] = {
-		highlight = highlight,
-		billboard = billboard,
-		label = label,
-		distLabel = distLabel,
-		rootPart = rootPart,
-	}
-end
-
-local function clearNPCESP()
-	for model, v in pairs(npcEspObjects) do
-		if v.highlight then v.highlight:Destroy() end
-		if v.billboard then v.billboard:Destroy() end
-		npcEspObjects[model] = nil
-	end
-end
-
-local function scanNPCESP()
-	for _, obj in ipairs(Workspace:GetDescendants()) do
-		if obj:IsA("Model") then
-			addNPCESP(obj)
-		end
-	end
-end
-
--- ==================================================
--- FATHOM ESP
--- ==================================================
-local function addFathomESP(plr)
-	if not plr or not plr:IsA("Player") then return end
-	if fathomESPObjects[plr] then return end
-	if not isFathomPlayer(plr) then return end
-	if not plr.Character then return end
-
-	local rootPart = plr.Character:FindFirstChild("HumanoidRootPart")
-	if not rootPart then return end
-
-	local highlight = make("Highlight", {
-		Parent = Workspace,
-		Adornee = plr.Character,
-		FillColor = Color3.fromRGB(255, 200, 120),
-		OutlineColor = Color3.fromRGB(255, 255, 200),
-		FillTransparency = 0.45,
-		OutlineTransparency = 0,
-		DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
-	})
-
-	local billboard = make("BillboardGui", {
-		Parent = Workspace,
-		Adornee = rootPart,
-		AlwaysOnTop = true,
-		Size = UDim2.new(0, 180, 0, 32),
-		StudsOffset = Vector3.new(0, 3.5, 0),
-	})
-
-	local label = make("TextLabel", {
-		Parent = billboard,
-		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0.5, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Text = plr.Name,
-		TextColor3 = Color3.fromRGB(255, 230, 150),
-		TextStrokeTransparency = 0.2,
-		Font = Enum.Font.GothamBold,
-		TextSize = 12,
-	})
-
-	local distLabel = make("TextLabel", {
-		Parent = billboard,
-		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0.5, 0),
-		Position = UDim2.new(0, 0, 0.5, 0),
-		Text = "0 studs",
-		TextColor3 = Color3.fromRGB(255, 240, 170),
-		TextStrokeTransparency = 0.2,
-		Font = Enum.Font.Gotham,
-		TextSize = 11,
-	})
-
-	fathomESPObjects[plr] = {
-		highlight = highlight,
-		billboard = billboard,
-		label = label,
-		distLabel = distLabel,
-		rootPart = rootPart,
-	}
-end
-
-local function clearFathomESP()
-	for plr, v in pairs(fathomESPObjects) do
-		if v.highlight then v.highlight:Destroy() end
-		if v.billboard then v.billboard:Destroy() end
-		fathomESPObjects[plr] = nil
-	end
-end
-
-local function updateFathomESP()
-	for plr, v in pairs(fathomESPObjects) do
-		if plr and plr.Character and v.rootPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-			local dist = math.floor((player.Character.HumanoidRootPart.Position - v.rootPart.Position).Magnitude)
-			v.distLabel.Text = tostring(dist) .. " studs"
-		end
-	end
-end
-
--- ==================================================
--- FULLBRIGHT
--- ==================================================
-local function toggleFullbright(state)
-	if state then
-		Lighting.Brightness = 2.5
-		Lighting.ClockTime = 14
-		Lighting.FogEnd = 100000
-		Lighting.GlobalShadows = false
-	else
-		Lighting.Brightness = originalBrightness
-		Lighting.ClockTime = originalClockTime
-		Lighting.FogEnd = originalFogEnd
-		Lighting.GlobalShadows = originalGlobalShadows
-	end
+		or string.find(n, "fathom", 1, true)
 end
 
 -- ==================================================
 -- ESP NPC
 -- ==================================================
-local function isNPCName(name)
-	if not name then return false end
-	local n = string.lower(name)
-	return string.find(n, "grins", 1, true)
-		or string.find(n, "worth", 1, true)
-		or string.find(n, "grin", 1, true)
-		or string.find(n, "ginsworth", 1, true)
-		or string.find(n, "whort", 1, true)
-end
-
-local npcEspObjects = {}
-
 local function addNPCESP(model)
 	if not model or not model:IsA("Model") then return end
 	if npcEspObjects[model] then return end
 	if Players:GetPlayerFromCharacter(model) then return end
-	if not isNPCName(model.Name) then return end
+	if not matchesTargetName(model.Name) then return end
 
 	local rootPart = model:FindFirstChild("HumanoidRootPart")
 		or model:FindFirstChild("Torso")
@@ -834,26 +643,21 @@ end
 -- ==================================================
 -- ESP FATHOM
 -- ==================================================
-local fathomESPObjects = {}
+local function addFathomESP(model)
+	if not model or not model:IsA("Model") then return end
+	if fathomESPObjects[model] then return end
+	if not matchesTargetName(model.Name) then return end
 
-local function isFathomPlayer(plr)
-	if not plr or not plr:IsA("Player") then return false end
-	local name = string.lower(plr.Name)
-	return string.find(name, "fathom", 1, true) ~= nil
-end
+	local rootPart = model:FindFirstChild("HumanoidRootPart")
+		or model:FindFirstChild("Torso")
+		or model:FindFirstChild("UpperTorso")
+		or model.PrimaryPart
 
-local function addFathomESP(plr)
-	if not plr or not plr:IsA("Player") then return end
-	if fathomESPObjects[plr] then return end
-	if not isFathomPlayer(plr) then return end
-	if not plr.Character then return end
-
-	local rootPart = plr.Character:FindFirstChild("HumanoidRootPart")
 	if not rootPart then return end
 
 	local highlight = make("Highlight", {
 		Parent = Workspace,
-		Adornee = plr.Character,
+		Adornee = model,
 		FillColor = Color3.fromRGB(255, 200, 120),
 		OutlineColor = Color3.fromRGB(255, 255, 200),
 		FillTransparency = 0.45,
@@ -874,7 +678,7 @@ local function addFathomESP(plr)
 		BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0.5, 0),
 		Position = UDim2.new(0, 0, 0, 0),
-		Text = plr.Name,
+		Text = model.Name,
 		TextColor3 = Color3.fromRGB(255, 230, 150),
 		TextStrokeTransparency = 0.2,
 		Font = Enum.Font.GothamBold,
@@ -893,7 +697,7 @@ local function addFathomESP(plr)
 		TextSize = 11,
 	})
 
-	fathomESPObjects[plr] = {
+	fathomESPObjects[model] = {
 		highlight = highlight,
 		billboard = billboard,
 		label = label,
@@ -903,16 +707,16 @@ local function addFathomESP(plr)
 end
 
 local function clearFathomESP()
-	for plr, v in pairs(fathomESPObjects) do
+	for model, v in pairs(fathomESPObjects) do
 		if v.highlight then v.highlight:Destroy() end
 		if v.billboard then v.billboard:Destroy() end
-		fathomESPObjects[plr] = nil
+		fathomESPObjects[model] = nil
 	end
 end
 
 local function updateFathomESP()
-	for plr, v in pairs(fathomESPObjects) do
-		if plr and plr.Character and v.rootPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+	for model, v in pairs(fathomESPObjects) do
+		if model and model.Parent and v.rootPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
 			local dist = math.floor((player.Character.HumanoidRootPart.Position - v.rootPart.Position).Magnitude)
 			v.distLabel.Text = tostring(dist) .. " studs"
 		end
@@ -920,119 +724,5 @@ local function updateFathomESP()
 end
 
 -- ==================================================
--- NO CLIP
--- ==================================================
-local function toggleNoClip(state)
-	if state then
-		if player.Character then
-			for _, part in ipairs(player.Character:GetDescendants()) do
-				if part:IsA("BasePart") then
-					part.CanCollide = false
-				end
-			end
-		end
-	else
-		if player.Character then
-			for _, part in ipairs(player.Character:GetDescendants()) do
-				if part:IsA("BasePart") then
-					part.CanCollide = true
-				end
-			end
-		end
-	end
-end
-
--- ==================================================
--- TOGGLES
--- ==================================================
-fullbrightToggle.MouseButton1Click:Connect(function()
-	fullbrightEnabled = not fullbrightEnabled
-	setToggle(fullbrightToggle, fullbrightEnabled)
-	toggleFullbright(fullbrightEnabled)
-end)
-
-espPlayersToggle.MouseButton1Click:Connect(function()
-	espEnabled = not espEnabled
-	setToggle(espPlayersToggle, espEnabled)
-
-	if espEnabled then
-		scanNPCESP()
-	else
-		clearNPCESP()
-	end
-end)
-
-espFathomToggle.MouseButton1Click:Connect(function()
-	playerEspEnabled = not playerEspEnabled
-	setToggle(espFathomToggle, playerEspEnabled)
-
-	if playerEspEnabled then
-		for _, plr in ipairs(Players:GetPlayers()) do
-			if isFathomPlayer(plr) then
-				addFathomESP(plr)
-			end
-		end
-	else
-		clearFathomESP()
-	end
-end)
-
-noclipToggle.MouseButton1Click:Connect(function()
-	noclipEnabled = not noclipEnabled
-	setToggle(noclipToggle, noclipEnabled)
-	toggleNoClip(noclipEnabled)
-end)
-
--- ==================================================
--- EVENTOS
--- ==================================================
-Workspace.DescendantAdded:Connect(function(desc)
-	if espEnabled and desc:IsA("Model") then
-		task.wait(0.2)
-		addNPCESP(desc)
-	end
-
-	if playerEspEnabled and desc:IsA("Model") then
-		task.wait(0.2)
-		for _, plr in ipairs(Players:GetPlayers()) do
-			if isFathomPlayer(plr) and plr.Character == desc then
-				addFathomESP(plr)
-			end
-		end
-	end
-end)
-
-Players.PlayerAdded:Connect(function(plr)
-	if playerEspEnabled and isFathomPlayer(plr) then
-		plr.CharacterAdded:Connect(function()
-			task.wait(0.3)
-			addFathomESP(plr)
-		end)
-	end
-end)
-
-player.CharacterAdded:Connect(function(char)
-	task.wait(0.1)
-	if noclipEnabled then
-		for _, part in ipairs(char:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.CanCollide = false
-			end
-		end
-	end
-end)
-
-RunService.RenderStepped:Connect(function()
-	if espEnabled then
-		for model, v in pairs(npcEspObjects) do
-			if model and model.Parent and v.rootPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-				local dist = math.floor((player.Character.HumanoidRootPart.Position - v.rootPart.Position).Magnitude)
-				v.distLabel.Text = tostring(dist) .. " studs"
-			end
-		end
-	end
-
-	if playerEspEnabled then
-		updateFathomESP()
-	end
-end)
+-- FULLBRIGHT
+-- ========================================
