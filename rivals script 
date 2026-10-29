@@ -1,0 +1,456 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+local playerGui = player:WaitForChild("PlayerGui")
+
+local espEnabled = false
+local camLockEnabled = false
+local selectedTarget = nil
+local playerHighlightObjects = {}
+
+-- ==================================================
+-- HELPER
+-- ==================================================
+local function make(className, props)
+	local obj = Instance.new(className)
+	for key, value in pairs(props or {}) do
+		if key ~= "Parent" then
+			obj[key] = value
+		end
+	end
+	if props and props.Parent then
+		obj.Parent = props.Parent
+	end
+	return obj
+end
+
+local function round(obj, radius)
+	local c = make("UICorner", {
+		CornerRadius = UDim.new(0, radius or 12),
+		Parent = obj,
+	})
+	return c
+end
+
+local function stroke(obj, color, thickness)
+	local s = make("UIStroke", {
+		Color = color,
+		Thickness = thickness or 1.2,
+		Transparency = 0.15,
+		Parent = obj,
+	})
+	return s
+end
+
+-- ==================================================
+-- UI
+-- ==================================================
+local screenGui = make("ScreenGui", {
+	Name = "SakuraSimpleMenu",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+	Parent = playerGui,
+})
+
+local root = make("Frame", {
+	Parent = screenGui,
+	Name = "Root",
+	BackgroundColor3 = Color3.fromRGB(17, 12, 20),
+	BackgroundTransparency = 0.2,
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 24, 0.5, -150),
+	Size = UDim2.new(0, 520, 0, 250),
+	Visible = false,
+})
+round(root, 18)
+stroke(root, Color3.fromRGB(255, 92, 200), 1.5)
+
+local topBar = make("Frame", {
+	Parent = root,
+	BackgroundColor3 = Color3.fromRGB(20, 12, 23),
+	BackgroundTransparency = 0.08,
+	BorderSizePixel = 0,
+	Size = UDim2.new(1, 0, 0, 46),
+})
+round(topBar, 18)
+
+local title = make("TextLabel", {
+	Parent = topBar,
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 18, 0, 0),
+	Size = UDim2.new(0, 220, 1, 0),
+	Text = "Sakura Hub",
+	TextColor3 = Color3.fromRGB(255, 92, 200),
+	Font = Enum.Font.GothamBlack,
+	TextSize = 18,
+	TextXAlignment = Enum.TextXAlignment.Left,
+})
+
+local glowBar = make("Frame", {
+	Parent = topBar,
+	BackgroundColor3 = Color3.fromRGB(255, 92, 200),
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 0, 1, -3),
+	Size = UDim2.new(1, 0, 0, 3),
+})
+round(glowBar, 3)
+
+local sidebar = make("Frame", {
+	Parent = root,
+	BackgroundColor3 = Color3.fromRGB(34, 25, 38),
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 0, 0, 46),
+	Size = UDim2.new(0, 150, 1, -46),
+})
+round(sidebar, 12)
+
+local panel = make("Frame", {
+	Parent = root,
+	BackgroundColor3 = Color3.fromRGB(34, 25, 38),
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 165, 0, 55),
+	Size = UDim2.new(1, -175, 1, -65),
+})
+round(panel, 14)
+
+local function createTab(label, y, selected)
+	local btn = make("TextButton", {
+		Parent = sidebar,
+		BackgroundColor3 = selected and Color3.fromRGB(255, 92, 200) or Color3.fromRGB(44, 30, 47),
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 9, 0, y),
+		Size = UDim2.new(1, -18, 0, 42),
+		Text = label,
+		TextColor3 = selected and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 170, 190),
+		Font = Enum.Font.GothamBold,
+		TextSize = 13,
+		AutoButtonColor = false,
+	})
+	round(btn, 10)
+	stroke(btn, Color3.fromRGB(255, 92, 200), selected and 2 or 1)
+	return btn
+end
+
+local funcsTab = createTab("Funciones", 10, true)
+local listTab = createTab("Lista", 58, false)
+
+local funcsPanel = make("Frame", {
+	Parent = panel,
+	BackgroundTransparency = 1,
+	Size = UDim2.new(1, 0, 1, 0),
+	Visible = true,
+})
+
+local listFrame = make("ScrollingFrame", {
+	Parent = panel,
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	Size = UDim2.new(1, 0, 1, 0),
+	Visible = false,
+	CanvasSize = UDim2.new(0, 0, 0, 600),
+	ScrollBarThickness = 4,
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+})
+
+local listLayout = make("UIListLayout", {
+	Parent = listFrame,
+	Padding = UDim.new(0, 8),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+})
+
+local function createToggleRow(parent, label, y)
+	local row = make("Frame", {
+		Parent = parent,
+		BackgroundColor3 = Color3.fromRGB(44, 30, 47),
+		BackgroundTransparency = 0.12,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 12, 0, y),
+		Size = UDim2.new(1, -24, 0, 32),
+	})
+	round(row, 10)
+
+	local textLabel = make("TextLabel", {
+		Parent = row,
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 12, 0, 0),
+		Size = UDim2.new(1, -90, 1, 0),
+		Text = label,
+		TextColor3 = Color3.fromRGB(250, 245, 255),
+		Font = Enum.Font.GothamSemibold,
+		TextSize = 12,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+
+	local toggle = make("TextButton", {
+		Parent = row,
+		BackgroundColor3 = Color3.fromRGB(44, 30, 47),
+		BorderSizePixel = 0,
+		Position = UDim2.new(1, -72, 0.5, -11),
+		Size = UDim2.new(0, 60, 0, 22),
+		Text = "OFF",
+		TextColor3 = Color3.fromRGB(180, 170, 190),
+		Font = Enum.Font.GothamBold,
+		TextSize = 10,
+		AutoButtonColor = false,
+	})
+	round(toggle, 12)
+	stroke(toggle, Color3.fromRGB(255, 92, 200), 1)
+
+	return row, toggle
+end
+
+local espRow, espToggle = createToggleRow(funcsPanel, "ESP Player", 14)
+local camRow, camToggle = createToggleRow(funcsPanel, "Cam Lock", 52)
+
+local function setToggle(button, enabled)
+	if enabled then
+		button.Text = "ON"
+		button.BackgroundColor3 = Color3.fromRGB(255, 110, 210)
+		button.TextColor3 = Color3.fromRGB(255, 255, 255)
+	else
+		button.Text = "OFF"
+		button.BackgroundColor3 = Color3.fromRGB(44, 30, 47)
+		button.TextColor3 = Color3.fromRGB(180, 170, 190)
+	end
+end
+
+local function showPanel(mode)
+	if mode == "Funciones" then
+		funcsPanel.Visible = true
+		listFrame.Visible = false
+		funcsTab.BackgroundColor3 = Color3.fromRGB(255, 92, 200)
+		funcsTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+		listTab.BackgroundColor3 = Color3.fromRGB(44, 30, 47)
+		listTab.TextColor3 = Color3.fromRGB(180, 170, 190)
+	else
+		funcsPanel.Visible = false
+		listFrame.Visible = true
+		listTab.BackgroundColor3 = Color3.fromRGB(255, 92, 200)
+		listTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+		funcsTab.BackgroundColor3 = Color3.fromRGB(44, 30, 47)
+		funcsTab.TextColor3 = Color3.fromRGB(180, 170, 190)
+	end
+end
+
+local floatButton = make("TextButton", {
+	Parent = screenGui,
+	BackgroundColor3 = Color3.fromRGB(17, 12, 20),
+	BackgroundTransparency = 0.12,
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 20, 0.5, -28),
+	Size = UDim2.new(0, 56, 0, 56),
+	Text = "🌸",
+	TextColor3 = Color3.fromRGB(255, 92, 200),
+	Font = Enum.Font.GothamBlack,
+	TextScaled = true,
+	AutoButtonColor = false,
+})
+round(floatButton, 18)
+stroke(floatButton, Color3.fromRGB(255, 92, 200), 2)
+
+floatButton.MouseButton1Click:Connect(function()
+	root.Visible = not root.Visible
+end)
+
+local closeBtn = make("TextButton", {
+	Parent = topBar,
+	BackgroundColor3 = Color3.fromRGB(255, 92, 200),
+	BorderSizePixel = 0,
+	Position = UDim2.new(1, -34, 0.5, -14),
+	Size = UDim2.new(0, 28, 0, 28),
+	Text = "×",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	Font = Enum.Font.GothamBlack,
+	TextSize = 15,
+	AutoButtonColor = false,
+})
+round(closeBtn, 8)
+
+closeBtn.MouseButton1Click:Connect(function()
+	root.Visible = false
+end)
+
+local function updatePlayerList()
+	for _, child in ipairs(listFrame:GetChildren()) do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
+	end
+
+	for _, plr in ipairs(Players:GetPlayers()) do
+		local btn = make("TextButton", {
+			Parent = listFrame,
+			BackgroundColor3 = Color3.fromRGB(44, 30, 47),
+			BorderSizePixel = 0,
+			Size = UDim2.new(1, -10, 0, 28),
+			Text = plr.Name,
+			TextColor3 = Color3.fromRGB(250, 245, 255),
+			Font = Enum.Font.GothamSemibold,
+			TextSize = 12,
+			AutoButtonColor = false,
+		})
+		round(btn, 8)
+		stroke(btn, Color3.fromRGB(255, 92, 200), 1)
+
+		btn.MouseButton1Click:Connect(function()
+			selectedTarget = plr
+			camLockEnabled = true
+			setToggle(camToggle, true)
+			showPanel("Funciones")
+		end)
+	end
+end
+
+updatePlayerList()
+
+Players.PlayerAdded:Connect(function()
+	task.wait(0.1)
+	updatePlayerList()
+end)
+
+Players.PlayerRemoving:Connect(function()
+	task.wait(0.1)
+	updatePlayerList()
+end)
+
+local function applyPlayerESP(plr)
+	if plr == player then return end
+	if playerHighlightObjects[plr] then return end
+
+	local highlight = Instance.new("Highlight")
+	highlight.Adornee = plr.Character
+	highlight.FillColor = Color3.fromRGB(255, 92, 200)
+	highlight.OutlineColor = Color3.fromRGB(255, 145, 230)
+	highlight.FillTransparency = 0.4
+	highlight.OutlineTransparency = 0
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.Parent = Workspace
+
+	playerHighlightObjects[plr] = highlight
+end
+
+local function clearPlayerESP()
+	for _, highlight in pairs(playerHighlightObjects) do
+		if highlight then highlight:Destroy() end
+	end
+	playerHighlightObjects = {}
+end
+
+espToggle.MouseButton1Click:Connect(function()
+	espEnabled = not espEnabled
+	setToggle(espToggle, espEnabled)
+
+	if espEnabled then
+		for _, plr in ipairs(Players:GetPlayers()) do
+			if plr ~= player and plr.Character then
+				applyPlayerESP(plr)
+			end
+		end
+	else
+		clearPlayerESP()
+	end
+end)
+
+camToggle.MouseButton1Click:Connect(function()
+	camLockEnabled = not camLockEnabled
+	setToggle(camToggle, camLockEnabled)
+
+	if camLockEnabled then
+		camera.CameraType = Enum.CameraType.Scriptable
+	else
+		selectedTarget = nil
+		camera.CameraType = Enum.CameraType.Custom
+	end
+end)
+
+Players.PlayerAdded:Connect(function(plr)
+	plr.CharacterAdded:Connect(function()
+		if espEnabled and plr ~= player then
+			applyPlayerESP(plr)
+		end
+	end)
+end)
+
+local dragStart
+local dragStartPos
+local dragging = false
+
+topBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		dragStartPos = root.Position
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - dragStart
+		root.Position = UDim2.new(
+			dragStartPos.X.Scale,
+			dragStartPos.X.Offset + delta.X,
+			dragStartPos.Y.Scale,
+			dragStartPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+funcsTab.MouseButton1Click:Connect(function()
+	showPanel("Funciones")
+end)
+
+listTab.MouseButton1Click:Connect(function()
+	showPanel("Lista")
+end)
+
+-- ==================================================
+-- CAM LOCK BASEADO EN TU EJEMPLO
+-- ==================================================
+local function updateCamera()
+	if not camLockEnabled or not selectedTarget then
+		return
+	end
+
+	local targetCharacter = selectedTarget.Character
+	if not targetCharacter then
+		return
+	end
+
+	local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
+	if not targetRoot then
+		return
+	end
+
+	local playerRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not playerRoot then
+		return
+	end
+
+	local targetPosition = targetRoot.Position + Vector3.new(0, 2, 0)
+
+	-- cámara detrás del jugador para que siempre mire al objetivo
+	local offset = -(playerRoot.CFrame.LookVector) * 9 + Vector3.new(0, 3.5, 0)
+	local cameraPosition = playerRoot.Position + offset
+
+	camera.CFrame = CFrame.lookAt(cameraPosition, targetPosition)
+end
+
+camera.CameraType = Enum.CameraType.Scriptable
+
+RunService:BindToRenderStep(
+	"TargetCamera",
+	Enum.RenderPriority.Camera.Value + 1,
+	updateCamera
+)
+
+showPanel("Funciones")
