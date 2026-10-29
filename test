@@ -94,15 +94,19 @@ end
 -- ==================================================
 local menuOpen = false
 local espEnabled = false
+local playerEspEnabled = false
 local fullbrightEnabled = false
 local noclipEnabled = false
 
 local espObjects = {}
+local playerHighlightObjects = {}
 
 local originalBrightness = Lighting.Brightness
 local originalClockTime = Lighting.ClockTime
 local originalFogEnd = Lighting.FogEnd
 local originalGlobalShadows = Lighting.GlobalShadows
+
+local walkSpeedValue = 16
 
 -- ==================================================
 -- GUI
@@ -297,6 +301,18 @@ local function createSliderRow(parent, label, y, minValue, maxValue, defaultValu
 		TextXAlignment = Enum.TextXAlignment.Right,
 	})
 
+	local info = make("TextLabel", {
+		Parent = row,
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 14, 0, 6),
+		Size = UDim2.new(1, -64, 0, 18),
+		Text = label,
+		TextColor3 = theme.Text,
+		Font = Enum.Font.GothamSemibold,
+		TextSize = 12,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+
 	local track = make("Frame", {
 		Parent = row,
 		BackgroundColor3 = theme.Background,
@@ -356,38 +372,6 @@ local function createSliderRow(parent, label, y, minValue, maxValue, defaultValu
 	return row
 end
 
-local function createColorButton(parent, color, presetName)
-	local btn = make("TextButton", {
-		Parent = parent,
-		BackgroundColor3 = color,
-		BorderSizePixel = 0,
-		AutoButtonColor = false,
-		Position = UDim2.new(0, 0, 0.5, -18),
-		Size = UDim2.new(0, 36, 0, 36),
-		Text = "",
-	})
-	round(btn, 12)
-	stroke(btn, theme.Text, 1)
-
-	btn.MouseButton1Click:Connect(function()
-		if presetName == "Rojo" then theme = ThemePresets.NeonRed end
-		if presetName == "Rosa" then theme = ThemePresets.NeonPink end
-		if presetName == "Verde" then theme = ThemePresets.NeonGreen end
-		if presetName == "Azul" then theme = ThemePresets.NeonBlue end
-
-		root.BackgroundColor3 = theme.Background
-		topBar.BackgroundColor3 = theme.Background
-		sidebar.BackgroundColor3 = theme.Panel
-		panel.BackgroundColor3 = theme.Panel
-		title.TextColor3 = theme.Accent
-		statusText.TextColor3 = theme.Dim
-		glowBar.BackgroundColor3 = theme.Accent
-		statusDot.BackgroundColor3 = theme.Success
-	end)
-
-	return btn
-end
-
 local function setToggle(button, enabled)
 	if enabled then
 		button.Text = "ON"
@@ -421,48 +405,26 @@ end
 -- ==================================================
 -- FILAS DE FUNCIONES
 -- ==================================================
-local espPlayersRow, espPlayersToggle = createToggleRow(functionsPanel, "ESP Grins", 14)
-local fullbrightRow, fullbrightToggle = createToggleRow(functionsPanel, "Fullbright", 52)
-local noclipRow, noclipToggle = createToggleRow(functionsPanel, "NoClip", 90)
+local espGrinsRow, espGrinsToggle = createToggleRow(functionsPanel, "ESP Grins", 14)
+local espPlayerRow, espPlayerToggle = createToggleRow(functionsPanel, "ESP Player", 52)
+local fullbrightRow, fullbrightToggle = createToggleRow(functionsPanel, "Fullbright", 90)
+local noclipRow, noclipToggle = createToggleRow(functionsPanel, "NoClip", 128)
 
 -- ==================================================
--- CONFIGURACIÓN
+-- PANEL CONFIG
 -- ==================================================
-local sizeSlider = createSliderRow(configPanel, "Tamaño del menú", 18, 70, 130, 100, function(v)
+local sizeSlider = createSliderRow(configPanel, "Tamaño", 18, 80, 110, 100, function(v)
 	local scale = v / 100
 	root.Size = UDim2.new(0, 700 * scale, 0, 300 * scale)
 end)
 
-local colorLabel = make("TextLabel", {
-	Parent = configPanel,
-	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 12, 0, 110),
-	Size = UDim2.new(1, -24, 0, 18),
-	Text = "Color del menú",
-	TextColor3 = theme.Text,
-	Font = Enum.Font.GothamBold,
-	TextSize = 12,
-	TextXAlignment = Enum.TextXAlignment.Left,
-})
-
-local colorStrip = make("Frame", {
-	Parent = configPanel,
-	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 12, 0, 130),
-	Size = UDim2.new(1, -24, 0, 42),
-})
-
-local redBtn = createColorButton(colorStrip, Color3.fromRGB(255, 78, 120), "Rojo")
-redBtn.Position = UDim2.new(0, 0, 0.5, -18)
-
-local pinkBtn = createColorButton(colorStrip, Color3.fromRGB(255, 92, 200), "Rosa")
-pinkBtn.Position = UDim2.new(0, 48, 0.5, -18)
-
-local greenBtn = createColorButton(colorStrip, Color3.fromRGB(70, 255, 145), "Verde")
-greenBtn.Position = UDim2.new(0, 96, 0.5, -18)
-
-local blueBtn = createColorButton(colorStrip, Color3.fromRGB(90, 180, 255), "Azul")
-blueBtn.Position = UDim2.new(0, 144, 0.5, -18)
+local speedSlider = createSliderRow(configPanel, "WalkSpeed", 90, 16, 100, 16, function(v)
+	walkSpeedValue = v
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.WalkSpeed = v
+	end
+end)
 
 -- ==================================================
 -- BOTÓN FLOTANTE
@@ -510,10 +472,8 @@ closeBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ==================================================
--- LÓGICA DEL ESP
+-- DETECCIÓN DE NPCS
 -- ==================================================
-local ESP_COLOR = Color3.fromRGB(0, 255, 140)
-
 local function isEnemyNPC(model)
 	if not model or not model:IsA("Model") then return false end
 	local name = string.lower(model.Name)
@@ -523,9 +483,11 @@ local function isEnemyNPC(model)
 		or string.find(name, "whord", 1, true)
 		or string.find(name, "whod", 1, true)
 		or string.find(name, "ginsworth", 1, true)
-		or string.find(name, "fathom", 1, true)
 end
 
+-- ==================================================
+-- ESP NPC
+-- ==================================================
 local function applyESP(model)
 	if not model or not model:IsA("Model") then return end
 	if espObjects[model] then return end
@@ -542,9 +504,9 @@ local function applyESP(model)
 
 	local highlight = Instance.new("Highlight")
 	highlight.Adornee = model
-	highlight.FillColor = ESP_COLOR
-	highlight.OutlineColor = Color3.fromRGB(0, 255, 140)
-	highlight.FillTransparency = 0.5
+	highlight.FillColor = theme.Accent
+	highlight.OutlineColor = theme.Accent2
+	highlight.FillTransparency = 0.45
 	highlight.OutlineTransparency = 0
 	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 	highlight.Parent = model
@@ -559,7 +521,7 @@ local function applyESP(model)
 	local nameLabel = Instance.new("TextLabel", billboard)
 	nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
 	nameLabel.BackgroundTransparency = 1
-	nameLabel.TextColor3 = ESP_COLOR
+	nameLabel.TextColor3 = theme.Text
 	nameLabel.TextStrokeTransparency = 0
 	nameLabel.Font = Enum.Font.GothamBold
 	nameLabel.TextSize = 13
@@ -569,7 +531,7 @@ local function applyESP(model)
 	distLabel.Size = UDim2.new(1, 0, 0.5, 0)
 	distLabel.Position = UDim2.new(0, 0, 0.5, 0)
 	distLabel.BackgroundTransparency = 1
-	distLabel.TextColor3 = ESP_COLOR
+	distLabel.TextColor3 = theme.Accent
 	distLabel.TextStrokeTransparency = 0
 	distLabel.Font = Enum.Font.Gotham
 	distLabel.TextSize = 12
@@ -591,11 +553,38 @@ local function clearESP()
 	table.clear(espObjects)
 end
 
-local function scan()
+local function scanESP()
 	for _, obj in ipairs(Workspace:GetDescendants()) do
 		if obj:IsA("Model") then
 			applyESP(obj)
 		end
+	end
+end
+
+-- ==================================================
+-- ESP PLAYER
+-- ==================================================
+local function togglePlayerESP(state)
+	if state then
+		for _, plr in ipairs(Players:GetPlayers()) do
+			if plr ~= player and plr.Character then
+				local highlight = Instance.new("Highlight")
+				highlight.Adornee = plr.Character
+				highlight.FillColor = theme.Accent
+				highlight.OutlineColor = theme.Accent2
+				highlight.FillTransparency = 0.35
+				highlight.OutlineTransparency = 0
+				highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+				highlight.Parent = Workspace
+
+				playerHighlightObjects[plr] = highlight
+			end
+		end
+	else
+		for _, h in pairs(playerHighlightObjects) do
+			if h then h:Destroy() end
+		end
+		playerHighlightObjects = {}
 	end
 end
 
@@ -640,17 +629,33 @@ local function toggleNoClip(state)
 end
 
 -- ==================================================
+-- WALK SPEED
+-- ==================================================
+local function setWalkSpeed(value)
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.WalkSpeed = value
+	end
+end
+
+-- ==================================================
 -- TOGGLES
 -- ==================================================
-espPlayersToggle.MouseButton1Click:Connect(function()
+espGrinsToggle.MouseButton1Click:Connect(function()
 	espEnabled = not espEnabled
-	setToggle(espPlayersToggle, espEnabled)
+	setToggle(espGrinsToggle, espEnabled)
 
 	if espEnabled then
-		scan()
+		scanESP()
 	else
 		clearESP()
 	end
+end)
+
+espPlayerToggle.MouseButton1Click:Connect(function()
+	playerEspEnabled = not playerEspEnabled
+	setToggle(espPlayerToggle, playerEspEnabled)
+	togglePlayerESP(playerEspEnabled)
 end)
 
 fullbrightToggle.MouseButton1Click:Connect(function()
@@ -675,81 +680,50 @@ Workspace.DescendantAdded:Connect(function(obj)
 	end
 end)
 
-RunService.RenderStepped:Connect(function()
-	if not espEnabled then return end
+Players.PlayerAdded:Connect(function(plr)
+	if playerEspEnabled and plr ~= player and plr.Character then
+		local highlight = Instance.new("Highlight")
+		highlight.Adornee = plr.Character
+		highlight.FillColor = theme.Accent
+		highlight.OutlineColor = theme.Accent2
+		highlight.FillTransparency = 0.35
+		highlight.OutlineTransparency = 0
+		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		highlight.Parent = Workspace
 
-	local char = player.Character
-	local myRoot = char and char:FindFirstChild("HumanoidRootPart")
-	if not myRoot then return end
-
-	for model, data in pairs(espObjects) do
-		if model.Parent and data.Root and data.Root.Parent then
-			data.DistLabel.Text = math.floor((myRoot.Position - data.Root.Position).Magnitude) .. " studs"
-		else
-			if data.Highlight then data.Highlight:Destroy() end
-			if data.Billboard then data.Billboard:Destroy() end
-			espObjects[model] = nil
-		end
+		playerHighlightObjects[plr] = highlight
 	end
+
+	plr.CharacterAdded:Connect(function(char)
+		task.wait(0.1)
+		if playerEspEnabled and plr ~= player then
+			local highlight = Instance.new("Highlight")
+			highlight.Adornee = char
+			highlight.FillColor = theme.Accent
+			highlight.OutlineColor = theme.Accent2
+			highlight.FillTransparency = 0.35
+			highlight.OutlineTransparency = 0
+			highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+			highlight.Parent = Workspace
+
+			playerHighlightObjects[plr] = highlight
+		end
+
+		if noclipEnabled then
+			for _, part in ipairs(char:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = false
+				end
+			end
+		end
+
+		local humanoid = char:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid.WalkSpeed = walkSpeedValue
+		end
+	end)
 end)
 
 player.CharacterAdded:Connect(function(char)
 	task.wait(0.1)
-	if noclipEnabled then
-		for _, part in ipairs(char:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.CanCollide = false
-			end
-		end
-	end
-end)
-
--- ==================================================
--- DRAG UI
--- ==================================================
-local dragging = false
-local dragStart = nil
-local startPos = nil
-
-topBar.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStart = input.Position
-		startPos = root.Position
-	end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-		local delta = input.Position - dragStart
-		root.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
-		)
-	end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = false
-	end
-end)
-
--- ==================================================
--- TABS
--- ==================================================
-funcsTab.MouseButton1Click:Connect(function()
-	showPanel("Funciones")
-end)
-
-configTab.MouseButton1Click:Connect(function()
-	showPanel("Configuración")
-end)
-
--- ==================================================
--- INICIALIZAR
--- ==================================================
-showPanel("Funciones")
-print("Sakura Hub cargado correctamente.")
+	local humanoid = char:FindFirst
