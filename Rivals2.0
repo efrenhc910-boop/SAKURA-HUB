@@ -780,4 +780,119 @@ local function updateCamLock()
 	local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
 	local myCharacter = LocalPlayer.Character
 	local myRoot = myCharacter and myCharacter:FindFirstChild("HumanoidRootPart")
-	local myHumanoid = myCharact
+	local myHumanoid = myCharacter and myCharacter:FindFirstChildOfClass("Humanoid")
+
+	if not targetRoot or not myRoot or not myHumanoid then return end
+
+	local targetPos = targetRoot.Position + Vector3.new(0, 2, 0)
+	local myPos = myRoot.Position
+
+	myHumanoid.AutoRotate = false
+	myRoot.CFrame = CFrame.lookAt(myPos, targetPos)
+
+	local behind = -(myRoot.CFrame.LookVector) * 9
+	local camPos = myPos + behind + Vector3.new(0, 3.5, 0)
+	Camera.CFrame = CFrame.lookAt(camPos, targetPos)
+end
+
+local toggleButton = make("TextButton", {
+	Parent = Screen,
+	Position = UDim2.new(0, 20, 0.5, -28),
+	Size = UDim2.fromOffset(58, 58),
+	BackgroundColor3 = C.Dark,
+	BackgroundTransparency = 0.12,
+	Text = "🌸",
+	TextColor3 = C.Red,
+	TextSize = 26,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = false,
+})
+round(toggleButton, 16)
+local toggleStroke = stroke(toggleButton, C.Red, 2)
+
+local dragStart
+local dragStartPos
+local dragging = false
+
+toggleButton.InputBegan:Connect(function(input)
+	if buttonsLocked then return end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		dragStartPos = toggleButton.Position
+	elseif input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		dragStartPos = toggleButton.Position
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		toggleButton.Position = UDim2.new(
+			dragStartPos.X.Scale,
+			dragStartPos.X.Offset + delta.X,
+			dragStartPos.Y.Scale,
+			dragStartPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+toggleButton.Activated:Connect(function()
+	menuOpen = not menuOpen
+	Main.Visible = menuOpen
+	if menuOpen then
+		Main.Size = UDim2.fromOffset(10, 10)
+		tween(Main, { Size = UDim2.fromOffset(640, 390) }, 0.22)
+	else
+		tween(Main, { Size = UDim2.fromOffset(10, 10) }, 0.18)
+	end
+end)
+
+Close.Activated:Connect(function()
+	menuOpen = false
+	Main.Visible = false
+end)
+
+-- ==================================================
+-- FPS OUTSIDE MENU
+-- ==================================================
+local fpsColors = {
+	Color3.fromRGB(255, 80, 130),
+	Color3.fromRGB(120, 255, 200),
+	Color3.fromRGB(90, 180, 255),
+	Color3.fromRGB(255, 200, 80),
+	Color3.fromRGB(255, 120, 255),
+	Color3.fromRGB(100, 255, 120),
+}
+local fpsIndex = 0
+local fpsTimer = 0
+
+RunService.RenderStepped:Connect(function(dt)
+	if dt and dt > 0 then
+		local fps = math.floor(1 / dt)
+		FPSLabel.Text = "FPS: " .. fps
+
+		fpsTimer += dt
+		if fpsTimer >= 1 then
+			fpsTimer = 0
+			fpsIndex = (fpsIndex + 1) % #fpsColors
+			FPSLabel.TextColor3 = fpsColors[fpsIndex + 1]
+		end
+	end
+
+	if flyEnabled then
+		updateFly()
+	end
+
+	if camLockEnabled then
+		updateCamLock()
+	end
+end)
