@@ -1,22 +1,21 @@
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-
-local ALLY_COLOR = Color3.fromRGB(40, 140, 255)
-local ENEMY_COLOR = Color3.fromRGB(255, 55, 55)
 
 local ESP = {}
 local ESPConnections = {}
 
 local camLockEnabled = false
 local selectedTarget = nil
-local listVisible = false
 local flyEnabled = false
+local buttonsLocked = false
+local listVisible = false
 
 local flyVelocity = nil
 local flyGyro = nil
@@ -36,7 +35,7 @@ end
 
 local function round(obj, radius)
 	local c = make("UICorner", {
-		CornerRadius = UDim.new(0, radius or 12),
+		CornerRadius = UDim.new(0, radius or 10),
 		Parent = obj,
 	})
 	return c
@@ -45,61 +44,47 @@ end
 local function stroke(obj, color, thickness)
 	local s = make("UIStroke", {
 		Color = color,
-		Thickness = thickness or 1.2,
-		Transparency = 0.15,
+		Thickness = thickness or 1,
+		Transparency = 0,
 		Parent = obj,
 	})
 	return s
 end
 
-local function getColor(player)
-	if LocalPlayer.Team ~= nil and player.Team ~= nil and player.Team == LocalPlayer.Team then
-		return ALLY_COLOR
-	end
-	return ENEMY_COLOR
+local function tween(obj, props, duration)
+	local t = TweenService:Create(obj, TweenInfo.new(duration or 0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), props)
+	t:Play()
+	return t
 end
 
--- ==================================================
--- ESP
--- ==================================================
 local function removeESP(player)
 	local data = ESP[player]
 	if not data then return end
-
-	if data.Highlight then
-		data.Highlight:Destroy()
-	end
-
-	if data.Billboard then
-		data.Billboard:Destroy()
-	end
-
+	if data.Highlight then data.Highlight:Destroy() end
+	if data.Billboard then data.Billboard:Destroy() end
 	ESP[player] = nil
 end
 
 local function createESP(player, character)
 	removeESP(player)
+	if player == LocalPlayer or not character or not character.Parent then return end
 
-	if player == LocalPlayer then return end
-	if not character or not character.Parent then return end
-
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	local root = character:FindFirstChild("HumanoidRootPart")
-
-	if not humanoid or not root then return end
+	local hum = character:FindFirstChildOfClass("Humanoid")
+	if not root or not hum then return end
 
 	local highlight = Instance.new("Highlight")
 	highlight.Name = "SakuraESP"
 	highlight.Adornee = character
 	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-	highlight.FillTransparency = 0.65
+	highlight.FillTransparency = 0.6
 	highlight.OutlineTransparency = 0
 	highlight.Parent = character
 
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "SakuraESP_Name"
 	billboard.Adornee = root
-	billboard.Size = UDim2.fromOffset(180, 30)
+	billboard.Size = UDim2.fromOffset(180, 28)
 	billboard.StudsOffset = Vector3.new(0, 3, 0)
 	billboard.AlwaysOnTop = true
 	billboard.Parent = character
@@ -110,35 +95,18 @@ local function createESP(player, character)
 	label.Text = player.DisplayName
 	label.TextSize = 14
 	label.Font = Enum.Font.GothamBold
-	label.TextStrokeTransparency = 0.25
+	label.TextStrokeTransparency = 0.35
 	label.Parent = billboard
 
-	local color = getColor(player)
-	highlight.FillColor = color
-	highlight.OutlineColor = color
-	label.TextColor3 = color
+	highlight.FillColor = Color3.fromRGB(255, 70, 70)
+	highlight.OutlineColor = Color3.fromRGB(255, 70, 70)
+	label.TextColor3 = Color3.fromRGB(255, 70, 70)
 
 	ESP[player] = {
 		Highlight = highlight,
 		Billboard = billboard,
 		Label = label,
-		Root = root,
 	}
-end
-
-local function updateESPColors()
-	for player, data in pairs(ESP) do
-		if player and player.Parent == Players then
-			local color = getColor(player)
-			if data.Highlight then
-				data.Highlight.FillColor = color
-				data.Highlight.OutlineColor = color
-			end
-			if data.Label then
-				data.Label.TextColor3 = color
-			end
-		end
-	end
 end
 
 local function setupPlayer(player)
@@ -146,32 +114,30 @@ local function setupPlayer(player)
 
 	if ESPConnections[player] then
 		for _, conn in ipairs(ESPConnections[player]) do
-			if conn then conn:Disconnect() end
+			pcall(function()
+				conn:Disconnect()
+			end)
 		end
 		ESPConnections[player] = nil
 	end
 
 	ESPConnections[player] = {}
 
-	table.insert(ESPConnections[player],
-		player.CharacterAdded:Connect(function(character)
-			createESP(player, character)
-		end)
-	)
+	table.insert(ESPConnections[player], player.CharacterAdded:Connect(function(character)
+		createESP(player, character)
+	end))
 
-	table.insert(ESPConnections[player],
-		player.CharacterRemoving:Connect(function()
-			removeESP(player)
-		end)
-	)
+	table.insert(ESPConnections[player], player.CharacterRemoving:Connect(function()
+		removeESP(player)
+	end))
 
 	if player.Character then
 		createESP(player, player.Character)
 	end
 end
 
-for _, player in ipairs(Players:GetPlayers()) do
-	setupPlayer(player)
+for _, p in ipairs(Players:GetPlayers()) do
+	setupPlayer(p)
 end
 
 Players.PlayerAdded:Connect(function(player)
@@ -180,378 +146,427 @@ end)
 
 Players.PlayerRemoving:Connect(function(player)
 	removeESP(player)
-
 	if ESPConnections[player] then
 		for _, conn in ipairs(ESPConnections[player]) do
-			if conn then conn:Disconnect() end
+			pcall(function()
+				conn:Disconnect()
+			end)
 		end
 		ESPConnections[player] = nil
 	end
 end)
 
-LocalPlayer:GetPropertyChangedSignal("Team"):Connect(updateESPColors)
-for _, player in ipairs(Players:GetPlayers()) do
-	if player ~= LocalPlayer then
-		player:GetPropertyChangedSignal("Team"):Connect(updateESPColors)
-	end
+local oldGui = PlayerGui:FindFirstChild("EfrenHub")
+if oldGui then
+	oldGui:Destroy()
 end
 
--- ==================================================
--- UI
--- ==================================================
-local screenGui = make("ScreenGui", {
-	Name = "SakuraMenu",
+local Screen = make("ScreenGui", {
+	Name = "EfrenHub",
 	ResetOnSpawn = false,
 	IgnoreGuiInset = true,
 	Parent = PlayerGui,
 })
 
-local root = make("Frame", {
-	Parent = screenGui,
-	Name = "Root",
-	BackgroundColor3 = Color3.fromRGB(17, 12, 20),
-	BackgroundTransparency = 0.2,
+local C = {
+	Red = Color3.fromRGB(255, 35, 75),
+	Blue = Color3.fromRGB(30, 105, 255),
+	Cyan = Color3.fromRGB(0, 235, 255),
+	Dark = Color3.fromRGB(8, 10, 18),
+	Panel = Color3.fromRGB(15, 21, 34),
+	White = Color3.fromRGB(245, 248, 255),
+	Gray = Color3.fromRGB(156, 170, 192),
+	Black = Color3.fromRGB(10, 10, 12),
+}
+
+local Main = make("Frame", {
+	Parent = Screen,
+	Position = UDim2.new(0.5, -330, 0.5, -195),
+	Size = UDim2.fromOffset(660, 390),
+	BackgroundColor3 = C.Dark,
+	BackgroundTransparency = 0.14,
 	BorderSizePixel = 0,
-	Position = UDim2.new(0, 24, 0.5, -150),
-	Size = UDim2.new(0, 540, 0, 260),
+	ClipsDescendants = true,
 	Visible = false,
 })
-round(root, 18)
-stroke(root, Color3.fromRGB(255, 92, 200), 1.5)
+round(Main, 14)
+local MainStroke = stroke(Main, C.Red, 2)
 
-local topBar = make("Frame", {
-	Parent = root,
-	BackgroundColor3 = Color3.fromRGB(20, 12, 23),
-	BackgroundTransparency = 0.08,
+local Header = make("Frame", {
+	Parent = Main,
+	Size = UDim2.new(1, 0, 0, 72),
+	BackgroundColor3 = C.Panel,
 	BorderSizePixel = 0,
-	Size = UDim2.new(1, 0, 0, 46),
 })
-round(topBar, 18)
+local HeaderGradient = make("UIGradient", {
+	Parent = Header,
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, C.Red),
+		ColorSequenceKeypoint.new(0.5, C.Blue),
+		ColorSequenceKeypoint.new(1, C.Cyan),
+	}),
+	Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.35),
+		NumberSequenceKeypoint.new(1, 0.35),
+	}),
+})
 
-local title = make("TextLabel", {
-	Parent = topBar,
+local Title = make("TextLabel", {
+	Parent = Header,
+	Position = UDim2.fromOffset(18, 8),
+	Size = UDim2.fromOffset(220, 38),
 	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 18, 0, 0),
-	Size = UDim2.new(0, 220, 1, 0),
-	Text = "Sakura Hub",
-	TextColor3 = Color3.fromRGB(255, 92, 200),
+	Text = "EFRÉN HUB",
+	TextColor3 = C.Black,
+	TextSize = 28,
 	Font = Enum.Font.GothamBlack,
-	TextSize = 18,
 	TextXAlignment = Enum.TextXAlignment.Left,
 })
+local TitleStroke = stroke(Title, C.Cyan, 1)
+TitleStroke.Transparency = 0.25
 
-local glowBar = make("Frame", {
-	Parent = topBar,
-	BackgroundColor3 = Color3.fromRGB(255, 92, 200),
-	BorderSizePixel = 0,
-	Position = UDim2.new(0, 0, 1, -3),
-	Size = UDim2.new(1, 0, 0, 3),
-})
-round(glowBar, 3)
-
-local sidebar = make("Frame", {
-	Parent = root,
-	BackgroundColor3 = Color3.fromRGB(34, 25, 38),
-	BorderSizePixel = 0,
-	Position = UDim2.new(0, 0, 0, 46),
-	Size = UDim2.new(0, 160, 1, -46),
-})
-round(sidebar, 12)
-
-local panel = make("Frame", {
-	Parent = root,
-	BackgroundColor3 = Color3.fromRGB(34, 25, 38),
-	BorderSizePixel = 0,
-	Position = UDim2.new(0, 170, 0, 55),
-	Size = UDim2.new(1, -180, 1, -65),
-})
-round(panel, 14)
-
-local function createTab(label, y, selected)
-	local btn = make("TextButton", {
-		Parent = sidebar,
-		BackgroundColor3 = selected and Color3.fromRGB(255, 92, 200) or Color3.fromRGB(44, 30, 47),
-		BorderSizePixel = 0,
-		Position = UDim2.new(0, 9, 0, y),
-		Size = UDim2.new(1, -18, 0, 42),
-		Text = label,
-		TextColor3 = selected and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 170, 190),
-		Font = Enum.Font.GothamBold,
-		TextSize = 13,
-		AutoButtonColor = false,
-	})
-	round(btn, 10)
-	stroke(btn, Color3.fromRGB(255, 92, 200), selected and 2 or 1)
-	return btn
-end
-
-local funcsTab = createTab("Funciones", 10, true)
-local listTab = createTab("Lista", 58, false)
-
-local funcsPanel = make("Frame", {
-	Parent = panel,
+local FpsLabel = make("TextLabel", {
+	Parent = Header,
+	Position = UDim2.new(1, -118, 0, 17),
+	Size = UDim2.fromOffset(100, 20),
 	BackgroundTransparency = 1,
-	Size = UDim2.new(1, 0, 1, 0),
-	Visible = true,
-})
-
-local listPanel = make("Frame", {
-	Parent = panel,
-	BackgroundTransparency = 1,
-	Size = UDim2.new(1, 0, 1, 0),
-	Visible = false,
-})
-
-local searchBox = make("TextBox", {
-	Parent = listPanel,
-	BackgroundColor3 = Color3.fromRGB(44, 30, 47),
-	BorderSizePixel = 0,
-	Position = UDim2.new(0, 12, 0, 12),
-	Size = UDim2.new(1, -24, 0, 34),
-	Text = "Buscar usuario...",
-	TextColor3 = Color3.fromRGB(180, 170, 190),
-	PlaceholderColor3 = Color3.fromRGB(180, 170, 190),
-	Font = Enum.Font.GothamSemibold,
+	Text = "FPS: 60",
+	TextColor3 = C.Cyan,
 	TextSize = 12,
-	PlaceholderText = "Buscar usuario...",
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Right,
 })
-round(searchBox, 10)
-stroke(searchBox, Color3.fromRGB(255, 92, 200), 1)
 
-local listScroll = make("ScrollingFrame", {
-	Parent = listPanel,
-	BackgroundTransparency = 1,
-	BorderSizePixel = 0,
-	Position = UDim2.new(0, 12, 0, 54),
-	Size = UDim2.new(1, -24, 1, -66),
-	CanvasSize = UDim2.new(0, 0, 0, 1000),
-	AutomaticCanvasSize = Enum.AutomaticSize.Y,
-	ScrollBarThickness = 4,
+local Close = make("TextButton", {
+	Parent = Header,
+	Position = UDim2.new(1, -46, 0, 12),
+	Size = UDim2.fromOffset(32, 32),
+	BackgroundColor3 = C.Red,
+	Text = "×",
+	TextColor3 = C.White,
+	TextSize = 22,
+	Font = Enum.Font.GothamBold,
+	AutoButtonColor = false,
 })
-local listLayout = make("UIListLayout", {
-	Parent = listScroll,
+round(Close, 8)
+
+local CategoryBar = make("Frame", {
+	Parent = Main,
+	Position = UDim2.fromOffset(18, 88),
+	Size = UDim2.new(1, -36, 0, 42),
+	BackgroundTransparency = 1,
+})
+local CatLayout = make("UIListLayout", {
+	Parent = CategoryBar,
+	FillDirection = Enum.FillDirection.Horizontal,
 	Padding = UDim.new(0, 8),
 	SortOrder = Enum.SortOrder.LayoutOrder,
 })
 
-local function addToggleRow(parent, label, y)
-	local row = make("Frame", {
-		Parent = parent,
-		BackgroundColor3 = Color3.fromRGB(44, 30, 47),
-		BackgroundTransparency = 0.12,
-		BorderSizePixel = 0,
-		Position = UDim2.new(0, 12, 0, y),
-		Size = UDim2.new(1, -24, 0, 32),
-	})
-	round(row, 10)
-
-	local textLabel = make("TextLabel", {
-		Parent = row,
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 12, 0, 0),
-		Size = UDim2.new(1, -90, 1, 0),
-		Text = label,
-		TextColor3 = Color3.fromRGB(250, 245, 255),
-		Font = Enum.Font.GothamSemibold,
+local function createCategoryButton(name, order)
+	local btn = make("TextButton", {
+		Parent = CategoryBar,
+		Size = UDim2.fromOffset(150, 36),
+		BackgroundColor3 = Color3.fromRGB(19, 26, 42),
+		Text = name,
+		TextColor3 = C.White,
 		TextSize = 12,
+		Font = Enum.Font.GothamBold,
+		AutoButtonColor = false,
+	})
+	round(btn, 10)
+	local s = stroke(btn, C.Blue, 1.2)
+	btn.LayoutOrder = order
+	return btn, s
+end
+
+local catData = {}
+
+local function updateCategoryState(name)
+	for key, data in pairs(catData) do
+		local selected = key == name
+		tween(data.Button, {
+			BackgroundColor3 = selected and Color3.fromRGB(37, 110, 255) or Color3.fromRGB(19, 26, 42),
+		}, 0.18)
+		tween(data.Stroke, {
+			Color = selected and C.Cyan or C.Blue,
+			Thickness = selected and 2 or 1.2,
+		}, 0.18)
+	end
+end
+
+local function createPage(name)
+	local page = make("ScrollingFrame", {
+		Parent = Main,
+		Name = name,
+		Position = UDim2.fromOffset(15, 138),
+		Size = UDim2.new(1, -30, 1, -150),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		CanvasSize = UDim2.new(0, 0, 0, 1000),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ScrollBarThickness = 4,
+		ScrollBarImageColor3 = C.Cyan,
+		Visible = false,
+	})
+	local layout = make("UIListLayout", {
+		Parent = page,
+		Padding = UDim.new(0, 7),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	})
+	return page
+end
+
+local FuncPage = createPage("Funciones")
+local PlayersPage = createPage("Lista de jugadores")
+local ConfigPage = createPage("Configuración")
+
+local function createSection(page, text)
+	local label = make("TextLabel", {
+		Parent = page,
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 20),
+		Text = "✦  " .. text,
+		TextColor3 = C.Cyan,
+		TextSize = 12,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+	return label
+end
+
+local function createFunctionBlock(page, name, desc, callback)
+	local card = make("TextButton", {
+		Parent = page,
+		Size = UDim2.new(1, -8, 0, 48),
+		BackgroundColor3 = Color3.fromRGB(18, 31, 49),
+		Text = "",
+		AutoButtonColor = false,
+	})
+	round(card, 8)
+	local strokeCard = stroke(card, C.Blue, 1)
+
+	local title = make("TextLabel", {
+		Parent = card,
+		Position = UDim2.fromOffset(10, 6),
+		Size = UDim2.new(1, -90, 0, 18),
+		BackgroundTransparency = 1,
+		Text = name,
+		TextColor3 = C.White,
+		TextSize = 12,
+		Font = Enum.Font.GothamBold,
 		TextXAlignment = Enum.TextXAlignment.Left,
 	})
 
-	local toggle = make("TextButton", {
-		Parent = row,
-		BackgroundColor3 = Color3.fromRGB(44, 30, 47),
-		BorderSizePixel = 0,
-		Position = UDim2.new(1, -72, 0.5, -11),
-		Size = UDim2.new(0, 60, 0, 22),
-		Text = "OFF",
-		TextColor3 = Color3.fromRGB(180, 170, 190),
-		Font = Enum.Font.GothamBold,
-		TextSize = 10,
-		AutoButtonColor = false,
+	local descLabel = make("TextLabel", {
+		Parent = card,
+		Position = UDim2.fromOffset(10, 25),
+		Size = UDim2.new(1, -90, 0, 14),
+		BackgroundTransparency = 1,
+		Text = desc,
+		TextColor3 = C.Gray,
+		TextSize = 9,
+		Font = Enum.Font.Gotham,
+		TextXAlignment = Enum.TextXAlignment.Left,
 	})
-	round(toggle, 12)
-	stroke(toggle, Color3.fromRGB(255, 92, 200), 1)
 
-	return row, toggle
-end
+	local state = make("TextLabel", {
+		Parent = card,
+		Position = UDim2.new(1, -70, 0.5, -11),
+		Size = UDim2.fromOffset(58, 22),
+		BackgroundColor3 = Color3.fromRGB(30, 44, 62),
+		Text = "OFF",
+		TextColor3 = C.White,
+		TextSize = 10,
+		Font = Enum.Font.GothamBold,
+		TextXAlignment = Enum.TextXAlignment.Center,
+	})
+	round(state, 7)
 
-local function setToggle(button, enabled)
-	if enabled then
-		button.Text = "ON"
-		button.BackgroundColor3 = Color3.fromRGB(255, 110, 210)
-		button.TextColor3 = Color3.fromRGB(255, 255, 255)
-	else
-		button.Text = "OFF"
-		button.BackgroundColor3 = Color3.fromRGB(44, 30, 47)
-		button.TextColor3 = Color3.fromRGB(180, 170, 190)
-	end
-end
+	local active = false
 
-local function showPanel(mode)
-	if mode == "Funciones" then
-		funcsPanel.Visible = true
-		listPanel.Visible = false
-		funcsTab.BackgroundColor3 = Color3.fromRGB(255, 92, 200)
-		funcsTab.TextColor3 = Color3.fromRGB(255, 255, 255)
-		listTab.BackgroundColor3 = Color3.fromRGB(44, 30, 47)
-		listTab.TextColor3 = Color3.fromRGB(180, 170, 190)
-	else
-		funcsPanel.Visible = false
-		listPanel.Visible = true
-		listTab.BackgroundColor3 = Color3.fromRGB(255, 92, 200)
-		listTab.TextColor3 = Color3.fromRGB(255, 255, 255)
-		funcsTab.BackgroundColor3 = Color3.fromRGB(44, 30, 47)
-		funcsTab.TextColor3 = Color3.fromRGB(180, 170, 190)
-	end
-end
+	card.MouseEnter:Connect(function()
+		tween(card, { BackgroundColor3 = Color3.fromRGB(24, 47, 77) }, 0.12)
+		tween(strokeCard, { Color = C.Cyan }, 0.12)
+	end)
 
-local espRow, espToggle = addToggleRow(funcsPanel, "ESP Player", 14)
-local camRow, camToggle = addToggleRow(funcsPanel, "Cam Lock", 52)
-local listRow, listToggle = addToggleRow(funcsPanel, "Lista", 90)
-local flyRow, flyToggle = addToggleRow(funcsPanel, "Fly", 128)
+	card.MouseLeave:Connect(function()
+		tween(card, { BackgroundColor3 = Color3.fromRGB(18, 31, 49) }, 0.14)
+		tween(strokeCard, { Color = active and C.Cyan or C.Blue }, 0.14)
+	end)
 
-local floatButton = make("TextButton", {
-	Parent = screenGui,
-	BackgroundColor3 = Color3.fromRGB(17, 12, 20),
-	BackgroundTransparency = 0.12,
-	BorderSizePixel = 0,
-	Position = UDim2.new(0, 20, 0.5, -28),
-	Size = UDim2.new(0, 56, 0, 56),
-	Text = "🌸",
-	TextColor3 = Color3.fromRGB(255, 92, 200),
-	Font = Enum.Font.GothamBlack,
-	TextScaled = true,
-	AutoButtonColor = false,
-})
-round(floatButton, 18)
-stroke(floatButton, Color3.fromRGB(255, 92, 200), 2)
+	card.Activated:Connect(function()
+		active = not active
+		state.Text = active and "ON" or "OFF"
 
-floatButton.MouseButton1Click:Connect(function()
-	root.Visible = not root.Visible
-end)
+		tween(state, {
+			BackgroundColor3 = active and C.Blue or Color3.fromRGB(30, 44, 62),
+		}, 0.15)
 
-local closeBtn = make("TextButton", {
-	Parent = topBar,
-	BackgroundColor3 = Color3.fromRGB(255, 92, 200),
-	BorderSizePixel = 0,
-	Position = UDim2.new(1, -34, 0.5, -14),
-	Size = UDim2.new(0, 28, 0, 28),
-	Text = "×",
-	TextColor3 = Color3.fromRGB(255, 255, 255),
-	Font = Enum.Font.GothamBlack,
-	TextSize = 15,
-	AutoButtonColor = false,
-})
-round(closeBtn, 8)
+		tween(strokeCard, {
+			Color = active and C.Cyan or C.Blue,
+			Thickness = active and 2 or 1,
+		}, 0.15)
 
-closeBtn.MouseButton1Click:Connect(function()
-	root.Visible = false
-end)
-
-local function refreshPlayerList()
-	for _, child in ipairs(listScroll:GetChildren()) do
-		if child:IsA("TextButton") then
-			child:Destroy()
+		if callback then
+			callback(active)
 		end
-	end
+	end)
 
-	local textFilter = string.lower(searchBox.Text or "")
-	for _, plr in ipairs(Players:GetPlayers()) do
-		if textFilter == "" or string.find(string.lower(plr.Name), textFilter, 1, true) then
-			local btn = make("TextButton", {
-				Parent = listScroll,
-				BackgroundColor3 = Color3.fromRGB(44, 30, 47),
-				BorderSizePixel = 0,
-				Size = UDim2.new(1, -4, 0, 28),
-				Text = plr.Name,
-				TextColor3 = Color3.fromRGB(250, 245, 255),
-				Font = Enum.Font.GothamSemibold,
-				TextSize = 12,
-				AutoButtonColor = false,
-			})
-			round(btn, 8)
-			stroke(btn, Color3.fromRGB(255, 92, 200), 1)
-
-			btn.MouseButton1Click:Connect(function()
-				selectedTarget = plr
-				camLockEnabled = true
-				setToggle(camToggle, true)
-				Camera.CameraType = Enum.CameraType.Scriptable
-				showPanel("Funciones")
-			end)
-		end
-	end
+	return card, state, active
 end
 
-searchBox:GetPropertyChangedSignal("Text"):Connect(function()
-	refreshPlayerList()
-end)
+local FuncBtn, FuncStroke = createCategoryButton("Funciones", 1)
+local PlayersBtn, PlayersStroke = createCategoryButton("Lista de jugadores", 2)
+local ConfigBtn, ConfigStroke = createCategoryButton("Configuración", 3)
 
-Players.PlayerAdded:Connect(function()
-	task.wait(0.1)
-	refreshPlayerList()
-end)
+catData["Funciones"] = { Button = FuncBtn, Stroke = FuncStroke }
+catData["Lista de jugadores"] = { Button = PlayersBtn, Stroke = PlayersStroke }
+catData["Configuración"] = { Button = ConfigBtn, Stroke = ConfigStroke }
 
-Players.PlayerRemoving:Connect(function()
-	task.wait(0.1)
-	refreshPlayerList()
-end)
-
-refreshPlayerList()
-
-listToggle.MouseButton1Click:Connect(function()
-	listVisible = not listVisible
-	setToggle(listToggle, listVisible)
-
-	if listVisible then
-		showPanel("Lista")
-	else
-		showPanel("Funciones")
+local function showPage(name)
+	for key, page in pairs({
+		["Funciones"] = FuncPage,
+		["Lista de jugadores"] = PlayersPage,
+		["Configuración"] = ConfigPage,
+	}) do
+		page.Visible = key == name
 	end
+	updateCategoryState(name)
+end
+
+FuncBtn.Activated:Connect(function()
+	showPage("Funciones")
 end)
 
-espToggle.MouseButton1Click:Connect(function()
-	espEnabled = not espEnabled
-	setToggle(espToggle, espEnabled)
+PlayersBtn.Activated:Connect(function()
+	showPage("Lista de jugadores")
+end)
 
-	if espEnabled then
-		for _, plr in ipairs(Players:GetPlayers()) do
-			if plr ~= LocalPlayer and plr.Character then
-				createESP(plr, plr.Character)
+ConfigBtn.Activated:Connect(function()
+	showPage("Configuración")
+end)
+
+createSection(FuncPage, "PRINCIPALES")
+
+local espToggle = createFunctionBlock(FuncPage, "ESP Player", "Mostrar jugadores", function(active)
+	if active then
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= LocalPlayer and p.Character then
+				createESP(p, p.Character)
 			end
 		end
 	else
-		for _, plr in ipairs(Players:GetPlayers()) do
-			if plr ~= LocalPlayer then
-				removeESP(plr)
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= LocalPlayer then
+				removeESP(p)
 			end
 		end
 	end
 end)
 
-camToggle.MouseButton1Click:Connect(function()
-	camLockEnabled = not camLockEnabled
-	setToggle(camToggle, camLockEnabled)
+local camToggle = createFunctionBlock(FuncPage, "Cam Lock", "Mirar a un objetivo", function(active)
+	camLockEnabled = active
 
-	if camLockEnabled then
+	if active then
+		local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum.AutoRotate = false
+		end
 		Camera.CameraType = Enum.CameraType.Scriptable
 	else
+		local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum.AutoRotate = true
+		end
 		selectedTarget = nil
 		Camera.CameraType = Enum.CameraType.Custom
 	end
 end)
 
-funcsTab.MouseButton1Click:Connect(function()
-	showPanel("Funciones")
+local flyToggle = createFunctionBlock(FuncPage, "Fly", "Vuelo: W A S D", function(active)
+	if active then
+		startFly()
+	else
+		stopFly()
+	end
 end)
 
-listTab.MouseButton1Click:Connect(function()
-	showPanel("Lista")
+createSection(PlayersPage, "BUSCAR JUGADOR")
+
+local searchBox = make("TextBox", {
+	Parent = PlayersPage,
+	Size = UDim2.new(1, -10, 0, 32),
+	BackgroundColor3 = Color3.fromRGB(17, 25, 38),
+	Text = "",
+	PlaceholderText = "Buscar usuario...",
+	PlaceholderColor3 = C.Gray,
+	TextColor3 = C.White,
+	TextSize = 12,
+	Font = Enum.Font.GothamSemibold,
+})
+round(searchBox, 8)
+stroke(searchBox, C.Cyan, 1)
+
+local playerList = make("ScrollingFrame", {
+	Parent = PlayersPage,
+	Size = UDim2.new(1, 0, 1, -40),
+	Position = UDim2.new(0, 0, 0, 36),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	ScrollBarThickness = 4,
+	CanvasSize = UDim2.new(0, 0, 0, 1000),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+})
+local playerListLayout = make("UIListLayout", {
+	Parent = playerList,
+	Padding = UDim.new(0, 6),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+})
+
+local function refreshPlayerList()
+	for _, child in ipairs(playerList:GetChildren()) do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
+	end
+
+	local q = string.lower(searchBox.Text or "")
+	for _, p in ipairs(Players:GetPlayers()) do
+		local name = p.Name
+		if q == "" or string.find(string.lower(name), q, 1, true) then
+			local btn = make("TextButton", {
+				Parent = playerList,
+				Size = UDim2.new(1, -6, 0, 28),
+				BackgroundColor3 = Color3.fromRGB(20, 30, 48),
+				Text = name,
+				TextColor3 = C.White,
+				TextSize = 12,
+				Font = Enum.Font.GothamSemibold,
+				AutoButtonColor = false,
+			})
+			round(btn, 8)
+			stroke(btn, Color3.fromRGB(70, 110, 220), 1)
+
+			btn.Activated:Connect(function()
+				selectedTarget = p
+				camLockEnabled = true
+				Camera.CameraType = Enum.CameraType.Scriptable
+				showPage("Funciones")
+			end)
+		end
+	end
+end
+
+searchBox:GetPropertyChangedSignal("Text"):Connect(refreshPlayerList)
+refreshPlayerList()
+
+createSection(ConfigPage, "BOTONES")
+
+local blockBtn = createFunctionBlock(ConfigPage, "Bloquear botones", "Desactivar arrastre", function(active)
+	buttonsLocked = active
 end)
 
--- ==================================================
--- FLY
--- ==================================================
 local function stopFly()
 	if flyVelocity then
 		flyVelocity:Destroy()
@@ -566,7 +581,6 @@ end
 
 local function startFly()
 	if flyEnabled then return end
-
 	local character = LocalPlayer.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if not character or not root then return end
@@ -605,8 +619,7 @@ local function updateFly()
 		right = right.Unit
 	end
 
-	local keys = UserInputService:GetKeysPressed()
-	for _, input in ipairs(keys) do
+	for _, input in ipairs(UserInputService:GetKeysPressed()) do
 		local key = input.KeyCode
 		if key == Enum.KeyCode.W then
 			moveVector += forward
@@ -631,52 +644,60 @@ local function updateFly()
 	flyVelocity.Velocity = Vector3.new(moveVector.X, moveVector.Y, moveVector.Z)
 end
 
-flyToggle.MouseButton1Click:Connect(function()
-	if flyEnabled then
-		stopFly()
-		setToggle(flyToggle, false)
-	else
-		startFly()
-		setToggle(flyToggle, true)
-	end
-end)
-
--- ==================================================
--- CAM LOCK
--- ==================================================
 local function updateCamLock()
 	if not camLockEnabled or not selectedTarget then return end
 
-	local targetChar = selectedTarget.Character
-	if not targetChar then return end
+	local targetCharacter = selectedTarget.Character
+	if not targetCharacter then return end
 
-	local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+	local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
 	local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+
 	if not targetRoot or not myRoot then return end
 
 	local targetPos = targetRoot.Position + Vector3.new(0, 2, 0)
-	local behindOffset = -(myRoot.CFrame.LookVector) * 9 + Vector3.new(0, 3.5, 0)
-	local camPos = myRoot.Position + behindOffset
+	local myPos = myRoot.Position
+
+	myRoot.CFrame = CFrame.lookAt(myPos, targetPos)
+
+	local offset = -(myRoot.CFrame.LookVector) * 9 + Vector3.new(0, 3.5, 0)
+	local camPos = myPos + offset
 
 	Camera.CFrame = CFrame.lookAt(camPos, targetPos)
 end
+
+local toggleButton = make("TextButton", {
+	Parent = Screen,
+	Position = UDim2.new(0, 20, 0.5, -28),
+	Size = UDim2.fromOffset(58, 58),
+	BackgroundColor3 = C.Dark,
+	BackgroundTransparency = 0.12,
+	Text = "🌸",
+	TextColor3 = C.Red,
+	TextSize = 26,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = false,
+})
+round(toggleButton, 16)
+local toggleStroke = stroke(toggleButton, C.Red, 2)
 
 local dragStart
 local dragStartPos
 local dragging = false
 
-topBar.InputBegan:Connect(function(input)
+toggleButton.InputBegan:Connect(function(input)
+	if buttonsLocked then return end
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		dragging = true
 		dragStart = input.Position
-		dragStartPos = root.Position
+		dragStartPos = toggleButton.Position
 	end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
 	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
 		local delta = input.Position - dragStart
-		root.Position = UDim2.new(
+		toggleButton.Position = UDim2.new(
 			dragStartPos.X.Scale,
 			dragStartPos.X.Offset + delta.X,
 			dragStartPos.Y.Scale,
@@ -691,7 +712,44 @@ UserInputService.InputEnded:Connect(function(input)
 	end
 end)
 
-RunService.RenderStepped:Connect(function()
+toggleButton.Activated:Connect(function()
+	Main.Visible = not Main.Visible
+	if Main.Visible then
+		Main.Size = UDim2.fromOffset(10, 10)
+		tween(Main, { Size = UDim2.fromOffset(660, 390) }, 0.22)
+	else
+		tween(Main, { Size = UDim2.fromOffset(10, 10) }, 0.18)
+	end
+end)
+
+Close.Activated:Connect(function()
+	Main.Visible = false
+end)
+
+local fpsColors = {
+	Color3.fromRGB(255, 80, 130),
+	Color3.fromRGB(120, 255, 200),
+	Color3.fromRGB(90, 180, 255),
+	Color3.fromRGB(255, 200, 80),
+	Color3.fromRGB(255, 120, 255),
+	Color3.fromRGB(100, 255, 120),
+}
+local fpsIndex = 0
+local fpsTimer = 0
+
+RunService.RenderStepped:Connect(function(dt)
+	if dt and dt > 0 then
+		local fps = math.floor(1 / dt)
+		FpsLabel.Text = "FPS: " .. fps
+
+		fpsTimer += dt
+		if fpsTimer >= 1 then
+			fpsTimer = 0
+			fpsIndex = (fpsIndex + 1) % #fpsColors
+			FpsLabel.TextColor3 = fpsColors[fpsIndex + 1]
+		end
+	end
+
 	if flyEnabled then
 		updateFly()
 	end
@@ -701,7 +759,6 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
--- ==================================================
--- INICIALIZAR
--- ==================================================
-showPanel("Funciones")
+showPage("Funciones")
+
+print("Sakura Hub cargado")
