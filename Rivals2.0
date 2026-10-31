@@ -1,24 +1,44 @@
+--[[
+	EFRÉN HUB - LocalScript
+	- ESP Player
+	- Cam Lock
+	- Fly móvil
+	- Lista de jugadores (busca por DisplayName o Username)
+	- FPS fuera del menú
+	- Botón flotante arrastrable
+	- Menú arrastrable
+	- Diseño oscuro + rosa/neón
+	- Compatible con móvil
+]]
+
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local ESP = {}
-local ESPConnections = {}
+local debugText = nil
+local movePad = nil
+local moveKnob = nil
+local joystickActive = false
+local joystickVector = Vector2.zero
+local buttonsLocked = false
+local menuOpen = false
 
+local espEnabled = false
 local camLockEnabled = false
 local selectedTarget = nil
 local flyEnabled = false
-local buttonsLocked = false
-local listVisible = false
 
 local flyVelocity = nil
 local flyGyro = nil
+
+local ESP = {}
+local ESPConnections = {}
 
 local function make(className, props)
 	local obj = Instance.new(className)
@@ -57,32 +77,46 @@ local function tween(obj, props, duration)
 	return t
 end
 
+local function getPlayerSearchText(player)
+	local name = player.Name or ""
+	local display = player.DisplayName or ""
+	return (name .. " " .. display):lower()
+end
+
 local function removeESP(player)
 	local data = ESP[player]
 	if not data then return end
-	if data.Highlight then data.Highlight:Destroy() end
-	if data.Billboard then data.Billboard:Destroy() end
+
+	if data.Highlight then
+		data.Highlight:Destroy()
+	end
+	if data.Billboard then
+		data.Billboard:Destroy()
+	end
+
 	ESP[player] = nil
 end
 
-local function createESP(player, character)
+local function applyESP(player, character)
 	removeESP(player)
-	if player == LocalPlayer or not character or not character.Parent then return end
+
+	if player == LocalPlayer then return end
+	if not character or not character.Parent then return end
 
 	local root = character:FindFirstChild("HumanoidRootPart")
 	local hum = character:FindFirstChildOfClass("Humanoid")
 	if not root or not hum then return end
 
 	local highlight = Instance.new("Highlight")
-	highlight.Name = "SakuraESP"
+	highlight.Name = "ESP"
 	highlight.Adornee = character
 	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-	highlight.FillTransparency = 0.6
+	highlight.FillTransparency = 0.60
 	highlight.OutlineTransparency = 0
 	highlight.Parent = character
 
 	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "SakuraESP_Name"
+	billboard.Name = "ESPName"
 	billboard.Adornee = root
 	billboard.Size = UDim2.fromOffset(180, 28)
 	billboard.StudsOffset = Vector3.new(0, 3, 0)
@@ -92,7 +126,7 @@ local function createESP(player, character)
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
-	label.Text = player.DisplayName
+	label.Text = player.DisplayName or player.Name
 	label.TextSize = 14
 	label.Font = Enum.Font.GothamBold
 	label.TextStrokeTransparency = 0.35
@@ -124,20 +158,22 @@ local function setupPlayer(player)
 	ESPConnections[player] = {}
 
 	table.insert(ESPConnections[player], player.CharacterAdded:Connect(function(character)
-		createESP(player, character)
+		if espEnabled then
+			applyESP(player, character)
+		end
 	end))
 
 	table.insert(ESPConnections[player], player.CharacterRemoving:Connect(function()
 		removeESP(player)
 	end))
 
-	if player.Character then
-		createESP(player, player.Character)
+	if player.Character and espEnabled then
+		applyESP(player, player.Character)
 	end
 end
 
-for _, p in ipairs(Players:GetPlayers()) do
-	setupPlayer(p)
+for _, player in ipairs(Players:GetPlayers()) do
+	setupPlayer(player)
 end
 
 Players.PlayerAdded:Connect(function(player)
@@ -146,6 +182,7 @@ end)
 
 Players.PlayerRemoving:Connect(function(player)
 	removeESP(player)
+
 	if ESPConnections[player] then
 		for _, conn in ipairs(ESPConnections[player]) do
 			pcall(function()
@@ -156,11 +193,9 @@ Players.PlayerRemoving:Connect(function(player)
 	end
 end)
 
-local oldGui = PlayerGui:FindFirstChild("EfrenHub")
-if oldGui then
-	oldGui:Destroy()
-end
-
+-- ==================================================
+-- UI ELEMENTS
+-- ==================================================
 local Screen = make("ScreenGui", {
 	Name = "EfrenHub",
 	ResetOnSpawn = false,
@@ -169,22 +204,35 @@ local Screen = make("ScreenGui", {
 })
 
 local C = {
-	Red = Color3.fromRGB(255, 35, 75),
-	Blue = Color3.fromRGB(30, 105, 255),
-	Cyan = Color3.fromRGB(0, 235, 255),
-	Dark = Color3.fromRGB(8, 10, 18),
-	Panel = Color3.fromRGB(15, 21, 34),
+	Red = Color3.fromRGB(255, 92, 200),
+	Blue = Color3.fromRGB(65, 125, 255),
+	Cyan = Color3.fromRGB(84, 255, 240),
+	Dark = Color3.fromRGB(9, 12, 22),
+	Panel = Color3.fromRGB(18, 24, 37),
 	White = Color3.fromRGB(245, 248, 255),
-	Gray = Color3.fromRGB(156, 170, 192),
-	Black = Color3.fromRGB(10, 10, 12),
+	Gray = Color3.fromRGB(150, 165, 185),
+	Black = Color3.fromRGB(9, 9, 12),
 }
+
+local FPSLabel = make("TextLabel", {
+	Parent = Screen,
+	BackgroundTransparency = 1,
+	Position = UDim2.new(1, -150, 0, 12),
+	Size = UDim2.fromOffset(120, 20),
+	Text = "FPS: 60",
+	TextColor3 = C.Cyan,
+	TextSize = 12,
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Right,
+})
 
 local Main = make("Frame", {
 	Parent = Screen,
-	Position = UDim2.new(0.5, -330, 0.5, -195),
-	Size = UDim2.fromOffset(660, 390),
+	Name = "Main",
+	Position = UDim2.new(0.5, -320, 0.5, -195),
+	Size = UDim2.fromOffset(640, 390),
 	BackgroundColor3 = C.Dark,
-	BackgroundTransparency = 0.14,
+	BackgroundTransparency = 0.12,
 	BorderSizePixel = 0,
 	ClipsDescendants = true,
 	Visible = false,
@@ -194,7 +242,7 @@ local MainStroke = stroke(Main, C.Red, 2)
 
 local Header = make("Frame", {
 	Parent = Main,
-	Size = UDim2.new(1, 0, 0, 72),
+	Size = UDim2.new(1, 0, 0, 76),
 	BackgroundColor3 = C.Panel,
 	BorderSizePixel = 0,
 })
@@ -214,28 +262,16 @@ local HeaderGradient = make("UIGradient", {
 local Title = make("TextLabel", {
 	Parent = Header,
 	Position = UDim2.fromOffset(18, 8),
-	Size = UDim2.fromOffset(220, 38),
+	Size = UDim2.fromOffset(270, 40),
 	BackgroundTransparency = 1,
 	Text = "EFRÉN HUB",
 	TextColor3 = C.Black,
-	TextSize = 28,
+	TextSize = 30,
 	Font = Enum.Font.GothamBlack,
 	TextXAlignment = Enum.TextXAlignment.Left,
 })
 local TitleStroke = stroke(Title, C.Cyan, 1)
 TitleStroke.Transparency = 0.25
-
-local FpsLabel = make("TextLabel", {
-	Parent = Header,
-	Position = UDim2.new(1, -118, 0, 17),
-	Size = UDim2.fromOffset(100, 20),
-	BackgroundTransparency = 1,
-	Text = "FPS: 60",
-	TextColor3 = C.Cyan,
-	TextSize = 12,
-	Font = Enum.Font.GothamBlack,
-	TextXAlignment = Enum.TextXAlignment.Right,
-})
 
 local Close = make("TextButton", {
 	Parent = Header,
@@ -250,22 +286,22 @@ local Close = make("TextButton", {
 })
 round(Close, 8)
 
-local CategoryBar = make("Frame", {
+local categoryBar = make("Frame", {
 	Parent = Main,
 	Position = UDim2.fromOffset(18, 88),
 	Size = UDim2.new(1, -36, 0, 42),
 	BackgroundTransparency = 1,
 })
-local CatLayout = make("UIListLayout", {
-	Parent = CategoryBar,
+local catLayout = make("UIListLayout", {
+	Parent = categoryBar,
 	FillDirection = Enum.FillDirection.Horizontal,
 	Padding = UDim.new(0, 8),
 	SortOrder = Enum.SortOrder.LayoutOrder,
 })
 
-local function createCategoryButton(name, order)
+local function createCategory(name, order)
 	local btn = make("TextButton", {
-		Parent = CategoryBar,
+		Parent = categoryBar,
 		Size = UDim2.fromOffset(150, 36),
 		BackgroundColor3 = Color3.fromRGB(19, 26, 42),
 		Text = name,
@@ -281,16 +317,15 @@ local function createCategoryButton(name, order)
 end
 
 local catData = {}
-
 local function updateCategoryState(name)
 	for key, data in pairs(catData) do
 		local selected = key == name
 		tween(data.Button, {
-			BackgroundColor3 = selected and Color3.fromRGB(37, 110, 255) or Color3.fromRGB(19, 26, 42),
+			BackgroundColor3 = selected and Color3.fromRGB(37, 110, 255) or Color3.fromRGB(19, 26, 42)
 		}, 0.18)
 		tween(data.Stroke, {
 			Color = selected and C.Cyan or C.Blue,
-			Thickness = selected and 2 or 1.2,
+			Thickness = selected and 2 or 1.2
 		}, 0.18)
 	end
 end
@@ -309,7 +344,7 @@ local function createPage(name)
 		ScrollBarImageColor3 = C.Cyan,
 		Visible = false,
 	})
-	local layout = make("UIListLayout", {
+	local uiLayout = make("UIListLayout", {
 		Parent = page,
 		Padding = UDim.new(0, 7),
 		SortOrder = Enum.SortOrder.LayoutOrder,
@@ -318,11 +353,11 @@ local function createPage(name)
 end
 
 local FuncPage = createPage("Funciones")
-local PlayersPage = createPage("Lista de jugadores")
-local ConfigPage = createPage("Configuración")
+local ListPage = createPage("Lista")
+local ConfigPage = createPage("Configuracion")
 
 local function createSection(page, text)
-	local label = make("TextLabel", {
+	local lbl = make("TextLabel", {
 		Parent = page,
 		BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 20),
@@ -332,10 +367,10 @@ local function createSection(page, text)
 		Font = Enum.Font.GothamBlack,
 		TextXAlignment = Enum.TextXAlignment.Left,
 	})
-	return label
+	return lbl
 end
 
-local function createFunctionBlock(page, name, desc, callback)
+local function createFunctionCard(page, name, desc, callback)
 	local card = make("TextButton", {
 		Parent = page,
 		Size = UDim2.new(1, -8, 0, 48),
@@ -413,22 +448,22 @@ local function createFunctionBlock(page, name, desc, callback)
 		end
 	end)
 
-	return card, state, active
+	return card
 end
 
-local FuncBtn, FuncStroke = createCategoryButton("Funciones", 1)
-local PlayersBtn, PlayersStroke = createCategoryButton("Lista de jugadores", 2)
-local ConfigBtn, ConfigStroke = createCategoryButton("Configuración", 3)
+local FuncBtn, FuncStroke = createCategory("Funciones", 1)
+local ListBtn, ListStroke = createCategory("Lista", 2)
+local ConfigBtn, ConfigStroke = createCategory("Configuracion", 3)
 
 catData["Funciones"] = { Button = FuncBtn, Stroke = FuncStroke }
-catData["Lista de jugadores"] = { Button = PlayersBtn, Stroke = PlayersStroke }
-catData["Configuración"] = { Button = ConfigBtn, Stroke = ConfigStroke }
+catData["Lista"] = { Button = ListBtn, Stroke = ListStroke }
+catData["Configuracion"] = { Button = ConfigBtn, Stroke = ConfigStroke }
 
 local function showPage(name)
 	for key, page in pairs({
 		["Funciones"] = FuncPage,
-		["Lista de jugadores"] = PlayersPage,
-		["Configuración"] = ConfigPage,
+		["Lista"] = ListPage,
+		["Configuracion"] = ConfigPage,
 	}) do
 		page.Visible = key == name
 	end
@@ -438,22 +473,24 @@ end
 FuncBtn.Activated:Connect(function()
 	showPage("Funciones")
 end)
-
-PlayersBtn.Activated:Connect(function()
-	showPage("Lista de jugadores")
+ListBtn.Activated:Connect(function()
+	showPage("Lista")
 end)
-
 ConfigBtn.Activated:Connect(function()
-	showPage("Configuración")
+	showPage("Configuracion")
 end)
 
+-- ==================================================
+-- PÁGINA FUNCIONES
+-- ==================================================
 createSection(FuncPage, "PRINCIPALES")
 
-local espToggle = createFunctionBlock(FuncPage, "ESP Player", "Mostrar jugadores", function(active)
+local espCard = createFunctionCard(FuncPage, "ESP Player", "Highlight + nombre", function(active)
+	espEnabled = active
 	if active then
 		for _, p in ipairs(Players:GetPlayers()) do
 			if p ~= LocalPlayer and p.Character then
-				createESP(p, p.Character)
+				applyESP(p, p.Character)
 			end
 		end
 	else
@@ -465,26 +502,22 @@ local espToggle = createFunctionBlock(FuncPage, "ESP Player", "Mostrar jugadores
 	end
 end)
 
-local camToggle = createFunctionBlock(FuncPage, "Cam Lock", "Mirar a un objetivo", function(active)
+local camCard = createFunctionCard(FuncPage, "Cam Lock", "Girar cámara + personaje", function(active)
 	camLockEnabled = active
+	local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.AutoRotate = not active
+	end
 
 	if active then
-		local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-		if hum then
-			hum.AutoRotate = false
-		end
 		Camera.CameraType = Enum.CameraType.Scriptable
 	else
-		local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-		if hum then
-			hum.AutoRotate = true
-		end
 		selectedTarget = nil
 		Camera.CameraType = Enum.CameraType.Custom
 	end
 end)
 
-local flyToggle = createFunctionBlock(FuncPage, "Fly", "Vuelo: W A S D", function(active)
+local flyCard = createFunctionCard(FuncPage, "Fly", "Mover con joystick", function(active)
 	if active then
 		startFly()
 	else
@@ -492,14 +525,17 @@ local flyToggle = createFunctionBlock(FuncPage, "Fly", "Vuelo: W A S D", functio
 	end
 end)
 
-createSection(PlayersPage, "BUSCAR JUGADOR")
+-- ==================================================
+-- PÁGINA LISTA
+-- ==================================================
+createSection(ListPage, "BUSCAR JUGADOR")
 
 local searchBox = make("TextBox", {
-	Parent = PlayersPage,
-	Size = UDim2.new(1, -10, 0, 32),
+	Parent = ListPage,
+	Size = UDim2.new(1, -10, 0, 33),
 	BackgroundColor3 = Color3.fromRGB(17, 25, 38),
 	Text = "",
-	PlaceholderText = "Buscar usuario...",
+	PlaceholderText = "Buscar usuario o nickname...",
 	PlaceholderColor3 = C.Gray,
 	TextColor3 = C.White,
 	TextSize = 12,
@@ -509,16 +545,16 @@ round(searchBox, 8)
 stroke(searchBox, C.Cyan, 1)
 
 local playerList = make("ScrollingFrame", {
-	Parent = PlayersPage,
+	Parent = ListPage,
+	Position = UDim2.new(0, 0, 0, 40),
 	Size = UDim2.new(1, 0, 1, -40),
-	Position = UDim2.new(0, 0, 0, 36),
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
 	ScrollBarThickness = 4,
 	CanvasSize = UDim2.new(0, 0, 0, 1000),
 	AutomaticCanvasSize = Enum.AutomaticSize.Y,
 })
-local playerListLayout = make("UIListLayout", {
+local listLayout = make("UIListLayout", {
 	Parent = playerList,
 	Padding = UDim.new(0, 6),
 	SortOrder = Enum.SortOrder.LayoutOrder,
@@ -531,15 +567,18 @@ local function refreshPlayerList()
 		end
 	end
 
-	local q = string.lower(searchBox.Text or "")
+	local query = string.lower((searchBox.Text or ""))
+
 	for _, p in ipairs(Players:GetPlayers()) do
-		local name = p.Name
-		if q == "" or string.find(string.lower(name), q, 1, true) then
+		local searchText = getPlayerSearchText(p)
+		local match = query == "" or string.find(searchText, query, 1, true) ~= nil
+
+		if match then
 			local btn = make("TextButton", {
 				Parent = playerList,
-				Size = UDim2.new(1, -6, 0, 28),
+				Size = UDim2.new(1, -6, 0, 30),
 				BackgroundColor3 = Color3.fromRGB(20, 30, 48),
-				Text = name,
+				Text = p.DisplayName .. " (" .. p.Name .. ")",
 				TextColor3 = C.White,
 				TextSize = 12,
 				Font = Enum.Font.GothamSemibold,
@@ -561,12 +600,18 @@ end
 searchBox:GetPropertyChangedSignal("Text"):Connect(refreshPlayerList)
 refreshPlayerList()
 
+-- ==================================================
+-- PÁGINA CONFIGURACION
+-- ==================================================
 createSection(ConfigPage, "BOTONES")
 
-local blockBtn = createFunctionBlock(ConfigPage, "Bloquear botones", "Desactivar arrastre", function(active)
+local blockBtn = createFunctionCard(ConfigPage, "Bloquear botones", "Desactivar arrastre", function(active)
 	buttonsLocked = active
 end)
 
+-- ==================================================
+-- FLY MÓVIL
+-- ==================================================
 local function stopFly()
 	if flyVelocity then
 		flyVelocity:Destroy()
@@ -581,6 +626,7 @@ end
 
 local function startFly()
 	if flyEnabled then return end
+
 	local character = LocalPlayer.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if not character or not root then return end
@@ -605,45 +651,126 @@ local function updateFly()
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if not character or not root or not flyVelocity then return end
 
-	local moveVector = Vector3.zero
-	local forward = Camera.CFrame.LookVector
-	local right = Camera.CFrame.RightVector
+	local direction = Vector3.zero
 
-	forward = Vector3.new(forward.X, 0, forward.Z)
-	right = Vector3.new(right.X, 0, right.Z)
-
-	if forward.Magnitude > 0 then
-		forward = forward.Unit
-	end
-	if right.Magnitude > 0 then
-		right = right.Unit
-	end
-
-	for _, input in ipairs(UserInputService:GetKeysPressed()) do
-		local key = input.KeyCode
-		if key == Enum.KeyCode.W then
-			moveVector += forward
-		elseif key == Enum.KeyCode.S then
-			moveVector -= forward
-		elseif key == Enum.KeyCode.A then
-			moveVector -= right
-		elseif key == Enum.KeyCode.D then
-			moveVector += right
-		elseif key == Enum.KeyCode.Space then
-			moveVector += Vector3.new(0, 1, 0)
-		elseif key == Enum.KeyCode.LeftControl then
-			moveVector -= Vector3.new(0, 1, 0)
+	if UserInputService.TouchEnabled then
+		local touchVec = joystickVector
+		if touchVec.Magnitude > 0 then
+			direction = Vector3.new(touchVec.X, 0, touchVec.Y)
 		end
 	end
 
 	local speed = 25
-	if moveVector.Magnitude > 0 then
-		moveVector = moveVector.Unit * speed
+	local move = Vector3.zero
+
+	if direction.Magnitude > 0 then
+		local facing = Camera.CFrame.LookVector
+		local right = Camera.CFrame.RightVector
+
+		local forward = Vector3.new(facing.X, 0, facing.Z)
+		local side = Vector3.new(right.X, 0, right.Z)
+
+		if forward.Magnitude > 0 then
+			forward = forward.Unit
+		end
+		if side.Magnitude > 0 then
+			side = side.Unit
+		end
+
+		-- input.x = horizontal
+		-- input.y = vertical
+		local x = direction.X
+		local y = direction.Y
+
+		local moveDir = (forward * -y + side * x)
+		if moveDir.Magnitude > 0 then
+			moveDir = moveDir.Unit
+		end
+
+		move = moveDir * speed
 	end
 
-	flyVelocity.Velocity = Vector3.new(moveVector.X, moveVector.Y, moveVector.Z)
+	flyVelocity.Velocity = Vector3.new(move.X, 0, move.Z)
 end
 
+local function setFlyHeight(height)
+	if flyEnabled and flyVelocity and LocalPlayer.Character then
+		local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+		if root then
+			flyVelocity.Velocity = Vector3.new(flyVelocity.Velocity.X, height, flyVelocity.Velocity.Z)
+		end
+	end
+end
+
+-- ==================================================
+-- JOYSTICK MÓVIL
+-- ==================================================
+local function createMobileJoystick()
+	local pad = make("Frame", {
+		Parent = Screen,
+		BackgroundColor3 = Color3.fromRGB(15, 18, 28),
+		BackgroundTransparency = 0.35,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 28, 1, -110),
+		Size = UDim2.fromOffset(110, 110),
+	})
+	round(pad, 100)
+
+	local inner = make("Frame", {
+		Parent = pad,
+		BackgroundColor3 = Color3.fromRGB(255, 92, 200),
+		BackgroundTransparency = 0.25,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0.5, -24, 0.5, -24),
+		Size = UDim2.fromOffset(48, 48),
+	})
+	round(inner, 100)
+
+	pad.Visible = UserInputService.TouchEnabled
+	inner.Visible = UserInputService.TouchEnabled
+
+	local padCenter = Vector2.new(55, 55)
+	local knobRange = 30
+
+	local function updateJoystick(pos)
+		local delta = pos - padCenter
+		local dist = math.min(delta.Magnitude, knobRange)
+		local angle = math.atan2(delta.Y, delta.X)
+		local clamped = Vector2.new(math.cos(angle) * dist, math.sin(angle) * dist)
+
+		inner.Position = UDim2.new(0.5, clamped.X - 24, 0.5, clamped.Y - 24)
+		joystickVector = Vector2.new(clamped.X / knobRange, -clamped.Y / knobRange)
+	end
+
+	pad.InputBegan:Connect(function(input, gp)
+		if not UserInputService.TouchEnabled then return end
+		if input.UserInputType == Enum.UserInputType.Touch then
+			joystickActive = true
+			updateJoystick(input.Position - pad.AbsolutePosition)
+		end
+	end)
+
+	pad.InputChanged:Connect(function(input, gp)
+		if not UserInputService.TouchEnabled then return end
+		if input.UserInputType == Enum.UserInputType.Touch and joystickActive then
+			updateJoystick(input.Position - pad.AbsolutePosition)
+		end
+	end)
+
+	pad.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch then
+			joystickActive = false
+			inner.Position = UDim2.new(0.5, -24, 0.5, -24)
+			joystickVector = Vector2.zero
+		end
+	end)
+
+	return pad, inner
+end
+
+-- ==================================================
+-- CAM LOCK CORREGIDO
+-- ==================================================
 local function updateCamLock()
 	if not camLockEnabled or not selectedTarget then return end
 
@@ -651,114 +778,6 @@ local function updateCamLock()
 	if not targetCharacter then return end
 
 	local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
-	local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-
-	if not targetRoot or not myRoot then return end
-
-	local targetPos = targetRoot.Position + Vector3.new(0, 2, 0)
-	local myPos = myRoot.Position
-
-	myRoot.CFrame = CFrame.lookAt(myPos, targetPos)
-
-	local offset = -(myRoot.CFrame.LookVector) * 9 + Vector3.new(0, 3.5, 0)
-	local camPos = myPos + offset
-
-	Camera.CFrame = CFrame.lookAt(camPos, targetPos)
-end
-
-local toggleButton = make("TextButton", {
-	Parent = Screen,
-	Position = UDim2.new(0, 20, 0.5, -28),
-	Size = UDim2.fromOffset(58, 58),
-	BackgroundColor3 = C.Dark,
-	BackgroundTransparency = 0.12,
-	Text = "🌸",
-	TextColor3 = C.Red,
-	TextSize = 26,
-	Font = Enum.Font.GothamBlack,
-	AutoButtonColor = false,
-})
-round(toggleButton, 16)
-local toggleStroke = stroke(toggleButton, C.Red, 2)
-
-local dragStart
-local dragStartPos
-local dragging = false
-
-toggleButton.InputBegan:Connect(function(input)
-	if buttonsLocked then return end
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true
-		dragStart = input.Position
-		dragStartPos = toggleButton.Position
-	end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-		local delta = input.Position - dragStart
-		toggleButton.Position = UDim2.new(
-			dragStartPos.X.Scale,
-			dragStartPos.X.Offset + delta.X,
-			dragStartPos.Y.Scale,
-			dragStartPos.Y.Offset + delta.Y
-		)
-	end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = false
-	end
-end)
-
-toggleButton.Activated:Connect(function()
-	Main.Visible = not Main.Visible
-	if Main.Visible then
-		Main.Size = UDim2.fromOffset(10, 10)
-		tween(Main, { Size = UDim2.fromOffset(660, 390) }, 0.22)
-	else
-		tween(Main, { Size = UDim2.fromOffset(10, 10) }, 0.18)
-	end
-end)
-
-Close.Activated:Connect(function()
-	Main.Visible = false
-end)
-
-local fpsColors = {
-	Color3.fromRGB(255, 80, 130),
-	Color3.fromRGB(120, 255, 200),
-	Color3.fromRGB(90, 180, 255),
-	Color3.fromRGB(255, 200, 80),
-	Color3.fromRGB(255, 120, 255),
-	Color3.fromRGB(100, 255, 120),
-}
-local fpsIndex = 0
-local fpsTimer = 0
-
-RunService.RenderStepped:Connect(function(dt)
-	if dt and dt > 0 then
-		local fps = math.floor(1 / dt)
-		FpsLabel.Text = "FPS: " .. fps
-
-		fpsTimer += dt
-		if fpsTimer >= 1 then
-			fpsTimer = 0
-			fpsIndex = (fpsIndex + 1) % #fpsColors
-			FpsLabel.TextColor3 = fpsColors[fpsIndex + 1]
-		end
-	end
-
-	if flyEnabled then
-		updateFly()
-	end
-
-	if camLockEnabled then
-		updateCamLock()
-	end
-end)
-
-showPage("Funciones")
-
-print("Sakura Hub cargado")
+	local myCharacter = LocalPlayer.Character
+	local myRoot = myCharacter and myCharacter:FindFirstChild("HumanoidRootPart")
+	local myHumanoid = myCharact
