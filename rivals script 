@@ -1,7 +1,6 @@
 --==================================================
 --                 EFREN HUB
---             SAKURA NEON EDITION
---                HORIZONTAL UI
+--          SAKURA NEON  •  COMPACT v2.0
 --==================================================
 print("[EfrenHub] cargando...")
 
@@ -18,7 +17,6 @@ while not player do
     task.wait()
     player = Players.LocalPlayer
 end
-local camera = Workspace.CurrentCamera
 local playerGui = player:WaitForChild("PlayerGui")
 
 local function getGuiParent()
@@ -64,7 +62,10 @@ local C = {
     Dark = Color3.fromRGB(8, 10, 19),
     Panel = Color3.fromRGB(14, 20, 35),
     White = Color3.fromRGB(240, 245, 255),
-    Gray = Color3.fromRGB(145, 165, 190)
+    Gray = Color3.fromRGB(145, 165, 190),
+    Row = Color3.fromRGB(16, 40, 80),
+    Off = Color3.fromRGB(30, 45, 65),
+    Tab = Color3.fromRGB(17, 25, 45)
 }
 
 local function tween(obj, props, time)
@@ -88,21 +89,38 @@ local function corner(obj, radius)
     return c
 end
 
+local function isPointer(input)
+    return input.UserInputType == Enum.UserInputType.Touch
+        or input.UserInputType == Enum.UserInputType.MouseButton1
+end
+
+local function isMove(input)
+    return input.UserInputType == Enum.UserInputType.Touch
+        or input.UserInputType == Enum.UserInputType.MouseMovement
+end
+
 --==================================================
--- MAIN WINDOW
+-- MAIN WINDOW (COMPACTA)
 --==================================================
+
+local BASE_W, BASE_H = 470, 300
+local HEADER_H = 46
 
 local Main = Instance.new("Frame")
 Main.Name = "Main"
-Main.Size = UDim2.fromOffset(650, 390)
-Main.Position = UDim2.new(0.5, -325, 0.5, -195)
+Main.AnchorPoint = Vector2.new(0.5, 0.5)
+Main.Size = UDim2.fromOffset(BASE_W, BASE_H)
+Main.Position = UDim2.fromScale(0.5, 0.5)
 Main.BackgroundColor3 = C.Dark
 Main.BackgroundTransparency = 0.08
 Main.BorderSizePixel = 0
 Main.ClipsDescendants = true
 Main.Parent = Screen
+corner(Main, 12)
 
-corner(Main, 13)
+local MenuScale = Instance.new("UIScale")
+MenuScale.Scale = 1
+MenuScale.Parent = Main
 
 local MainStroke = Instance.new("UIStroke")
 MainStroke.Thickness = 2
@@ -110,11 +128,11 @@ MainStroke.Color = C.Red
 MainStroke.Parent = Main
 
 --==================================================
--- HEADER / FIXED TITLE
+-- HEADER
 --==================================================
 
 local Header = Instance.new("Frame")
-Header.Size = UDim2.new(1, 0, 0, 76)
+Header.Size = UDim2.new(1, 0, 0, HEADER_H)
 Header.BackgroundColor3 = C.Panel
 Header.BorderSizePixel = 0
 Header.Parent = Main
@@ -129,12 +147,12 @@ HeaderGradient.Transparency = NumberSequence.new(0.35)
 HeaderGradient.Parent = Header
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.fromOffset(240, 38)
-Title.Position = UDim2.fromOffset(18, 8)
+Title.Size = UDim2.fromOffset(200, 24)
+Title.Position = UDim2.fromOffset(14, 5)
 Title.BackgroundTransparency = 1
 Title.Text = "EFRÉN HUB"
 Title.TextColor3 = C.White
-Title.TextSize = 28
+Title.TextSize = 20
 Title.Font = Enum.Font.GothamBlack
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Header
@@ -146,53 +164,44 @@ TitleStroke.Transparency = 0.25
 TitleStroke.Parent = Title
 
 local Subtitle = Instance.new("TextLabel")
-Subtitle.Size = UDim2.fromOffset(250, 18)
-Subtitle.Position = UDim2.fromOffset(20, 45)
+Subtitle.Size = UDim2.fromOffset(220, 12)
+Subtitle.Position = UDim2.fromOffset(15, 29)
 Subtitle.BackgroundTransparency = 1
-Subtitle.Text = "SAKURA NEON SYSTEM  •  V1.0"
+Subtitle.Text = "SAKURA NEON  •  COMPACT V2.0"
 Subtitle.TextColor3 = C.Cyan
-Subtitle.TextSize = 10
+Subtitle.TextSize = 8
 Subtitle.Font = Enum.Font.GothamBold
 Subtitle.TextXAlignment = Enum.TextXAlignment.Left
 Subtitle.Parent = Header
 
--- Close button
 local Close = Instance.new("TextButton")
-Close.Size = UDim2.fromOffset(34, 34)
-Close.Position = UDim2.new(1, -47, 0, 12)
+Close.Size = UDim2.fromOffset(28, 28)
+Close.Position = UDim2.new(1, -38, 0, 9)
 Close.BackgroundColor3 = C.Red
 Close.Text = "×"
 Close.TextColor3 = C.White
-Close.TextSize = 24
+Close.TextSize = 20
 Close.Font = Enum.Font.GothamBold
+Close.ZIndex = 3
 Close.Parent = Header
-corner(Close, 8)
+corner(Close, 7)
 
 --==================================================
--- DRAG WINDOW FROM EMPTY HEADER AREA
+-- ARRASTRAR VENTANA
 --==================================================
+
+local DragZone = Instance.new("Frame")
+DragZone.Size = UDim2.new(1, -50, 1, 0)
+DragZone.BackgroundTransparency = 1
+DragZone.ZIndex = 2
+DragZone.Parent = Header
 
 local dragging = false
 local dragStart
 local startPosition
 
-Header.InputBegan:Connect(function(input)
-    local titleX = Title.AbsolutePosition.X
-    local titleRight = titleX + Title.AbsoluteSize.X
-
-    local insideTitle =
-        input.Position.X >= titleX
-        and input.Position.X <= titleRight
-        and input.Position.Y >= Title.AbsolutePosition.Y
-        and input.Position.Y <=
-            Title.AbsolutePosition.Y + Title.AbsoluteSize.Y
-
-    if insideTitle or input.UserInputType == Enum.UserInputType.MouseButton2 then
-        return
-    end
-
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-    or input.UserInputType == Enum.UserInputType.Touch then
+DragZone.InputBegan:Connect(function(input)
+    if isPointer(input) then
         dragging = true
         dragStart = input.Position
         startPosition = Main.Position
@@ -200,12 +209,8 @@ Header.InputBegan:Connect(function(input)
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if dragging and (
-        input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch
-    ) then
+    if dragging and isMove(input) then
         local delta = input.Position - dragStart
-
         Main.Position = UDim2.new(
             startPosition.X.Scale,
             startPosition.X.Offset + delta.X,
@@ -216,19 +221,18 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-    or input.UserInputType == Enum.UserInputType.Touch then
+    if isPointer(input) then
         dragging = false
     end
 end)
 
 --==================================================
--- TOP CATEGORY TABS
+-- PESTAÑAS
 --==================================================
 
 local Tabs = Instance.new("Frame")
-Tabs.Position = UDim2.fromOffset(15, 87)
-Tabs.Size = UDim2.new(1, -30, 0, 43)
+Tabs.Position = UDim2.fromOffset(10, HEADER_H + 6)
+Tabs.Size = UDim2.new(1, -20, 0, 28)
 Tabs.BackgroundTransparency = 1
 Tabs.Parent = Main
 
@@ -239,17 +243,29 @@ TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
 TabLayout.Parent = Tabs
 
 --==================================================
--- CONTENT PANEL
+-- CONTENIDO + ESTADO
 --==================================================
 
 local Content = Instance.new("Frame")
-Content.Position = UDim2.fromOffset(15, 140)
-Content.Size = UDim2.new(1, -30, 1, -155)
+Content.Position = UDim2.fromOffset(10, HEADER_H + 40)
+Content.Size = UDim2.new(1, -20, 1, -(HEADER_H + 40 + 30))
 Content.BackgroundColor3 = C.Panel
 Content.BackgroundTransparency = 0.15
 Content.BorderSizePixel = 0
+Content.ClipsDescendants = true
 Content.Parent = Main
-corner(Content, 10)
+corner(Content, 9)
+
+local Status = Instance.new("TextLabel")
+Status.Size = UDim2.fromOffset(280, 16)
+Status.Position = UDim2.new(0, 14, 1, -22)
+Status.BackgroundTransparency = 1
+Status.Text = "Listo  •  Toca 🌸 para ocultar"
+Status.TextColor3 = C.Gray
+Status.TextSize = 9
+Status.Font = Enum.Font.Gotham
+Status.TextXAlignment = Enum.TextXAlignment.Left
+Status.Parent = Main
 
 local CurrentPage
 local Pages = {}
@@ -258,8 +274,8 @@ local TabButtons = {}
 local function createPage(name)
     local page = Instance.new("ScrollingFrame")
     page.Name = name
-    page.Position = UDim2.fromOffset(12, 12)
-    page.Size = UDim2.new(1, -24, 1, -24)
+    page.Position = UDim2.fromOffset(8, 8)
+    page.Size = UDim2.new(1, -16, 1, -16)
     page.BackgroundTransparency = 1
     page.BorderSizePixel = 0
     page.ScrollBarThickness = 3
@@ -270,7 +286,7 @@ local function createPage(name)
     page.Parent = Content
 
     local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 9)
+    layout.Padding = UDim.new(0, 6)
     layout.SortOrder = Enum.SortOrder.LayoutOrder
     layout.Parent = page
 
@@ -280,7 +296,6 @@ end
 
 local function showPage(name)
     if CurrentPage == name then return end
-
     CurrentPage = name
 
     for pageName, page in pairs(Pages) do
@@ -291,8 +306,7 @@ local function showPage(name)
         local selected = tabName == name
 
         tween(button, {
-            BackgroundColor3 = selected and C.Blue
-                or Color3.fromRGB(17, 25, 45)
+            BackgroundColor3 = selected and C.Blue or C.Tab
         }, 0.2)
 
         local stroke = button:FindFirstChildOfClass("UIStroke")
@@ -307,17 +321,16 @@ end
 local function createTab(name, order)
     local button = Instance.new("TextButton")
     button.Name = name
-    button.Size = UDim2.fromOffset(145, 38)
-    button.BackgroundColor3 = Color3.fromRGB(17, 25, 45)
+    button.Size = UDim2.new(1 / 3, -6, 1, 0)
+    button.BackgroundColor3 = C.Tab
     button.Text = name
     button.TextColor3 = C.White
-    button.TextSize = 12
+    button.TextSize = 11
     button.Font = Enum.Font.GothamBold
     button.LayoutOrder = order
-    button.Parent = Tabs
     button.AutoButtonColor = false
-
-    corner(button, 8)
+    button.Parent = Tabs
+    corner(button, 7)
 
     local stroke = Instance.new("UIStroke")
     stroke.Color = C.Blue
@@ -340,30 +353,27 @@ local ListPage = createPage("Lista")
 local SettingsPage = createPage("Configuración")
 
 --==================================================
--- SECTION LABELS
+-- COMPONENTES
 --==================================================
 
 local function createSection(page, text)
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, 25)
+    label.Size = UDim2.new(1, 0, 0, 18)
     label.BackgroundTransparency = 1
     label.Text = "✦  " .. text
     label.TextColor3 = C.Cyan
-    label.TextSize = 13
+    label.TextSize = 11
     label.Font = Enum.Font.GothamBlack
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.Parent = page
     return label
 end
 
---==================================================
--- CREAR BOTONES / TOGGLES
---==================================================
-
+-- Devuelve: button, state, setEnabled(bool, silent)
 local function createButton(page, name, description, callback)
     local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, -5, 0, 51)
-    button.BackgroundColor3 = Color3.fromRGB(16, 40, 80)
+    button.Size = UDim2.new(1, -4, 0, 42)
+    button.BackgroundColor3 = C.Row
     button.Text = ""
     button.AutoButtonColor = false
     button.Parent = page
@@ -375,31 +385,31 @@ local function createButton(page, name, description, callback)
     stroke.Parent = button
 
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, -85, 0, 23)
-    title.Position = UDim2.fromOffset(12, 4)
+    title.Size = UDim2.new(1, -70, 0, 18)
+    title.Position = UDim2.fromOffset(10, 4)
     title.BackgroundTransparency = 1
     title.Text = name
     title.TextColor3 = C.White
-    title.TextSize = 13
+    title.TextSize = 12
     title.Font = Enum.Font.GothamBold
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.Parent = button
 
     local desc = Instance.new("TextLabel")
-    desc.Size = UDim2.new(1, -85, 0, 16)
-    desc.Position = UDim2.fromOffset(12, 27)
+    desc.Size = UDim2.new(1, -70, 0, 14)
+    desc.Position = UDim2.fromOffset(10, 22)
     desc.BackgroundTransparency = 1
     desc.Text = description
     desc.TextColor3 = C.Gray
-    desc.TextSize = 10
+    desc.TextSize = 9
     desc.Font = Enum.Font.Gotham
     desc.TextXAlignment = Enum.TextXAlignment.Left
     desc.Parent = button
 
     local state = Instance.new("TextLabel")
-    state.Size = UDim2.fromOffset(49, 25)
-    state.Position = UDim2.new(1, -62, 0.5, -12)
-    state.BackgroundColor3 = Color3.fromRGB(30, 45, 65)
+    state.Size = UDim2.fromOffset(42, 22)
+    state.Position = UDim2.new(1, -52, 0.5, -11)
+    state.BackgroundColor3 = C.Off
     state.Text = "OFF"
     state.TextColor3 = C.White
     state.TextSize = 10
@@ -409,69 +419,165 @@ local function createButton(page, name, description, callback)
 
     local enabled = false
 
-    -- Cambia el estado visual (y lógico) del botón
-    local function setEnabled(value)
+    local function setEnabled(value, silent)
         enabled = value
-
         state.Text = enabled and "ON" or "OFF"
 
         tween(state, {
-            BackgroundColor3 = enabled and C.Blue
-                or Color3.fromRGB(30, 45, 65)
+            BackgroundColor3 = enabled and C.Blue or C.Off
         }, 0.2)
 
         tween(stroke, {
             Color = enabled and C.Cyan or C.Blue,
             Thickness = enabled and 2 or 1
         }, 0.2)
+
+        if callback and not silent then
+            callback(enabled, state)
+        end
     end
-
-    button.MouseEnter:Connect(function()
-        tween(button, {
-            BackgroundColor3 = Color3.fromRGB(20, 65, 115)
-        }, 0.15)
-        tween(stroke, {Color = C.Cyan}, 0.15)
-    end)
-
-    button.MouseLeave:Connect(function()
-        tween(button, {
-            BackgroundColor3 = Color3.fromRGB(16, 40, 80)
-        }, 0.15)
-        tween(stroke, {
-            Color = enabled and C.Cyan or C.Blue
-        }, 0.15)
-    end)
 
     button.Activated:Connect(function()
         setEnabled(not enabled)
-
-        tween(button, {
-            Size = UDim2.new(1, -10, 0, 48)
-        }, 0.08)
-
-        task.delay(0.1, function()
-            if button.Parent then
-                tween(button, {
-                    Size = UDim2.new(1, -5, 0, 51)
-                }, 0.15)
-            end
-        end)
-
-        if callback then
-            callback(enabled, state)
-        end
     end)
 
     return button, state, setEnabled
 end
 
+-- Barra deslizante (táctil)
+local function createSlider(page, name, min, max, default, fmt, callback)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, -4, 0, 52)
+    row.BackgroundColor3 = C.Row
+    row.Parent = page
+    corner(row, 8)
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = C.Blue
+    stroke.Thickness = 1
+    stroke.Parent = row
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(0.6, 0, 0, 18)
+    title.Position = UDim2.fromOffset(10, 4)
+    title.BackgroundTransparency = 1
+    title.Text = name
+    title.TextColor3 = C.White
+    title.TextSize = 12
+    title.Font = Enum.Font.GothamBold
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = row
+
+    local valueLabel = Instance.new("TextLabel")
+    valueLabel.Size = UDim2.new(0.3, 0, 0, 18)
+    valueLabel.Position = UDim2.new(0.7, -10, 0, 4)
+    valueLabel.BackgroundTransparency = 1
+    valueLabel.TextColor3 = C.Cyan
+    valueLabel.TextSize = 11
+    valueLabel.Font = Enum.Font.GothamBold
+    valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+    valueLabel.Parent = row
+
+    -- zona táctil amplia
+    local hit = Instance.new("Frame")
+    hit.Size = UDim2.new(1, -20, 0, 26)
+    hit.Position = UDim2.fromOffset(10, 22)
+    hit.BackgroundTransparency = 1
+    hit.Parent = row
+
+    local track = Instance.new("Frame")
+    track.AnchorPoint = Vector2.new(0, 0.5)
+    track.Size = UDim2.new(1, 0, 0, 6)
+    track.Position = UDim2.new(0, 0, 0.5, 0)
+    track.BackgroundColor3 = C.Off
+    track.BorderSizePixel = 0
+    track.Parent = hit
+    corner(track, 3)
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.fromScale(0, 1)
+    fill.BackgroundColor3 = C.Blue
+    fill.BorderSizePixel = 0
+    fill.Parent = track
+    corner(fill, 3)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.fromOffset(16, 16)
+    knob.AnchorPoint = Vector2.new(0.5, 0.5)
+    knob.BackgroundColor3 = C.White
+    knob.BorderSizePixel = 0
+    knob.Parent = track
+    corner(knob, 8)
+
+    local function setRatio(r)
+        r = math.clamp(r, 0, 1)
+        fill.Size = UDim2.fromScale(r, 1)
+        knob.Position = UDim2.new(r, 0, 0.5, 0)
+        local value = min + (max - min) * r
+        valueLabel.Text = fmt(value)
+        if callback then callback(value) end
+    end
+
+    local sliding = false
+
+    local function updateFromInput(input)
+        local width = track.AbsoluteSize.X
+        if width <= 0 then return end
+        setRatio((input.Position.X - track.AbsolutePosition.X) / width)
+    end
+
+    hit.InputBegan:Connect(function(input)
+        if isPointer(input) then
+            sliding = true
+            updateFromInput(input)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if sliding and isMove(input) then
+            updateFromInput(input)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if isPointer(input) then
+            sliding = false
+        end
+    end)
+
+    setRatio((default - min) / (max - min))
+end
+
 print("[EfrenHub] parte 1 lista")
--- VARIABLES DE FUNCIONALIDAD
+--==================================================
+-- VARIABLES
+--==================================================
+
 local espEnabled = false
 local camLockEnabled = false
 local infiniteJumpEnabled = false
+local flyEnabled = false
+local ledEnabled = true
+local snakeEnabled = true
+local flySpeed = 60
 local selectedTarget = nil
 local playerHighlightObjects = {}
+
+local function getCamera()
+    return Workspace.CurrentCamera
+end
+
+local function getCharacterParts()
+    local char = player.Character
+    if not char then return nil end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    return root, hum, char
+end
+
+--==================================================
+-- ESP
+--==================================================
 
 local function removeESP(plr)
     local h = playerHighlightObjects[plr]
@@ -510,10 +616,122 @@ for _, plr in ipairs(Players:GetPlayers()) do
     hookPlayer(plr)
 end
 
--- FUNCTIONS PAGE
+--==================================================
+-- CAM LOCK (cámara + personaje apuntan al objetivo)
+--==================================================
+
+local function releaseCamLock()
+    local cam = getCamera()
+    if cam then cam.CameraType = Enum.CameraType.Custom end
+    local _, hum = getCharacterParts()
+    if hum then hum.AutoRotate = true end
+end
+
+local function updateCamLock()
+    if not camLockEnabled or not selectedTarget then return end
+
+    local targetChar = selectedTarget.Character
+    local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+    local root, hum = getCharacterParts()
+    local cam = getCamera()
+    if not targetRoot or not root or not cam then return end
+
+    local aimPos = targetRoot.Position + Vector3.new(0, 1.5, 0)
+
+    -- dirección horizontal hacia el objetivo
+    local flat = Vector3.new(
+        targetRoot.Position.X - root.Position.X,
+        0,
+        targetRoot.Position.Z - root.Position.Z
+    )
+    if flat.Magnitude < 0.5 then return end
+    local dir = flat.Unit
+
+    -- cámara detrás de ti, en línea hacia el objetivo
+    local camPos = root.Position - dir * 9 + Vector3.new(0, 3.5, 0)
+    cam.CameraType = Enum.CameraType.Scriptable
+    cam.CFrame = CFrame.lookAt(camPos, aimPos)
+
+    -- personaje (y lo que sostiene) gira hacia el objetivo
+    if hum then hum.AutoRotate = false end
+    root.CFrame = CFrame.lookAt(root.Position, root.Position + dir)
+end
+
+RunService:BindToRenderStep(
+    "TargetCamera",
+    Enum.RenderPriority.Camera.Value + 1,
+    updateCamLock
+)
+
+--==================================================
+-- FLY (joystick + dirección de la cámara)
+--==================================================
+
+local flyBV
+
+local function stopFly()
+    if flyBV then
+        flyBV:Destroy()
+        flyBV = nil
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    if not flyEnabled then
+        if flyBV then stopFly() end
+        return
+    end
+
+    local root, hum = getCharacterParts()
+    local cam = getCamera()
+    if not root or not hum or not cam then
+        stopFly()
+        return
+    end
+
+    if not flyBV or flyBV.Parent ~= root then
+        stopFly()
+        flyBV = Instance.new("BodyVelocity")
+        flyBV.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+        flyBV.Velocity = Vector3.zero
+        flyBV.Parent = root
+    end
+
+    local move = hum.MoveDirection
+    local velocity = Vector3.zero
+
+    if move.Magnitude > 0.05 then
+        local rel = cam.CFrame:VectorToObjectSpace(move)
+        local dir = cam.CFrame.LookVector * (-rel.Z)
+            + cam.CFrame.RightVector * rel.X
+        if dir.Magnitude > 0.01 then
+            velocity = dir.Unit * move.Magnitude * flySpeed
+        end
+    end
+
+    flyBV.Velocity = velocity
+end)
+
+--==================================================
+-- INFINITE JUMP
+--==================================================
+
+UserInputService.JumpRequest:Connect(function()
+    if infiniteJumpEnabled then
+        local _, hum = getCharacterParts()
+        if hum then
+            hum:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end
+end)
+
+--==================================================
+-- PÁGINA: FUNCIONES
+--==================================================
+
 createSection(FunctionPage, "FUNCIONES PRINCIPALES")
 
-createButton(FunctionPage, "ESP Player", "Resalta a los jugadores a través de paredes", function(enabled)
+createButton(FunctionPage, "ESP Player", "Resalta jugadores a través de paredes", function(enabled)
     espEnabled = enabled
     if espEnabled then
         for _, plr in ipairs(Players:GetPlayers()) do
@@ -526,37 +744,40 @@ createButton(FunctionPage, "ESP Player", "Resalta a los jugadores a través de p
     end
 end)
 
-local _, camToggleState, setCamToggle = createButton(FunctionPage, "Cam Lock", "Mantiene la cámara fija en el objetivo seleccionado", function(enabled)
+local _, _, setCamToggle = createButton(FunctionPage, "Cam Lock", "Cámara y personaje apuntan al objetivo", function(enabled)
     camLockEnabled = enabled
-    if not camLockEnabled then
+    if camLockEnabled then
+        if selectedTarget then
+            Status.Text = "Objetivo: @" .. selectedTarget.Name
+        else
+            Status.Text = "Elige un objetivo en la pestaña Lista"
+        end
+    else
         selectedTarget = nil
-        camera.CameraType = Enum.CameraType.Custom
+        releaseCamLock()
+        Status.Text = "Cam Lock desactivado"
     end
 end)
 
-createButton(FunctionPage, "Infinite Jump", "Permite saltar sin parar en el aire", function(enabled)
+createButton(FunctionPage, "Fly", "Vuela con el joystick hacia donde miras", function(enabled)
+    flyEnabled = enabled
+    if not flyEnabled then stopFly() end
+end)
+
+createButton(FunctionPage, "Infinite Jump", "Salta sin parar en el aire", function(enabled)
     infiniteJumpEnabled = enabled
 end)
 
-UserInputService.JumpRequest:Connect(function()
-    if infiniteJumpEnabled then
-        local character = player.Character
-        if character then
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end
-    end
-end)
+--==================================================
+-- PÁGINA: LISTA
+--==================================================
 
--- LISTA DE JUGADORES PAGE (SOLO NOMBRES DE USUARIO)
 createSection(ListPage, "BÚSQUEDA DE USUARIOS")
 
 local searchBar = Instance.new("TextBox")
-searchBar.Size = UDim2.new(1, -5, 0, 40)
-searchBar.BackgroundColor3 = Color3.fromRGB(16, 40, 80)
-searchBar.PlaceholderText = "🔍 Buscar por nombre de usuario..."
+searchBar.Size = UDim2.new(1, -4, 0, 34)
+searchBar.BackgroundColor3 = C.Row
+searchBar.PlaceholderText = "🔍 Buscar usuario..."
 searchBar.Text = ""
 searchBar.TextColor3 = C.White
 searchBar.PlaceholderColor3 = C.Gray
@@ -580,13 +801,12 @@ containerList.AutomaticSize = Enum.AutomaticSize.Y
 containerList.Parent = ListPage
 
 local listLayout = Instance.new("UIListLayout")
-listLayout.Padding = UDim.new(0, 8)
+listLayout.Padding = UDim.new(0, 6)
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 listLayout.Parent = containerList
 
 local function updatePlayerList(filterText)
-    filterText = filterText or ""
-    filterText = string.lower(filterText)
+    filterText = string.lower(filterText or "")
 
     for _, child in ipairs(containerList:GetChildren()) do
         if child:IsA("TextButton") then
@@ -599,9 +819,11 @@ local function updatePlayerList(filterText)
             local username = string.lower(plr.Name)
 
             if filterText == "" or string.find(username, filterText, 1, true) then
+                local isTarget = selectedTarget == plr
+
                 local btn = Instance.new("TextButton")
-                btn.Size = UDim2.new(1, -5, 0, 40)
-                btn.BackgroundColor3 = Color3.fromRGB(16, 40, 80)
+                btn.Size = UDim2.new(1, -4, 0, 34)
+                btn.BackgroundColor3 = isTarget and Color3.fromRGB(20, 65, 115) or C.Row
                 btn.Text = "  @" .. plr.Name
                 btn.TextColor3 = C.White
                 btn.TextSize = 12
@@ -612,14 +834,16 @@ local function updatePlayerList(filterText)
                 corner(btn, 8)
 
                 local stroke = Instance.new("UIStroke")
-                stroke.Color = C.Blue
-                stroke.Thickness = 1
+                stroke.Color = isTarget and C.Cyan or C.Blue
+                stroke.Thickness = isTarget and 2 or 1
                 stroke.Parent = btn
 
                 btn.Activated:Connect(function()
                     selectedTarget = plr
                     camLockEnabled = true
-                    setCamToggle(true)
+                    setCamToggle(true, true)
+                    Status.Text = "Objetivo: @" .. plr.Name
+                    updatePlayerList(searchBar.Text)
                     showPage("Funciones")
                 end)
             end
@@ -643,61 +867,53 @@ Players.PlayerRemoving:Connect(function(plr)
     if selectedTarget == plr then
         selectedTarget = nil
         camLockEnabled = false
-        setCamToggle(false)
-        camera.CameraType = Enum.CameraType.Custom
+        setCamToggle(false, true)
+        releaseCamLock()
+        Status.Text = "El objetivo salió del juego"
     end
     task.defer(function()
         updatePlayerList(searchBar.Text)
     end)
 end)
 
--- SETTINGS PAGE
+--==================================================
+-- PÁGINA: CONFIGURACIÓN
+--==================================================
+
 createSection(SettingsPage, "PERSONALIZACIÓN")
-createButton(SettingsPage, "Efectos LED", "Alternar indicador visual", function() end)
-createButton(SettingsPage, "Animaciones", "Alternar indicador visual", function() end)
-createButton(SettingsPage, "Interfaz", "Alternar indicador visual", function() end)
+
+createSlider(SettingsPage, "Tamaño del menú", 0.6, 1.2, 1,
+    function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
+    function(v) MenuScale.Scale = v end
+)
+
+createSlider(SettingsPage, "Velocidad de Fly", 20, 150, 60,
+    function(v) return tostring(math.floor(v + 0.5)) end,
+    function(v) flySpeed = v end
+)
+
+local _, _, setLed = createButton(SettingsPage, "Efectos LED", "Colores animados en los bordes", function(enabled)
+    ledEnabled = enabled
+    if not ledEnabled then
+        MainStroke.Color = C.Red
+    end
+end)
+setLed(true, true)
+
+local _, _, setSnake = createButton(SettingsPage, "Serpiente", "Muestra la serpiente sakura", function(enabled)
+    snakeEnabled = enabled
+end)
+setSnake(true, true)
 
 showPage("Funciones")
 
 --==================================================
--- LÓGICA DE CÁMARA
---==================================================
-
-local function updateCamera()
-    if not camLockEnabled or not selectedTarget then
-        return
-    end
-
-    local targetCharacter = selectedTarget.Character
-    if not targetCharacter then
-        return
-    end
-
-    local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
-    local playerRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-
-    if not targetRoot or not playerRoot then
-        return
-    end
-
-    camera.CameraType = Enum.CameraType.Scriptable
-
-    local targetPosition = targetRoot.Position + Vector3.new(0, 2, 0)
-    local offset = -(playerRoot.CFrame.LookVector) * 9 + Vector3.new(0, 3.5, 0)
-    local cameraPosition = playerRoot.Position + offset
-
-    camera.CFrame = CFrame.lookAt(cameraPosition, targetPosition)
-end
-
-RunService:BindToRenderStep("TargetCamera", Enum.RenderPriority.Camera.Value + 1, updateCamera)
-
---==================================================
--- ANIMATED SAKURA SNAKE
+-- SERPIENTE SAKURA
 --==================================================
 
 local Snake = Instance.new("Frame")
-Snake.Size = UDim2.fromOffset(130, 35)
-Snake.Position = UDim2.new(1, -145, 1, -43)
+Snake.Size = UDim2.fromOffset(100, 22)
+Snake.Position = UDim2.new(1, -112, 1, -26)
 Snake.BackgroundTransparency = 1
 Snake.Parent = Main
 
@@ -705,7 +921,7 @@ local Segments = {}
 
 for i = 1, 11 do
     local segment = Instance.new("Frame")
-    local size = i == 1 and 12 or math.max(5, 11 - i * 0.45)
+    local size = i == 1 and 9 or math.max(3, 8 - i * 0.4)
 
     segment.Size = UDim2.fromOffset(size, size)
     segment.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -723,20 +939,23 @@ task.spawn(function()
     local clock = 0
 
     while snakeRunning and Screen.Parent do
-        clock += 0.10
+        Snake.Visible = snakeEnabled
 
-        for i, segment in ipairs(Segments) do
-            local phase = clock - i * 0.48
-            local x = 125 - i * 10
-            local y = 17 + math.sin(phase) * (i * 0.9)
+        if snakeEnabled then
+            clock += 0.10
 
-            segment.Position = UDim2.fromOffset(x, y)
-            segment.BackgroundColor3 =
-                Color3.fromRGB(
+            for i, segment in ipairs(Segments) do
+                local phase = clock - i * 0.48
+                local x = 95 - i * 8
+                local y = 11 + math.sin(phase) * (i * 0.55)
+
+                segment.Position = UDim2.fromOffset(x, y)
+                segment.BackgroundColor3 = Color3.fromRGB(
                     255,
                     math.floor(30 + 150 * ((math.sin(clock + i * 0.4) + 1) / 2)),
                     255
                 )
+            end
         end
 
         task.wait(0.04)
@@ -744,20 +963,20 @@ task.spawn(function()
 end)
 
 --==================================================
--- FLOATING SAKURA BUTTON
+-- BOTÓN FLOTANTE 🌸
 --==================================================
 
 local Toggle = Instance.new("TextButton")
-Toggle.Size = UDim2.fromOffset(58, 58)
-Toggle.Position = UDim2.new(0, 25, 0.5, -29)
+Toggle.Size = UDim2.fromOffset(46, 46)
+Toggle.Position = UDim2.new(0, 20, 0.5, -23)
 Toggle.BackgroundColor3 = C.Dark
 Toggle.BackgroundTransparency = 0.05
 Toggle.Text = "🌸"
-Toggle.TextSize = 29
+Toggle.TextSize = 24
 Toggle.Font = Enum.Font.GothamBold
 Toggle.ZIndex = 10
 Toggle.Parent = Screen
-corner(Toggle, 16)
+corner(Toggle, 14)
 
 local ToggleStroke = Instance.new("UIStroke")
 ToggleStroke.Thickness = 2
@@ -772,15 +991,9 @@ local function toggleMenu()
     if Open then
         Main.Visible = true
         Main.Size = UDim2.fromOffset(10, 10)
-
-        tween(Main, {
-            Size = UDim2.fromOffset(650, 390)
-        }, 0.3)
+        tween(Main, {Size = UDim2.fromOffset(BASE_W, BASE_H)}, 0.3)
     else
-        tween(Main, {
-            Size = UDim2.fromOffset(10, 10)
-        }, 0.2)
-
+        tween(Main, {Size = UDim2.fromOffset(10, 10)}, 0.2)
         task.delay(0.22, function()
             if not Open then
                 Main.Visible = false
@@ -806,12 +1019,14 @@ local colorIndex = 1
 
 task.spawn(function()
     while Screen.Parent do
-        colorIndex = colorIndex % #LedColors + 1
-        local nextColor = LedColors[colorIndex]
+        if ledEnabled then
+            colorIndex = colorIndex % #LedColors + 1
+            local nextColor = LedColors[colorIndex]
 
-        tween(MainStroke, {Color = nextColor}, 0.8)
-        tween(ToggleStroke, {Color = nextColor}, 0.8)
-        tween(TitleStroke, {Color = nextColor}, 0.8)
+            tween(MainStroke, {Color = nextColor}, 0.8)
+            tween(ToggleStroke, {Color = nextColor}, 0.8)
+            tween(TitleStroke, {Color = nextColor}, 0.8)
+        end
 
         task.wait(0.8)
     end
@@ -823,11 +1038,14 @@ end)
 
 Screen.Destroying:Connect(function()
     snakeRunning = false
+    camLockEnabled = false
+    flyEnabled = false
+    stopFly()
     pcall(function() RunService:UnbindFromRenderStep("TargetCamera") end)
     for plr in pairs(playerHighlightObjects) do
         removeESP(plr)
     end
-    camera.CameraType = Enum.CameraType.Custom
+    releaseCamLock()
 end)
 
 print("🌸 EFRÉN HUB + SAKURA CHEATS LOADED")
