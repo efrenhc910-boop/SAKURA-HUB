@@ -1,6 +1,6 @@
 --==================================================
 --                 EFREN HUB
---          SAKURA NEON  •  COMPACT v2.0
+--        SAKURA NEON  •  COMPACT v2.2
 --==================================================
 print("[EfrenHub] cargando...")
 
@@ -63,7 +63,7 @@ local C = {
     Panel = Color3.fromRGB(14, 20, 35),
     White = Color3.fromRGB(240, 245, 255),
     Gray = Color3.fromRGB(145, 165, 190),
-    Row = Color3.fromRGB(16, 40, 80),
+    Row = Color3.fromRGB(16, 36, 72),
     Off = Color3.fromRGB(30, 45, 65),
     Tab = Color3.fromRGB(17, 25, 45)
 }
@@ -99,12 +99,18 @@ local function isMove(input)
         or input.UserInputType == Enum.UserInputType.MouseMovement
 end
 
+local orderN = 0
+local function nextOrder()
+    orderN += 1
+    return orderN
+end
+
 --==================================================
--- MAIN WINDOW (COMPACTA)
+-- VENTANA PRINCIPAL
 --==================================================
 
 local BASE_W, BASE_H = 470, 300
-local HEADER_H = 46
+local HEADER_H = 40
 
 local Main = Instance.new("Frame")
 Main.Name = "Main"
@@ -147,12 +153,12 @@ HeaderGradient.Transparency = NumberSequence.new(0.35)
 HeaderGradient.Parent = Header
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.fromOffset(200, 24)
-Title.Position = UDim2.fromOffset(14, 5)
+Title.Size = UDim2.fromOffset(200, 22)
+Title.Position = UDim2.fromOffset(14, 3)
 Title.BackgroundTransparency = 1
 Title.Text = "EFRÉN HUB"
 Title.TextColor3 = C.White
-Title.TextSize = 20
+Title.TextSize = 18
 Title.Font = Enum.Font.GothamBlack
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Header
@@ -165,9 +171,9 @@ TitleStroke.Parent = Title
 
 local Subtitle = Instance.new("TextLabel")
 Subtitle.Size = UDim2.fromOffset(220, 12)
-Subtitle.Position = UDim2.fromOffset(15, 29)
+Subtitle.Position = UDim2.fromOffset(15, 25)
 Subtitle.BackgroundTransparency = 1
-Subtitle.Text = "SAKURA NEON  •  COMPACT V2.0"
+Subtitle.Text = "SAKURA NEON  •  COMPACT V2.2"
 Subtitle.TextColor3 = C.Cyan
 Subtitle.TextSize = 8
 Subtitle.Font = Enum.Font.GothamBold
@@ -175,12 +181,12 @@ Subtitle.TextXAlignment = Enum.TextXAlignment.Left
 Subtitle.Parent = Header
 
 local Close = Instance.new("TextButton")
-Close.Size = UDim2.fromOffset(28, 28)
-Close.Position = UDim2.new(1, -38, 0, 9)
+Close.Size = UDim2.fromOffset(26, 26)
+Close.Position = UDim2.new(1, -34, 0, 7)
 Close.BackgroundColor3 = C.Red
 Close.Text = "×"
 Close.TextColor3 = C.White
-Close.TextSize = 20
+Close.TextSize = 18
 Close.Font = Enum.Font.GothamBold
 Close.ZIndex = 3
 Close.Parent = Header
@@ -191,7 +197,7 @@ corner(Close, 7)
 --==================================================
 
 local DragZone = Instance.new("Frame")
-DragZone.Size = UDim2.new(1, -50, 1, 0)
+DragZone.Size = UDim2.new(1, -46, 1, 0)
 DragZone.BackgroundTransparency = 1
 DragZone.ZIndex = 2
 DragZone.Parent = Header
@@ -232,13 +238,13 @@ end)
 
 local Tabs = Instance.new("Frame")
 Tabs.Position = UDim2.fromOffset(10, HEADER_H + 6)
-Tabs.Size = UDim2.new(1, -20, 0, 28)
+Tabs.Size = UDim2.new(1, -20, 0, 26)
 Tabs.BackgroundTransparency = 1
 Tabs.Parent = Main
 
 local TabLayout = Instance.new("UIListLayout")
 TabLayout.FillDirection = Enum.FillDirection.Horizontal
-TabLayout.Padding = UDim.new(0, 8)
+TabLayout.Padding = UDim.new(0, 6)
 TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
 TabLayout.Parent = Tabs
 
@@ -247,8 +253,8 @@ TabLayout.Parent = Tabs
 --==================================================
 
 local Content = Instance.new("Frame")
-Content.Position = UDim2.fromOffset(10, HEADER_H + 40)
-Content.Size = UDim2.new(1, -20, 1, -(HEADER_H + 40 + 30))
+Content.Position = UDim2.fromOffset(10, HEADER_H + 38)
+Content.Size = UDim2.new(1, -20, 1, -(HEADER_H + 38 + 26))
 Content.BackgroundColor3 = C.Panel
 Content.BackgroundTransparency = 0.15
 Content.BorderSizePixel = 0
@@ -257,8 +263,8 @@ Content.Parent = Main
 corner(Content, 9)
 
 local Status = Instance.new("TextLabel")
-Status.Size = UDim2.fromOffset(280, 16)
-Status.Position = UDim2.new(0, 14, 1, -22)
+Status.Size = UDim2.fromOffset(280, 14)
+Status.Position = UDim2.new(0, 14, 1, -20)
 Status.BackgroundTransparency = 1
 Status.Text = "Listo  •  Toca 🌸 para ocultar"
 Status.TextColor3 = C.Gray
@@ -274,8 +280,8 @@ local TabButtons = {}
 local function createPage(name)
     local page = Instance.new("ScrollingFrame")
     page.Name = name
-    page.Position = UDim2.fromOffset(8, 8)
-    page.Size = UDim2.new(1, -16, 1, -16)
+    page.Position = UDim2.fromOffset(6, 6)
+    page.Size = UDim2.new(1, -12, 1, -12)
     page.BackgroundTransparency = 1
     page.BorderSizePixel = 0
     page.ScrollBarThickness = 3
@@ -321,7 +327,7 @@ end
 local function createTab(name, order)
     local button = Instance.new("TextButton")
     button.Name = name
-    button.Size = UDim2.new(1 / 3, -6, 1, 0)
+    button.Size = UDim2.new(1 / 3, -4, 1, 0)
     button.BackgroundColor3 = C.Tab
     button.Text = name
     button.TextColor3 = C.White
@@ -353,31 +359,51 @@ local ListPage = createPage("Lista")
 local SettingsPage = createPage("Configuración")
 
 --==================================================
--- COMPONENTES
+-- COMPONENTES COMPACTOS
 --==================================================
 
 local function createSection(page, text)
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, 18)
+    label.Size = UDim2.new(1, 0, 0, 16)
     label.BackgroundTransparency = 1
     label.Text = "✦  " .. text
     label.TextColor3 = C.Cyan
-    label.TextSize = 11
+    label.TextSize = 10
     label.Font = Enum.Font.GothamBlack
     label.TextXAlignment = Enum.TextXAlignment.Left
+    label.LayoutOrder = nextOrder()
     label.Parent = page
     return label
 end
 
+-- Cuadrícula de 2 columnas para los botones
+local function createGrid(page)
+    local grid = Instance.new("Frame")
+    grid.Size = UDim2.new(1, -4, 0, 0)
+    grid.BackgroundTransparency = 1
+    grid.AutomaticSize = Enum.AutomaticSize.Y
+    grid.LayoutOrder = nextOrder()
+    grid.Parent = page
+
+    local layout = Instance.new("UIGridLayout")
+    layout.CellSize = UDim2.new(0.5, -3, 0, 34)
+    layout.CellPadding = UDim2.fromOffset(6, 6)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = grid
+
+    return grid
+end
+
 -- Devuelve: button, state, setEnabled(bool, silent)
-local function createButton(page, name, description, callback)
+local function createButton(parent, name, description, callback)
     local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, -4, 0, 42)
+    button.Size = UDim2.new(1, -4, 0, 34)
     button.BackgroundColor3 = C.Row
     button.Text = ""
     button.AutoButtonColor = false
-    button.Parent = page
-    corner(button, 8)
+    button.LayoutOrder = nextOrder()
+    button.Parent = parent
+    corner(button, 7)
 
     local stroke = Instance.new("UIStroke")
     stroke.Color = C.Blue
@@ -385,37 +411,38 @@ local function createButton(page, name, description, callback)
     stroke.Parent = button
 
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, -70, 0, 18)
-    title.Position = UDim2.fromOffset(10, 4)
+    title.Size = UDim2.new(1, -46, 0, 14)
+    title.Position = UDim2.fromOffset(8, 4)
     title.BackgroundTransparency = 1
     title.Text = name
     title.TextColor3 = C.White
-    title.TextSize = 12
+    title.TextSize = 11
     title.Font = Enum.Font.GothamBold
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.Parent = button
 
     local desc = Instance.new("TextLabel")
-    desc.Size = UDim2.new(1, -70, 0, 14)
-    desc.Position = UDim2.fromOffset(10, 22)
+    desc.Size = UDim2.new(1, -46, 0, 11)
+    desc.Position = UDim2.fromOffset(8, 19)
     desc.BackgroundTransparency = 1
     desc.Text = description
     desc.TextColor3 = C.Gray
-    desc.TextSize = 9
+    desc.TextSize = 8
     desc.Font = Enum.Font.Gotham
     desc.TextXAlignment = Enum.TextXAlignment.Left
+    desc.TextTruncate = Enum.TextTruncate.AtEnd
     desc.Parent = button
 
     local state = Instance.new("TextLabel")
-    state.Size = UDim2.fromOffset(42, 22)
-    state.Position = UDim2.new(1, -52, 0.5, -11)
+    state.Size = UDim2.fromOffset(32, 16)
+    state.Position = UDim2.new(1, -38, 0.5, -8)
     state.BackgroundColor3 = C.Off
     state.Text = "OFF"
     state.TextColor3 = C.White
-    state.TextSize = 10
+    state.TextSize = 9
     state.Font = Enum.Font.GothamBold
     state.Parent = button
-    corner(state, 6)
+    corner(state, 5)
 
     local enabled = false
 
@@ -425,12 +452,12 @@ local function createButton(page, name, description, callback)
 
         tween(state, {
             BackgroundColor3 = enabled and C.Blue or C.Off
-        }, 0.2)
+        }, 0.15)
 
         tween(stroke, {
             Color = enabled and C.Cyan or C.Blue,
-            Thickness = enabled and 2 or 1
-        }, 0.2)
+            Thickness = enabled and 1.6 or 1
+        }, 0.15)
 
         if callback and not silent then
             callback(enabled, state)
@@ -444,13 +471,14 @@ local function createButton(page, name, description, callback)
     return button, state, setEnabled
 end
 
--- Barra deslizante (táctil)
+-- Barra deslizante compacta (táctil)
 local function createSlider(page, name, min, max, default, fmt, callback)
     local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, -4, 0, 52)
+    row.Size = UDim2.new(1, -4, 0, 40)
     row.BackgroundColor3 = C.Row
+    row.LayoutOrder = nextOrder()
     row.Parent = page
-    corner(row, 8)
+    corner(row, 7)
 
     local stroke = Instance.new("UIStroke")
     stroke.Color = C.Blue
@@ -458,36 +486,35 @@ local function createSlider(page, name, min, max, default, fmt, callback)
     stroke.Parent = row
 
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(0.6, 0, 0, 18)
-    title.Position = UDim2.fromOffset(10, 4)
+    title.Size = UDim2.new(0.6, 0, 0, 16)
+    title.Position = UDim2.fromOffset(8, 2)
     title.BackgroundTransparency = 1
     title.Text = name
     title.TextColor3 = C.White
-    title.TextSize = 12
+    title.TextSize = 11
     title.Font = Enum.Font.GothamBold
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.Parent = row
 
     local valueLabel = Instance.new("TextLabel")
-    valueLabel.Size = UDim2.new(0.3, 0, 0, 18)
-    valueLabel.Position = UDim2.new(0.7, -10, 0, 4)
+    valueLabel.Size = UDim2.new(0.3, 0, 0, 16)
+    valueLabel.Position = UDim2.new(0.7, -8, 0, 2)
     valueLabel.BackgroundTransparency = 1
     valueLabel.TextColor3 = C.Cyan
-    valueLabel.TextSize = 11
+    valueLabel.TextSize = 10
     valueLabel.Font = Enum.Font.GothamBold
     valueLabel.TextXAlignment = Enum.TextXAlignment.Right
     valueLabel.Parent = row
 
-    -- zona táctil amplia
     local hit = Instance.new("Frame")
-    hit.Size = UDim2.new(1, -20, 0, 26)
-    hit.Position = UDim2.fromOffset(10, 22)
+    hit.Size = UDim2.new(1, -16, 0, 20)
+    hit.Position = UDim2.fromOffset(8, 18)
     hit.BackgroundTransparency = 1
     hit.Parent = row
 
     local track = Instance.new("Frame")
     track.AnchorPoint = Vector2.new(0, 0.5)
-    track.Size = UDim2.new(1, 0, 0, 6)
+    track.Size = UDim2.new(1, 0, 0, 5)
     track.Position = UDim2.new(0, 0, 0.5, 0)
     track.BackgroundColor3 = C.Off
     track.BorderSizePixel = 0
@@ -502,12 +529,12 @@ local function createSlider(page, name, min, max, default, fmt, callback)
     corner(fill, 3)
 
     local knob = Instance.new("Frame")
-    knob.Size = UDim2.fromOffset(16, 16)
+    knob.Size = UDim2.fromOffset(14, 14)
     knob.AnchorPoint = Vector2.new(0.5, 0.5)
     knob.BackgroundColor3 = C.White
     knob.BorderSizePixel = 0
     knob.Parent = track
-    corner(knob, 8)
+    corner(knob, 7)
 
     local function setRatio(r)
         r = math.clamp(r, 0, 1)
@@ -550,18 +577,31 @@ end
 
 print("[EfrenHub] parte 1 lista")
 --==================================================
--- VARIABLES
+-- PARTE 2: LÓGICA (ESP / CAMLOCK / FLY / WALK / FPS BOOST)
 --==================================================
+
+local Lighting = game:GetService("Lighting")
 
 local espEnabled = false
 local camLockEnabled = false
 local infiniteJumpEnabled = false
 local flyEnabled = false
+local walkEnabled = false
 local ledEnabled = true
 local snakeEnabled = true
+local fpsBoostEnabled = false
 local flySpeed = 60
+local walkSpeed = 32
+local defaultWalkSpeed = 16
 local selectedTarget = nil
-local playerHighlightObjects = {}
+
+local espObjects = {}
+local connections = {}
+
+local function track(conn)
+    connections[#connections + 1] = conn
+    return conn
+end
 
 local function getCamera()
     return Workspace.CurrentCamera
@@ -576,30 +616,109 @@ local function getCharacterParts()
 end
 
 --==================================================
--- ESP
+-- ESP (luz azul neón + nombre / vida / distancia)
 --==================================================
 
+local NEON_BLUE = Color3.fromRGB(0, 140, 255)
+local NEON_BLUE_OUTLINE = Color3.fromRGB(0, 230, 255)
+local NAME_COLOR = Color3.fromRGB(0, 235, 255)
+local INFO_COLOR = Color3.fromRGB(205, 225, 255)
+local LOW_COLOR = Color3.fromRGB(255, 40, 70)
+
 local function removeESP(plr)
-    local h = playerHighlightObjects[plr]
-    if h then
-        h:Destroy()
-        playerHighlightObjects[plr] = nil
+    local data = espObjects[plr]
+    if data then
+        if data.Highlight then data.Highlight:Destroy() end
+        if data.Billboard then data.Billboard:Destroy() end
+        espObjects[plr] = nil
+    end
+end
+
+local function clearESP()
+    for plr in pairs(espObjects) do
+        removeESP(plr)
     end
 end
 
 local function applyESP(plr)
-    if plr == player or not plr.Character then return end
+    if plr == player then return end
+    local char = plr.Character
+    if not char then return end
     removeESP(plr)
 
     local highlight = Instance.new("Highlight")
-    highlight.Adornee = plr.Character
-    highlight.FillColor = C.Cyan
-    highlight.OutlineColor = C.White
-    highlight.FillTransparency = 0.4
+    highlight.Adornee = char
+    highlight.FillColor = NEON_BLUE
+    highlight.OutlineColor = NEON_BLUE_OUTLINE
+    highlight.FillTransparency = 0.1
     highlight.OutlineTransparency = 0
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     highlight.Parent = Workspace
-    playerHighlightObjects[plr] = highlight
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "EfrenESP"
+    billboard.Size = UDim2.fromOffset(150, 40)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.LightInfluence = 0
+    billboard.Adornee = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
+    billboard.Parent = Workspace
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(1, 0, 0, 16)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextSize = 12
+    nameLabel.TextColor3 = NAME_COLOR
+    nameLabel.TextStrokeTransparency = 0.35
+    nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    nameLabel.Text = plr.Name
+    nameLabel.Parent = billboard
+
+    local info = Instance.new("TextLabel")
+    info.Position = UDim2.fromOffset(0, 16)
+    info.Size = UDim2.new(1, 0, 0, 13)
+    info.BackgroundTransparency = 1
+    info.Font = Enum.Font.GothamMedium
+    info.TextSize = 10
+    info.TextColor3 = INFO_COLOR
+    info.TextStrokeTransparency = 0.4
+    info.TextStrokeColor3 = Color3.new(0, 0, 0)
+    info.Text = ""
+    info.Parent = billboard
+
+    local barBack = Instance.new("Frame")
+    barBack.AnchorPoint = Vector2.new(0.5, 0)
+    barBack.Position = UDim2.new(0.5, 0, 0, 32)
+    barBack.Size = UDim2.new(0.6, 0, 0, 4)
+    barBack.BackgroundColor3 = Color3.fromRGB(5, 12, 28)
+    barBack.BackgroundTransparency = 0.25
+    barBack.BorderSizePixel = 0
+    barBack.Parent = billboard
+    corner(barBack, 2)
+
+    local barStroke = Instance.new("UIStroke")
+    barStroke.Color = NEON_BLUE_OUTLINE
+    barStroke.Thickness = 1
+    barStroke.Transparency = 0.45
+    barStroke.Parent = barBack
+
+    local barFill = Instance.new("Frame")
+    barFill.Size = UDim2.fromScale(1, 1)
+    barFill.BackgroundColor3 = NEON_BLUE
+    barFill.BorderSizePixel = 0
+    barFill.Parent = barBack
+    corner(barFill, 2)
+
+    espObjects[plr] = {
+        Highlight = highlight,
+        Billboard = billboard,
+        Info = info,
+        BarFill = barFill,
+        Character = char,
+        LastText = "",
+        LastRatio = -1
+    }
 end
 
 local function hookPlayer(plr)
@@ -615,6 +734,64 @@ end
 for _, plr in ipairs(Players:GetPlayers()) do
     hookPlayer(plr)
 end
+
+-- Actualiza 10 veces por segundo (menos lag) y se autorepara
+local espAcc = 0
+track(RunService.Heartbeat:Connect(function(dt)
+    if not espEnabled then return end
+
+    espAcc += dt
+    if espAcc < 0.1 then return end
+    espAcc = 0
+
+    local localRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= player then
+            local char = plr.Character
+            local data = espObjects[plr]
+
+            if char and (not data or data.Character ~= char) then
+                applyESP(plr)
+                data = espObjects[plr]
+            end
+
+            if data and char then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                local root = char:FindFirstChild("HumanoidRootPart")
+                local head = char:FindFirstChild("Head") or root
+
+                if head and data.Billboard.Adornee ~= head then
+                    data.Billboard.Adornee = head
+                end
+
+                local hp, maxHp = 0, 100
+                if hum then
+                    hp = math.max(0, math.floor(hum.Health + 0.5))
+                    maxHp = math.max(1, math.floor(hum.MaxHealth + 0.5))
+                end
+
+                local dist = 0
+                if root and localRoot then
+                    dist = math.floor((root.Position - localRoot.Position).Magnitude + 0.5)
+                end
+
+                local text = hp .. " HP  •  " .. dist .. "m"
+                if data.LastText ~= text then
+                    data.LastText = text
+                    data.Info.Text = text
+                end
+
+                local ratio = math.floor(math.clamp(hp / maxHp, 0, 1) * 50) / 50
+                if data.LastRatio ~= ratio then
+                    data.LastRatio = ratio
+                    data.BarFill.Size = UDim2.fromScale(ratio, 1)
+                    data.BarFill.BackgroundColor3 = ratio < 0.3 and LOW_COLOR or NEON_BLUE
+                end
+            end
+        end
+    end
+end))
 
 --==================================================
 -- CAM LOCK (cámara + personaje apuntan al objetivo)
@@ -638,7 +815,6 @@ local function updateCamLock()
 
     local aimPos = targetRoot.Position + Vector3.new(0, 1.5, 0)
 
-    -- dirección horizontal hacia el objetivo
     local flat = Vector3.new(
         targetRoot.Position.X - root.Position.X,
         0,
@@ -647,12 +823,10 @@ local function updateCamLock()
     if flat.Magnitude < 0.5 then return end
     local dir = flat.Unit
 
-    -- cámara detrás de ti, en línea hacia el objetivo
     local camPos = root.Position - dir * 9 + Vector3.new(0, 3.5, 0)
     cam.CameraType = Enum.CameraType.Scriptable
     cam.CFrame = CFrame.lookAt(camPos, aimPos)
 
-    -- personaje (y lo que sostiene) gira hacia el objetivo
     if hum then hum.AutoRotate = false end
     root.CFrame = CFrame.lookAt(root.Position, root.Position + dir)
 end
@@ -664,7 +838,7 @@ RunService:BindToRenderStep(
 )
 
 --==================================================
--- FLY (joystick + dirección de la cámara)
+-- FLY
 --==================================================
 
 local flyBV
@@ -676,7 +850,7 @@ local function stopFly()
     end
 end
 
-RunService.Heartbeat:Connect(function()
+track(RunService.Heartbeat:Connect(function()
     if not flyEnabled then
         if flyBV then stopFly() end
         return
@@ -710,41 +884,295 @@ RunService.Heartbeat:Connect(function()
     end
 
     flyBV.Velocity = velocity
+end))
+
+--==================================================
+-- WALK SPEED (con límite anti-bucle)
+--==================================================
+
+local walkHumConn
+local walkReverts = 0
+local walkFallback = false
+
+local function unbindWalkHumanoid()
+    if walkHumConn then
+        walkHumConn:Disconnect()
+        walkHumConn = nil
+    end
+end
+
+local function bindWalkHumanoid(hum)
+    unbindWalkHumanoid()
+    if not hum then return end
+    walkHumConn = hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+        if walkEnabled and hum.WalkSpeed ~= walkSpeed and walkReverts < 20 then
+            walkReverts += 1
+            hum.WalkSpeed = walkSpeed
+        end
+    end)
+end
+
+local function setWalkEnabled(value)
+    local _, hum = getCharacterParts()
+
+    if value then
+        if hum and not walkEnabled and hum.WalkSpeed ~= walkSpeed then
+            defaultWalkSpeed = hum.WalkSpeed
+        end
+        walkEnabled = true
+        walkReverts = 0
+        bindWalkHumanoid(hum)
+        if hum then hum.WalkSpeed = walkSpeed end
+    else
+        walkEnabled = false
+        walkFallback = false
+        unbindWalkHumanoid()
+        if hum then hum.WalkSpeed = defaultWalkSpeed end
+    end
+end
+
+track(player.CharacterAdded:Connect(function(char)
+    local hum = char:WaitForChild("Humanoid", 10)
+    if walkEnabled and hum then
+        bindWalkHumanoid(hum)
+        hum.WalkSpeed = walkSpeed
+    end
+end))
+
+track(RunService.Heartbeat:Connect(function(dt)
+    if not walkEnabled then return end
+
+    local root, hum = getCharacterParts()
+    if not root or not hum then return end
+
+    if hum.WalkSpeed ~= walkSpeed then
+        hum.WalkSpeed = walkSpeed
+    end
+
+    if walkFallback and not flyEnabled and hum.MoveDirection.Magnitude > 0.05 then
+        local vel = root.AssemblyLinearVelocity
+        local horizontal = Vector3.new(vel.X, 0, vel.Z).Magnitude
+        local extra = walkSpeed - horizontal
+        if extra > 1 then
+            root.CFrame = root.CFrame + hum.MoveDirection * extra * dt
+        end
+    end
+end))
+
+task.spawn(function()
+    while Screen.Parent do
+        task.wait(1)
+        walkFallback = walkEnabled and walkReverts >= 15
+        walkReverts = 0
+    end
 end)
 
 --==================================================
 -- INFINITE JUMP
 --==================================================
 
-UserInputService.JumpRequest:Connect(function()
+track(UserInputService.JumpRequest:Connect(function()
     if infiniteJumpEnabled then
         local _, hum = getCharacterParts()
         if hum then
             hum:ChangeState(Enum.HumanoidStateType.Jumping)
         end
     end
-end)
+end))
 
 --==================================================
--- PÁGINA: FUNCIONES
+-- FPS BOOST (gráficos mínimos, reversible)
+--==================================================
+
+local boostOriginals = {}
+local boostSettings = {}
+local boostConnection
+
+local function isCharacterPart(inst)
+    local model = inst:FindFirstAncestorOfClass("Model")
+    while model do
+        if model:FindFirstChildOfClass("Humanoid") then
+            return true
+        end
+        model = model:FindFirstAncestorOfClass("Model")
+    end
+    return false
+end
+
+local function boostInstance(inst)
+    if not fpsBoostEnabled then return end
+    if boostOriginals[inst] then return end
+
+    local saved
+    pcall(function()
+        if inst:IsA("Terrain") then
+            return
+        elseif inst:IsA("BasePart") then
+            if isCharacterPart(inst) then return end
+            saved = {
+                Material = inst.Material,
+                Reflectance = inst.Reflectance,
+                CastShadow = inst.CastShadow
+            }
+            inst.Material = Enum.Material.SmoothPlastic
+            inst.Reflectance = 0
+            inst.CastShadow = false
+            if inst:IsA("MeshPart") then
+                saved.TextureID = inst.TextureID
+                inst.TextureID = ""
+            end
+        elseif inst:IsA("Decal") then
+            if isCharacterPart(inst) then return end
+            saved = { Transparency = inst.Transparency }
+            inst.Transparency = 1
+        elseif inst:IsA("ParticleEmitter") or inst:IsA("Trail")
+            or inst:IsA("Smoke") or inst:IsA("Fire")
+            or inst:IsA("Sparkles") or inst:IsA("Beam")
+            or inst:IsA("Light") or inst:IsA("PostEffect") then
+            saved = { Enabled = inst.Enabled }
+            inst.Enabled = false
+        elseif inst:IsA("Atmosphere") then
+            saved = { Density = inst.Density, Haze = inst.Haze }
+            inst.Density = 0
+            inst.Haze = 0
+        elseif inst:IsA("SurfaceAppearance") then
+            saved = { Parent = inst.Parent }
+            inst.Parent = nil
+        end
+    end)
+
+    if saved then
+        boostOriginals[inst] = saved
+    end
+end
+
+local function restoreBoost()
+    for inst, saved in pairs(boostOriginals) do
+        pcall(function()
+            for prop, value in pairs(saved) do
+                inst[prop] = value
+            end
+        end)
+    end
+    boostOriginals = {}
+end
+
+local function applyGlobalBoost()
+    pcall(function()
+        boostSettings.Quality = settings().Rendering.QualityLevel
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+    end)
+    pcall(function()
+        boostSettings.GlobalShadows = Lighting.GlobalShadows
+        Lighting.GlobalShadows = false
+    end)
+    pcall(function()
+        local terrain = Workspace.Terrain
+        boostSettings.Terrain = {
+            WaterWaveSize = terrain.WaterWaveSize,
+            WaterWaveSpeed = terrain.WaterWaveSpeed,
+            WaterReflectance = terrain.WaterReflectance
+        }
+        terrain.WaterWaveSize = 0
+        terrain.WaterWaveSpeed = 0
+        terrain.WaterReflectance = 0
+    end)
+    pcall(function()
+        boostSettings.Decoration = Workspace.Terrain.Decoration
+        Workspace.Terrain.Decoration = false
+    end)
+end
+
+local function restoreGlobal()
+    pcall(function()
+        if boostSettings.Quality then
+            settings().Rendering.QualityLevel = boostSettings.Quality
+        end
+    end)
+    pcall(function()
+        if boostSettings.GlobalShadows ~= nil then
+            Lighting.GlobalShadows = boostSettings.GlobalShadows
+        end
+    end)
+    pcall(function()
+        if boostSettings.Terrain then
+            for prop, value in pairs(boostSettings.Terrain) do
+                Workspace.Terrain[prop] = value
+            end
+        end
+    end)
+    pcall(function()
+        if boostSettings.Decoration ~= nil then
+            Workspace.Terrain.Decoration = boostSettings.Decoration
+        end
+    end)
+    boostSettings = {}
+end
+
+local function setFpsBoost(enabled)
+    if enabled == fpsBoostEnabled then return end
+    fpsBoostEnabled = enabled
+
+    if enabled then
+        applyGlobalBoost()
+
+        if boostConnection then boostConnection:Disconnect() end
+        boostConnection = Workspace.DescendantAdded:Connect(function(inst)
+            if fpsBoostEnabled then
+                task.defer(boostInstance, inst)
+            end
+        end)
+
+        task.spawn(function()
+            for _, inst in ipairs(Lighting:GetChildren()) do
+                boostInstance(inst)
+            end
+
+            local count = 0
+            for _, inst in ipairs(Workspace:GetDescendants()) do
+                if not fpsBoostEnabled then return end
+                boostInstance(inst)
+                count += 1
+                if count % 300 == 0 then
+                    task.wait()
+                end
+            end
+        end)
+    else
+        if boostConnection then
+            boostConnection:Disconnect()
+            boostConnection = nil
+        end
+        restoreBoost()
+        restoreGlobal()
+    end
+end
+
+print("[EfrenHub] parte 2 lista")
+--==================================================
+-- PARTE 3: PÁGINAS, BOTONES Y EXTRAS
+--==================================================
+
+--==================================================
+-- PÁGINA: FUNCIONES (2 columnas)
 --==================================================
 
 createSection(FunctionPage, "FUNCIONES PRINCIPALES")
 
-createButton(FunctionPage, "ESP Player", "Resalta jugadores a través de paredes", function(enabled)
+local FunctionGrid = createGrid(FunctionPage)
+
+createButton(FunctionGrid, "ESP Player", "Luz azul + nombre, HP, dist.", function(enabled)
     espEnabled = enabled
     if espEnabled then
         for _, plr in ipairs(Players:GetPlayers()) do
             applyESP(plr)
         end
     else
-        for plr in pairs(playerHighlightObjects) do
-            removeESP(plr)
-        end
+        clearESP()
     end
 end)
 
-local _, _, setCamToggle = createButton(FunctionPage, "Cam Lock", "Cámara y personaje apuntan al objetivo", function(enabled)
+local _, _, setCamToggle = createButton(FunctionGrid, "Cam Lock", "Apunta al objetivo elegido", function(enabled)
     camLockEnabled = enabled
     if camLockEnabled then
         if selectedTarget then
@@ -759,12 +1187,16 @@ local _, _, setCamToggle = createButton(FunctionPage, "Cam Lock", "Cámara y per
     end
 end)
 
-createButton(FunctionPage, "Fly", "Vuela con el joystick hacia donde miras", function(enabled)
+createButton(FunctionGrid, "Fly", "Vuela con el joystick", function(enabled)
     flyEnabled = enabled
     if not flyEnabled then stopFly() end
 end)
 
-createButton(FunctionPage, "Infinite Jump", "Salta sin parar en el aire", function(enabled)
+createButton(FunctionGrid, "Walk Speed", "Corre más rápido", function(enabled)
+    setWalkEnabled(enabled)
+end)
+
+createButton(FunctionGrid, "Infinite Jump", "Salta sin parar", function(enabled)
     infiniteJumpEnabled = enabled
 end)
 
@@ -775,17 +1207,18 @@ end)
 createSection(ListPage, "BÚSQUEDA DE USUARIOS")
 
 local searchBar = Instance.new("TextBox")
-searchBar.Size = UDim2.new(1, -4, 0, 34)
+searchBar.Size = UDim2.new(1, -4, 0, 30)
 searchBar.BackgroundColor3 = C.Row
 searchBar.PlaceholderText = "🔍 Buscar usuario..."
 searchBar.Text = ""
 searchBar.TextColor3 = C.White
 searchBar.PlaceholderColor3 = C.Gray
-searchBar.TextSize = 12
+searchBar.TextSize = 11
 searchBar.Font = Enum.Font.GothamBold
 searchBar.ClearTextOnFocus = false
+searchBar.LayoutOrder = nextOrder()
 searchBar.Parent = ListPage
-corner(searchBar, 8)
+corner(searchBar, 7)
 
 local searchStroke = Instance.new("UIStroke")
 searchStroke.Color = C.Blue
@@ -795,13 +1228,14 @@ searchStroke.Parent = searchBar
 createSection(ListPage, "JUGADORES CONECTADOS")
 
 local containerList = Instance.new("Frame")
-containerList.Size = UDim2.new(1, 0, 0, 0)
+containerList.Size = UDim2.new(1, -4, 0, 0)
 containerList.BackgroundTransparency = 1
 containerList.AutomaticSize = Enum.AutomaticSize.Y
+containerList.LayoutOrder = nextOrder()
 containerList.Parent = ListPage
 
 local listLayout = Instance.new("UIListLayout")
-listLayout.Padding = UDim.new(0, 6)
+listLayout.Padding = UDim.new(0, 5)
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 listLayout.Parent = containerList
 
@@ -822,20 +1256,20 @@ local function updatePlayerList(filterText)
                 local isTarget = selectedTarget == plr
 
                 local btn = Instance.new("TextButton")
-                btn.Size = UDim2.new(1, -4, 0, 34)
+                btn.Size = UDim2.new(1, 0, 0, 28)
                 btn.BackgroundColor3 = isTarget and Color3.fromRGB(20, 65, 115) or C.Row
                 btn.Text = "  @" .. plr.Name
                 btn.TextColor3 = C.White
-                btn.TextSize = 12
+                btn.TextSize = 11
                 btn.Font = Enum.Font.GothamBold
                 btn.TextXAlignment = Enum.TextXAlignment.Left
                 btn.AutoButtonColor = false
                 btn.Parent = containerList
-                corner(btn, 8)
+                corner(btn, 7)
 
                 local stroke = Instance.new("UIStroke")
                 stroke.Color = isTarget and C.Cyan or C.Blue
-                stroke.Thickness = isTarget and 2 or 1
+                stroke.Thickness = isTarget and 1.8 or 1
                 stroke.Parent = btn
 
                 btn.Activated:Connect(function()
@@ -857,12 +1291,12 @@ end)
 
 updatePlayerList()
 
-Players.PlayerAdded:Connect(function(plr)
+track(Players.PlayerAdded:Connect(function(plr)
     hookPlayer(plr)
     updatePlayerList(searchBar.Text)
-end)
+end))
 
-Players.PlayerRemoving:Connect(function(plr)
+track(Players.PlayerRemoving:Connect(function(plr)
     removeESP(plr)
     if selectedTarget == plr then
         selectedTarget = nil
@@ -874,13 +1308,13 @@ Players.PlayerRemoving:Connect(function(plr)
     task.defer(function()
         updatePlayerList(searchBar.Text)
     end)
-end)
+end))
 
 --==================================================
 -- PÁGINA: CONFIGURACIÓN
 --==================================================
 
-createSection(SettingsPage, "PERSONALIZACIÓN")
+createSection(SettingsPage, "AJUSTES")
 
 createSlider(SettingsPage, "Tamaño del menú", 0.6, 1.2, 1,
     function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
@@ -892,7 +1326,21 @@ createSlider(SettingsPage, "Velocidad de Fly", 20, 150, 60,
     function(v) flySpeed = v end
 )
 
-local _, _, setLed = createButton(SettingsPage, "Efectos LED", "Colores animados en los bordes", function(enabled)
+createSlider(SettingsPage, "Velocidad de caminar", 16, 200, 32,
+    function(v) return tostring(math.floor(v + 0.5)) end,
+    function(v) walkSpeed = v end
+)
+
+createSection(SettingsPage, "OPCIONES")
+
+local SettingsGrid = createGrid(SettingsPage)
+
+createButton(SettingsGrid, "FPS Boost", "Gráficos mínimos", function(enabled)
+    setFpsBoost(enabled)
+    Status.Text = enabled and "FPS Boost activado" or "FPS Boost desactivado"
+end)
+
+local _, _, setLed = createButton(SettingsGrid, "Efectos LED", "Bordes animados", function(enabled)
     ledEnabled = enabled
     if not ledEnabled then
         MainStroke.Color = C.Red
@@ -900,7 +1348,7 @@ local _, _, setLed = createButton(SettingsPage, "Efectos LED", "Colores animados
 end)
 setLed(true, true)
 
-local _, _, setSnake = createButton(SettingsPage, "Serpiente", "Muestra la serpiente sakura", function(enabled)
+local _, _, setSnake = createButton(SettingsGrid, "Serpiente", "Animación del pie", function(enabled)
     snakeEnabled = enabled
 end)
 setSnake(true, true)
@@ -908,7 +1356,13 @@ setSnake(true, true)
 showPage("Funciones")
 
 --==================================================
--- SERPIENTE SAKURA
+-- ESTADO DEL MENÚ
+--==================================================
+
+local Open = true
+
+--==================================================
+-- SERPIENTE SAKURA (ligera: solo posiciones, 15 veces/seg)
 --==================================================
 
 local Snake = Instance.new("Frame")
@@ -919,13 +1373,14 @@ Snake.Parent = Main
 
 local Segments = {}
 
-for i = 1, 11 do
+for i = 1, 9 do
     local segment = Instance.new("Frame")
-    local size = i == 1 and 9 or math.max(3, 8 - i * 0.4)
+    local size = i == 1 and 9 or math.max(3, 8 - i * 0.5)
 
     segment.Size = UDim2.fromOffset(size, size)
     segment.AnchorPoint = Vector2.new(0.5, 0.5)
-    segment.BackgroundColor3 = i % 2 == 0 and C.Red or C.Cyan
+    segment.BackgroundColor3 = i == 1 and Color3.fromRGB(255, 120, 170)
+        or (i % 2 == 0 and C.Red or C.Cyan)
     segment.BorderSizePixel = 0
     segment.Parent = Snake
     corner(segment, 20)
@@ -939,26 +1394,21 @@ task.spawn(function()
     local clock = 0
 
     while snakeRunning and Screen.Parent do
-        Snake.Visible = snakeEnabled
+        local visible = snakeEnabled and Open and CurrentPage ~= nil
+        Snake.Visible = visible
 
-        if snakeEnabled then
-            clock += 0.10
+        if visible then
+            clock += 0.14
 
             for i, segment in ipairs(Segments) do
-                local phase = clock - i * 0.48
-                local x = 95 - i * 8
+                local phase = clock - i * 0.5
+                local x = 95 - i * 9
                 local y = 11 + math.sin(phase) * (i * 0.55)
-
                 segment.Position = UDim2.fromOffset(x, y)
-                segment.BackgroundColor3 = Color3.fromRGB(
-                    255,
-                    math.floor(30 + 150 * ((math.sin(clock + i * 0.4) + 1) / 2)),
-                    255
-                )
             end
         end
 
-        task.wait(0.04)
+        task.wait(0.07)
     end
 end)
 
@@ -967,23 +1417,21 @@ end)
 --==================================================
 
 local Toggle = Instance.new("TextButton")
-Toggle.Size = UDim2.fromOffset(46, 46)
-Toggle.Position = UDim2.new(0, 20, 0.5, -23)
+Toggle.Size = UDim2.fromOffset(44, 44)
+Toggle.Position = UDim2.new(0, 20, 0.5, -22)
 Toggle.BackgroundColor3 = C.Dark
 Toggle.BackgroundTransparency = 0.05
 Toggle.Text = "🌸"
-Toggle.TextSize = 24
+Toggle.TextSize = 22
 Toggle.Font = Enum.Font.GothamBold
 Toggle.ZIndex = 10
 Toggle.Parent = Screen
-corner(Toggle, 14)
+corner(Toggle, 13)
 
 local ToggleStroke = Instance.new("UIStroke")
 ToggleStroke.Thickness = 2
 ToggleStroke.Color = C.Red
 ToggleStroke.Parent = Toggle
-
-local Open = true
 
 local function toggleMenu()
     Open = not Open
@@ -1011,7 +1459,79 @@ Close.Activated:Connect(function()
 end)
 
 --==================================================
--- LED COLOR CYCLE
+-- FPS: TEXTO FLOTANTE ROJO NEÓN (arrastrable)
+--==================================================
+
+local FpsText = Instance.new("TextButton")
+FpsText.Name = "FpsText"
+FpsText.Size = UDim2.fromOffset(86, 22)
+FpsText.Position = UDim2.new(0.5, -43, 0, 6)
+FpsText.BackgroundTransparency = 1
+FpsText.AutoButtonColor = false
+FpsText.Text = "FPS --"
+FpsText.TextColor3 = Color3.fromRGB(255, 20, 40)
+FpsText.TextSize = 15
+FpsText.Font = Enum.Font.GothamMedium
+FpsText.ZIndex = 10
+FpsText.Parent = Screen
+
+local FpsStroke = Instance.new("UIStroke")
+FpsStroke.Color = Color3.new(0, 0, 0)
+FpsStroke.Thickness = 1.2
+FpsStroke.Transparency = 0.25
+FpsStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+FpsStroke.Parent = FpsText
+
+do
+    local fpsDragging = false
+    local fpsInput, fpsStart, fpsPos
+
+    FpsText.InputBegan:Connect(function(input)
+        if isPointer(input) then
+            fpsDragging = true
+            fpsInput = input
+            fpsStart = input.Position
+            fpsPos = FpsText.Position
+        end
+    end)
+
+    track(UserInputService.InputChanged:Connect(function(input)
+        if fpsDragging and (input == fpsInput
+            or input.UserInputType == Enum.UserInputType.MouseMovement) then
+            local delta = input.Position - fpsStart
+            FpsText.Position = UDim2.new(
+                fpsPos.X.Scale, fpsPos.X.Offset + delta.X,
+                fpsPos.Y.Scale, fpsPos.Y.Offset + delta.Y
+            )
+        end
+    end))
+
+    track(UserInputService.InputEnded:Connect(function(input)
+        if isPointer(input) then
+            fpsDragging = false
+        end
+    end))
+end
+
+local frameCount = 0
+track(RunService.RenderStepped:Connect(function()
+    frameCount += 1
+end))
+
+task.spawn(function()
+    local last = os.clock()
+    while Screen.Parent do
+        task.wait(0.5)
+        local now = os.clock()
+        local fps = math.floor(frameCount / (now - last) + 0.5)
+        frameCount = 0
+        last = now
+        FpsText.Text = "FPS " .. fps
+    end
+end)
+
+--==================================================
+-- LED COLOR CYCLE (solo con el menú abierto)
 --==================================================
 
 local LedColors = {C.Red, C.Blue, C.Cyan}
@@ -1019,7 +1539,7 @@ local colorIndex = 1
 
 task.spawn(function()
     while Screen.Parent do
-        if ledEnabled then
+        if ledEnabled and Open then
             colorIndex = colorIndex % #LedColors + 1
             local nextColor = LedColors[colorIndex]
 
@@ -1028,7 +1548,7 @@ task.spawn(function()
             tween(TitleStroke, {Color = nextColor}, 0.8)
         end
 
-        task.wait(0.8)
+        task.wait(1)
     end
 end)
 
@@ -1040,11 +1560,15 @@ Screen.Destroying:Connect(function()
     snakeRunning = false
     camLockEnabled = false
     flyEnabled = false
+    espEnabled = false
+    setWalkEnabled(false)
+    setFpsBoost(false)
     stopFly()
-    pcall(function() RunService:UnbindFromRenderStep("TargetCamera") end)
-    for plr in pairs(playerHighlightObjects) do
-        removeESP(plr)
+    for _, conn in ipairs(connections) do
+        pcall(function() conn:Disconnect() end)
     end
+    pcall(function() RunService:UnbindFromRenderStep("TargetCamera") end)
+    clearESP()
     releaseCamLock()
 end)
 
