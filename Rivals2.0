@@ -589,11 +589,22 @@ local function getCharacterParts()
 end
 
 --==================================================
--- ESP (azul neón + nombre / vida / distancia arcoíris)
+-- ESP (luz azul neón + nombre / vida / distancia)
 --==================================================
 
 local NEON_BLUE = Color3.fromRGB(0, 140, 255)
 local NEON_BLUE_OUTLINE = Color3.fromRGB(0, 230, 255)
+local NAME_COLOR = Color3.fromRGB(0, 235, 255)
+local DIST_HEX = "C4D0E4"
+
+local function healthColor(ratio)
+    if ratio > 0.6 then
+        return Color3.fromRGB(60, 255, 120)
+    elseif ratio > 0.3 then
+        return Color3.fromRGB(255, 220, 60)
+    end
+    return Color3.fromRGB(255, 70, 90)
+end
 
 local function removeESP(plr)
     local data = espObjects[plr]
@@ -627,7 +638,7 @@ local function applyESP(plr)
 
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "EfrenESP"
-    billboard.Size = UDim2.fromOffset(150, 44)
+    billboard.Size = UDim2.fromOffset(160, 46)
     billboard.StudsOffset = Vector3.new(0, 3.2, 0)
     billboard.AlwaysOnTop = true
     billboard.LightInfluence = 0
@@ -635,20 +646,40 @@ local function applyESP(plr)
     billboard.Parent = Workspace
 
     local text = Instance.new("TextLabel")
-    text.Size = UDim2.fromScale(1, 1)
+    text.Size = UDim2.new(1, 0, 0, 34)
     text.BackgroundTransparency = 1
-    text.Font = Enum.Font.GothamBlack
-    text.TextSize = 13
-    text.TextStrokeTransparency = 0
+    text.Font = Enum.Font.GothamBold
+    text.TextSize = 12
+    text.RichText = true
+    text.TextColor3 = NAME_COLOR
+    text.TextStrokeTransparency = 0.3
     text.TextStrokeColor3 = Color3.new(0, 0, 0)
-    text.TextColor3 = C.Cyan
+    text.TextYAlignment = Enum.TextYAlignment.Bottom
     text.Text = plr.Name
     text.Parent = billboard
+
+    local barBack = Instance.new("Frame")
+    barBack.AnchorPoint = Vector2.new(0.5, 0)
+    barBack.Position = UDim2.new(0.5, 0, 0, 38)
+    barBack.Size = UDim2.new(0.7, 0, 0, 5)
+    barBack.BackgroundColor3 = Color3.fromRGB(10, 14, 24)
+    barBack.BackgroundTransparency = 0.2
+    barBack.BorderSizePixel = 0
+    barBack.Parent = billboard
+    corner(barBack, 3)
+
+    local barFill = Instance.new("Frame")
+    barFill.Size = UDim2.fromScale(1, 1)
+    barFill.BackgroundColor3 = Color3.fromRGB(60, 255, 120)
+    barFill.BorderSizePixel = 0
+    barFill.Parent = barBack
+    corner(barFill, 3)
 
     espObjects[plr] = {
         Highlight = highlight,
         Billboard = billboard,
         Label = text,
+        BarFill = barFill,
         Character = char
     }
 end
@@ -667,17 +698,14 @@ for _, plr in ipairs(Players:GetPlayers()) do
     hookPlayer(plr)
 end
 
--- Actualiza texto/colores y se autorepara si alguien resetea
+-- Actualiza textos y se autorepara si alguien resetea
 track(RunService.Heartbeat:Connect(function()
     if not espEnabled then return end
 
     local localRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    local t = os.clock()
-    local index = 0
 
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= player then
-            index += 1
             local char = plr.Character
             local data = espObjects[plr]
 
@@ -701,13 +729,21 @@ track(RunService.Heartbeat:Connect(function()
                     maxHp = math.max(1, math.floor(hum.MaxHealth + 0.5))
                 end
 
+                local ratio = math.clamp(hp / maxHp, 0, 1)
+                local hColor = healthColor(ratio)
+
                 local dist = 0
                 if root and localRoot then
                     dist = math.floor((root.Position - localRoot.Position).Magnitude + 0.5)
                 end
 
-                data.Label.Text = plr.Name .. "\nHP " .. hp .. "/" .. maxHp .. "  •  " .. dist .. "m"
-                data.Label.TextColor3 = Color3.fromHSV((t * 0.6 + index * 0.13) % 1, 1, 1)
+                data.Label.Text = string.format(
+                    '<b>%s</b>\n<font color="#%s">%d/%d HP</font>  <font color="#%s">•  %dm</font>',
+                    plr.Name, hColor:ToHex(), hp, maxHp, DIST_HEX, dist
+                )
+
+                data.BarFill.Size = UDim2.fromScale(ratio, 1)
+                data.BarFill.BackgroundColor3 = hColor
             end
         end
     end
@@ -807,31 +843,87 @@ track(RunService.Heartbeat:Connect(function()
 end))
 
 --==================================================
--- WALK SPEED
+-- WALK SPEED (refuerzo + respaldo si el juego lo resetea)
 --==================================================
 
-local function setWalkEnabled(value)
-    local _, hum = getCharacterParts()
-    if value then
-        if hum and not walkEnabled then
-            defaultWalkSpeed = hum.WalkSpeed
-        end
-        walkEnabled = true
-    else
-        if walkEnabled and hum then
-            hum.WalkSpeed = defaultWalkSpeed
-        end
-        walkEnabled = false
+local walkHumConn
+local walkReverts = 0
+local walkFallback = false
+
+local function unbindWalkHumanoid()
+    if walkHumConn then
+        walkHumConn:Disconnect()
+        walkHumConn = nil
     end
 end
 
-track(RunService.Heartbeat:Connect(function()
-    if not walkEnabled then return end
+local function bindWalkHumanoid(hum)
+    unbindWalkHumanoid()
+    if not hum then return end
+    walkHumConn = hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+        if walkEnabled and hum.WalkSpeed ~= walkSpeed then
+            walkReverts += 1
+            hum.WalkSpeed = walkSpeed
+        end
+    end)
+end
+
+local function setWalkEnabled(value)
     local _, hum = getCharacterParts()
-    if hum and hum.WalkSpeed ~= walkSpeed then
+
+    if value then
+        if hum and not walkEnabled and hum.WalkSpeed ~= walkSpeed then
+            defaultWalkSpeed = hum.WalkSpeed
+        end
+        walkEnabled = true
+        walkReverts = 0
+        bindWalkHumanoid(hum)
+        if hum then hum.WalkSpeed = walkSpeed end
+    else
+        walkEnabled = false
+        walkFallback = false
+        unbindWalkHumanoid()
+        if hum then hum.WalkSpeed = defaultWalkSpeed end
+    end
+end
+
+-- Reaplica al reaparecer
+track(player.CharacterAdded:Connect(function(char)
+    local hum = char:WaitForChild("Humanoid", 10)
+    if walkEnabled and hum then
+        bindWalkHumanoid(hum)
         hum.WalkSpeed = walkSpeed
     end
 end))
+
+track(RunService.Heartbeat:Connect(function(dt)
+    if not walkEnabled then return end
+
+    local root, hum = getCharacterParts()
+    if not root or not hum then return end
+
+    if hum.WalkSpeed ~= walkSpeed then
+        hum.WalkSpeed = walkSpeed
+    end
+
+    -- Respaldo: el juego pelea contra el WalkSpeed, sumamos lo que falta
+    if walkFallback and not flyEnabled and hum.MoveDirection.Magnitude > 0.05 then
+        local vel = root.AssemblyLinearVelocity
+        local horizontal = Vector3.new(vel.X, 0, vel.Z).Magnitude
+        local extra = walkSpeed - horizontal
+        if extra > 1 then
+            root.CFrame = root.CFrame + hum.MoveDirection * extra * dt
+        end
+    end
+end))
+
+task.spawn(function()
+    while Screen.Parent do
+        task.wait(1)
+        walkFallback = walkEnabled and walkReverts >= 15
+        walkReverts = 0
+    end
+end)
 
 --==================================================
 -- INFINITE JUMP
@@ -1319,26 +1411,28 @@ Close.Activated:Connect(function()
 end)
 
 --==================================================
--- BOTÓN DE FPS (arrastrable, arcoíris neón cada segundo)
+-- BOTÓN DE FPS (ancho, arrastrable, neón cada segundo)
 --==================================================
 
 local FpsButton = Instance.new("TextButton")
 FpsButton.Name = "FpsButton"
-FpsButton.Size = UDim2.fromOffset(78, 30)
-FpsButton.Position = UDim2.new(0.5, -39, 0, 8)
+FpsButton.Size = UDim2.fromOffset(124, 28)
+FpsButton.Position = UDim2.new(0.5, -62, 0, 8)
 FpsButton.BackgroundColor3 = C.Dark
 FpsButton.BackgroundTransparency = 0.1
-FpsButton.Text = "-- FPS"
-FpsButton.TextColor3 = C.Cyan
+FpsButton.RichText = true
+FpsButton.Text = '<font color="#9AA9C0">FPS</font>  <font color="#00EBFF">--</font>'
+FpsButton.TextColor3 = C.White
 FpsButton.TextSize = 13
-FpsButton.Font = Enum.Font.GothamBlack
+FpsButton.Font = Enum.Font.GothamBold
+FpsButton.TextXAlignment = Enum.TextXAlignment.Center
 FpsButton.AutoButtonColor = false
 FpsButton.ZIndex = 10
 FpsButton.Parent = Screen
-corner(FpsButton, 10)
+corner(FpsButton, 9)
 
 local FpsStroke = Instance.new("UIStroke")
-FpsStroke.Thickness = 2
+FpsStroke.Thickness = 1.6
 FpsStroke.Color = C.Cyan
 FpsStroke.Parent = FpsButton
 
@@ -1388,8 +1482,10 @@ task.spawn(function()
         hue = (hue + 0.17) % 1
         local color = Color3.fromHSV(hue, 1, 1)
 
-        FpsButton.Text = fps .. " FPS"
-        tween(FpsButton, {TextColor3 = color}, 0.3)
+        FpsButton.Text = string.format(
+            '<font color="#9AA9C0">FPS</font>  <font color="#%s">%d</font>',
+            color:ToHex(), fps
+        )
         tween(FpsStroke, {Color = color}, 0.3)
     end
 end)
