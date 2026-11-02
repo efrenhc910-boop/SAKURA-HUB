@@ -550,18 +550,31 @@ end
 
 print("[EfrenHub] parte 1 lista")
 --==================================================
--- VARIABLES
+-- PARTE 2: LÓGICA (ESP / CAMLOCK / FLY / WALK / FPS BOOST)
 --==================================================
+
+local Lighting = game:GetService("Lighting")
 
 local espEnabled = false
 local camLockEnabled = false
 local infiniteJumpEnabled = false
 local flyEnabled = false
+local walkEnabled = false
 local ledEnabled = true
 local snakeEnabled = true
+local fpsBoostEnabled = false
 local flySpeed = 60
+local walkSpeed = 32
+local defaultWalkSpeed = 16
 local selectedTarget = nil
-local playerHighlightObjects = {}
+
+local espObjects = {}
+local connections = {}
+
+local function track(conn)
+    connections[#connections + 1] = conn
+    return conn
+end
 
 local function getCamera()
     return Workspace.CurrentCamera
@@ -576,30 +589,68 @@ local function getCharacterParts()
 end
 
 --==================================================
--- ESP
+-- ESP (azul neón + nombre / vida / distancia arcoíris)
 --==================================================
 
+local NEON_BLUE = Color3.fromRGB(0, 140, 255)
+local NEON_BLUE_OUTLINE = Color3.fromRGB(0, 230, 255)
+
 local function removeESP(plr)
-    local h = playerHighlightObjects[plr]
-    if h then
-        h:Destroy()
-        playerHighlightObjects[plr] = nil
+    local data = espObjects[plr]
+    if data then
+        if data.Highlight then data.Highlight:Destroy() end
+        if data.Billboard then data.Billboard:Destroy() end
+        espObjects[plr] = nil
+    end
+end
+
+local function clearESP()
+    for plr in pairs(espObjects) do
+        removeESP(plr)
     end
 end
 
 local function applyESP(plr)
-    if plr == player or not plr.Character then return end
+    if plr == player then return end
+    local char = plr.Character
+    if not char then return end
     removeESP(plr)
 
     local highlight = Instance.new("Highlight")
-    highlight.Adornee = plr.Character
-    highlight.FillColor = C.Cyan
-    highlight.OutlineColor = C.White
-    highlight.FillTransparency = 0.4
+    highlight.Adornee = char
+    highlight.FillColor = NEON_BLUE
+    highlight.OutlineColor = NEON_BLUE_OUTLINE
+    highlight.FillTransparency = 0.1
     highlight.OutlineTransparency = 0
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     highlight.Parent = Workspace
-    playerHighlightObjects[plr] = highlight
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "EfrenESP"
+    billboard.Size = UDim2.fromOffset(150, 44)
+    billboard.StudsOffset = Vector3.new(0, 3.2, 0)
+    billboard.AlwaysOnTop = true
+    billboard.LightInfluence = 0
+    billboard.Adornee = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
+    billboard.Parent = Workspace
+
+    local text = Instance.new("TextLabel")
+    text.Size = UDim2.fromScale(1, 1)
+    text.BackgroundTransparency = 1
+    text.Font = Enum.Font.GothamBlack
+    text.TextSize = 13
+    text.TextStrokeTransparency = 0
+    text.TextStrokeColor3 = Color3.new(0, 0, 0)
+    text.TextColor3 = C.Cyan
+    text.Text = plr.Name
+    text.Parent = billboard
+
+    espObjects[plr] = {
+        Highlight = highlight,
+        Billboard = billboard,
+        Label = text,
+        Character = char
+    }
 end
 
 local function hookPlayer(plr)
@@ -615,6 +666,52 @@ end
 for _, plr in ipairs(Players:GetPlayers()) do
     hookPlayer(plr)
 end
+
+-- Actualiza texto/colores y se autorepara si alguien resetea
+track(RunService.Heartbeat:Connect(function()
+    if not espEnabled then return end
+
+    local localRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    local t = os.clock()
+    local index = 0
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= player then
+            index += 1
+            local char = plr.Character
+            local data = espObjects[plr]
+
+            if char and (not data or data.Character ~= char) then
+                applyESP(plr)
+                data = espObjects[plr]
+            end
+
+            if data and char then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                local root = char:FindFirstChild("HumanoidRootPart")
+                local head = char:FindFirstChild("Head") or root
+
+                if head and data.Billboard.Adornee ~= head then
+                    data.Billboard.Adornee = head
+                end
+
+                local hp, maxHp = 0, 100
+                if hum then
+                    hp = math.max(0, math.floor(hum.Health + 0.5))
+                    maxHp = math.max(1, math.floor(hum.MaxHealth + 0.5))
+                end
+
+                local dist = 0
+                if root and localRoot then
+                    dist = math.floor((root.Position - localRoot.Position).Magnitude + 0.5)
+                end
+
+                data.Label.Text = plr.Name .. "\nHP " .. hp .. "/" .. maxHp .. "  •  " .. dist .. "m"
+                data.Label.TextColor3 = Color3.fromHSV((t * 0.6 + index * 0.13) % 1, 1, 1)
+            end
+        end
+    end
+end))
 
 --==================================================
 -- CAM LOCK (cámara + personaje apuntan al objetivo)
@@ -638,7 +735,6 @@ local function updateCamLock()
 
     local aimPos = targetRoot.Position + Vector3.new(0, 1.5, 0)
 
-    -- dirección horizontal hacia el objetivo
     local flat = Vector3.new(
         targetRoot.Position.X - root.Position.X,
         0,
@@ -647,12 +743,10 @@ local function updateCamLock()
     if flat.Magnitude < 0.5 then return end
     local dir = flat.Unit
 
-    -- cámara detrás de ti, en línea hacia el objetivo
     local camPos = root.Position - dir * 9 + Vector3.new(0, 3.5, 0)
     cam.CameraType = Enum.CameraType.Scriptable
     cam.CFrame = CFrame.lookAt(camPos, aimPos)
 
-    -- personaje (y lo que sostiene) gira hacia el objetivo
     if hum then hum.AutoRotate = false end
     root.CFrame = CFrame.lookAt(root.Position, root.Position + dir)
 end
@@ -664,7 +758,7 @@ RunService:BindToRenderStep(
 )
 
 --==================================================
--- FLY (joystick + dirección de la cámara)
+-- FLY
 --==================================================
 
 local flyBV
@@ -676,7 +770,7 @@ local function stopFly()
     end
 end
 
-RunService.Heartbeat:Connect(function()
+track(RunService.Heartbeat:Connect(function()
     if not flyEnabled then
         if flyBV then stopFly() end
         return
@@ -710,20 +804,220 @@ RunService.Heartbeat:Connect(function()
     end
 
     flyBV.Velocity = velocity
-end)
+end))
+
+--==================================================
+-- WALK SPEED
+--==================================================
+
+local function setWalkEnabled(value)
+    local _, hum = getCharacterParts()
+    if value then
+        if hum and not walkEnabled then
+            defaultWalkSpeed = hum.WalkSpeed
+        end
+        walkEnabled = true
+    else
+        if walkEnabled and hum then
+            hum.WalkSpeed = defaultWalkSpeed
+        end
+        walkEnabled = false
+    end
+end
+
+track(RunService.Heartbeat:Connect(function()
+    if not walkEnabled then return end
+    local _, hum = getCharacterParts()
+    if hum and hum.WalkSpeed ~= walkSpeed then
+        hum.WalkSpeed = walkSpeed
+    end
+end))
 
 --==================================================
 -- INFINITE JUMP
 --==================================================
 
-UserInputService.JumpRequest:Connect(function()
+track(UserInputService.JumpRequest:Connect(function()
     if infiniteJumpEnabled then
         local _, hum = getCharacterParts()
         if hum then
             hum:ChangeState(Enum.HumanoidStateType.Jumping)
         end
     end
-end)
+end))
+
+--==================================================
+-- FPS BOOST (gráficos mínimos, reversible)
+--==================================================
+
+local boostOriginals = {}
+local boostSettings = {}
+local boostConnection
+
+local function isCharacterPart(inst)
+    local model = inst:FindFirstAncestorOfClass("Model")
+    while model do
+        if model:FindFirstChildOfClass("Humanoid") then
+            return true
+        end
+        model = model:FindFirstAncestorOfClass("Model")
+    end
+    return false
+end
+
+local function boostInstance(inst)
+    if not fpsBoostEnabled then return end
+    if boostOriginals[inst] then return end
+
+    local saved
+    pcall(function()
+        if inst:IsA("Terrain") then
+            return
+        elseif inst:IsA("BasePart") then
+            if isCharacterPart(inst) then return end
+            saved = {
+                Material = inst.Material,
+                Reflectance = inst.Reflectance,
+                CastShadow = inst.CastShadow
+            }
+            inst.Material = Enum.Material.SmoothPlastic
+            inst.Reflectance = 0
+            inst.CastShadow = false
+            if inst:IsA("MeshPart") then
+                saved.TextureID = inst.TextureID
+                inst.TextureID = ""
+            end
+        elseif inst:IsA("Decal") then
+            if isCharacterPart(inst) then return end
+            saved = { Transparency = inst.Transparency }
+            inst.Transparency = 1
+        elseif inst:IsA("ParticleEmitter") or inst:IsA("Trail")
+            or inst:IsA("Smoke") or inst:IsA("Fire")
+            or inst:IsA("Sparkles") or inst:IsA("Beam")
+            or inst:IsA("Light") or inst:IsA("PostEffect") then
+            saved = { Enabled = inst.Enabled }
+            inst.Enabled = false
+        elseif inst:IsA("Atmosphere") then
+            saved = { Density = inst.Density, Haze = inst.Haze }
+            inst.Density = 0
+            inst.Haze = 0
+        elseif inst:IsA("SurfaceAppearance") then
+            saved = { Parent = inst.Parent }
+            inst.Parent = nil
+        end
+    end)
+
+    if saved then
+        boostOriginals[inst] = saved
+    end
+end
+
+local function restoreBoost()
+    for inst, saved in pairs(boostOriginals) do
+        pcall(function()
+            for prop, value in pairs(saved) do
+                inst[prop] = value
+            end
+        end)
+    end
+    boostOriginals = {}
+end
+
+local function applyGlobalBoost()
+    pcall(function()
+        boostSettings.Quality = settings().Rendering.QualityLevel
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+    end)
+    pcall(function()
+        boostSettings.GlobalShadows = Lighting.GlobalShadows
+        Lighting.GlobalShadows = false
+    end)
+    pcall(function()
+        local terrain = Workspace.Terrain
+        boostSettings.Terrain = {
+            WaterWaveSize = terrain.WaterWaveSize,
+            WaterWaveSpeed = terrain.WaterWaveSpeed,
+            WaterReflectance = terrain.WaterReflectance
+        }
+        terrain.WaterWaveSize = 0
+        terrain.WaterWaveSpeed = 0
+        terrain.WaterReflectance = 0
+    end)
+    pcall(function()
+        boostSettings.Decoration = Workspace.Terrain.Decoration
+        Workspace.Terrain.Decoration = false
+    end)
+end
+
+local function restoreGlobal()
+    pcall(function()
+        if boostSettings.Quality then
+            settings().Rendering.QualityLevel = boostSettings.Quality
+        end
+    end)
+    pcall(function()
+        if boostSettings.GlobalShadows ~= nil then
+            Lighting.GlobalShadows = boostSettings.GlobalShadows
+        end
+    end)
+    pcall(function()
+        if boostSettings.Terrain then
+            for prop, value in pairs(boostSettings.Terrain) do
+                Workspace.Terrain[prop] = value
+            end
+        end
+    end)
+    pcall(function()
+        if boostSettings.Decoration ~= nil then
+            Workspace.Terrain.Decoration = boostSettings.Decoration
+        end
+    end)
+    boostSettings = {}
+end
+
+local function setFpsBoost(enabled)
+    if enabled == fpsBoostEnabled then return end
+    fpsBoostEnabled = enabled
+
+    if enabled then
+        applyGlobalBoost()
+
+        if boostConnection then boostConnection:Disconnect() end
+        boostConnection = Workspace.DescendantAdded:Connect(function(inst)
+            if fpsBoostEnabled then
+                task.defer(boostInstance, inst)
+            end
+        end)
+
+        task.spawn(function()
+            for _, inst in ipairs(Lighting:GetChildren()) do
+                boostInstance(inst)
+            end
+
+            local count = 0
+            for _, inst in ipairs(Workspace:GetDescendants()) do
+                if not fpsBoostEnabled then return end
+                boostInstance(inst)
+                count += 1
+                if count % 300 == 0 then
+                    task.wait()
+                end
+            end
+        end)
+    else
+        if boostConnection then
+            boostConnection:Disconnect()
+            boostConnection = nil
+        end
+        restoreBoost()
+        restoreGlobal()
+    end
+end
+
+print("[EfrenHub] parte 2 lista")
+--==================================================
+-- PARTE 3: PÁGINAS, BOTONES Y EXTRAS
+--==================================================
 
 --==================================================
 -- PÁGINA: FUNCIONES
@@ -731,16 +1025,14 @@ end)
 
 createSection(FunctionPage, "FUNCIONES PRINCIPALES")
 
-createButton(FunctionPage, "ESP Player", "Resalta jugadores a través de paredes", function(enabled)
+createButton(FunctionPage, "ESP Player", "Luz azul neón + nombre, vida y distancia", function(enabled)
     espEnabled = enabled
     if espEnabled then
         for _, plr in ipairs(Players:GetPlayers()) do
             applyESP(plr)
         end
     else
-        for plr in pairs(playerHighlightObjects) do
-            removeESP(plr)
-        end
+        clearESP()
     end
 end)
 
@@ -762,6 +1054,10 @@ end)
 createButton(FunctionPage, "Fly", "Vuela con el joystick hacia donde miras", function(enabled)
     flyEnabled = enabled
     if not flyEnabled then stopFly() end
+end)
+
+createButton(FunctionPage, "Walk Speed", "Camina más rápido (ajusta en Configuración)", function(enabled)
+    setWalkEnabled(enabled)
 end)
 
 createButton(FunctionPage, "Infinite Jump", "Salta sin parar en el aire", function(enabled)
@@ -857,12 +1153,12 @@ end)
 
 updatePlayerList()
 
-Players.PlayerAdded:Connect(function(plr)
+track(Players.PlayerAdded:Connect(function(plr)
     hookPlayer(plr)
     updatePlayerList(searchBar.Text)
-end)
+end))
 
-Players.PlayerRemoving:Connect(function(plr)
+track(Players.PlayerRemoving:Connect(function(plr)
     removeESP(plr)
     if selectedTarget == plr then
         selectedTarget = nil
@@ -874,7 +1170,7 @@ Players.PlayerRemoving:Connect(function(plr)
     task.defer(function()
         updatePlayerList(searchBar.Text)
     end)
-end)
+end))
 
 --==================================================
 -- PÁGINA: CONFIGURACIÓN
@@ -891,6 +1187,18 @@ createSlider(SettingsPage, "Velocidad de Fly", 20, 150, 60,
     function(v) return tostring(math.floor(v + 0.5)) end,
     function(v) flySpeed = v end
 )
+
+createSlider(SettingsPage, "Velocidad de caminar", 16, 200, 32,
+    function(v) return tostring(math.floor(v + 0.5)) end,
+    function(v) walkSpeed = v end
+)
+
+createSection(SettingsPage, "OPCIONES")
+
+createButton(SettingsPage, "FPS Boost", "Gráficos mínimos, todo simple y sin detalles", function(enabled)
+    setFpsBoost(enabled)
+    Status.Text = enabled and "FPS Boost activado" or "FPS Boost desactivado"
+end)
 
 local _, _, setLed = createButton(SettingsPage, "Efectos LED", "Colores animados en los bordes", function(enabled)
     ledEnabled = enabled
@@ -1011,6 +1319,82 @@ Close.Activated:Connect(function()
 end)
 
 --==================================================
+-- BOTÓN DE FPS (arrastrable, arcoíris neón cada segundo)
+--==================================================
+
+local FpsButton = Instance.new("TextButton")
+FpsButton.Name = "FpsButton"
+FpsButton.Size = UDim2.fromOffset(78, 30)
+FpsButton.Position = UDim2.new(0.5, -39, 0, 8)
+FpsButton.BackgroundColor3 = C.Dark
+FpsButton.BackgroundTransparency = 0.1
+FpsButton.Text = "-- FPS"
+FpsButton.TextColor3 = C.Cyan
+FpsButton.TextSize = 13
+FpsButton.Font = Enum.Font.GothamBlack
+FpsButton.AutoButtonColor = false
+FpsButton.ZIndex = 10
+FpsButton.Parent = Screen
+corner(FpsButton, 10)
+
+local FpsStroke = Instance.new("UIStroke")
+FpsStroke.Thickness = 2
+FpsStroke.Color = C.Cyan
+FpsStroke.Parent = FpsButton
+
+do
+    local fpsDragging = false
+    local fpsInput, fpsStart, fpsPos
+
+    FpsButton.InputBegan:Connect(function(input)
+        if isPointer(input) then
+            fpsDragging = true
+            fpsInput = input
+            fpsStart = input.Position
+            fpsPos = FpsButton.Position
+        end
+    end)
+
+    track(UserInputService.InputChanged:Connect(function(input)
+        if fpsDragging and (input == fpsInput
+            or input.UserInputType == Enum.UserInputType.MouseMovement) then
+            local delta = input.Position - fpsStart
+            FpsButton.Position = UDim2.new(
+                fpsPos.X.Scale, fpsPos.X.Offset + delta.X,
+                fpsPos.Y.Scale, fpsPos.Y.Offset + delta.Y
+            )
+        end
+    end))
+
+    track(UserInputService.InputEnded:Connect(function(input)
+        if isPointer(input) then
+            fpsDragging = false
+        end
+    end))
+end
+
+local frameCount = 0
+track(RunService.RenderStepped:Connect(function()
+    frameCount += 1
+end))
+
+task.spawn(function()
+    local hue = 0
+    while Screen.Parent do
+        task.wait(1)
+        local fps = frameCount
+        frameCount = 0
+
+        hue = (hue + 0.17) % 1
+        local color = Color3.fromHSV(hue, 1, 1)
+
+        FpsButton.Text = fps .. " FPS"
+        tween(FpsButton, {TextColor3 = color}, 0.3)
+        tween(FpsStroke, {Color = color}, 0.3)
+    end
+end)
+
+--==================================================
 -- LED COLOR CYCLE
 --==================================================
 
@@ -1040,11 +1424,15 @@ Screen.Destroying:Connect(function()
     snakeRunning = false
     camLockEnabled = false
     flyEnabled = false
+    espEnabled = false
+    setWalkEnabled(false)
+    setFpsBoost(false)
     stopFly()
-    pcall(function() RunService:UnbindFromRenderStep("TargetCamera") end)
-    for plr in pairs(playerHighlightObjects) do
-        removeESP(plr)
+    for _, conn in ipairs(connections) do
+        pcall(function() conn:Disconnect() end)
     end
+    pcall(function() RunService:UnbindFromRenderStep("TargetCamera") end)
+    clearESP()
     releaseCamLock()
 end)
 
