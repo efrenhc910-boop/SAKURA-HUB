@@ -635,3 +635,555 @@ local function createChoice(page, name, options, default, callback)
 end
 
 print("[EfrenHub] parte 1 lista")
+--==================================================
+--         EFRÉN HUB  •  PARTE 2 / 3  (LÓGICA)
+--==================================================
+
+local S = {
+    esp = false, camLock = false, infJump = false, fly = false,
+    walk = false, noclip = false, boost = false,
+    flySpeed = 60, walkSpeed = 32, defWalk = 16, target = nil,
+}
+local flyInput = { up = false, down = false }
+
+local function getCamera()
+    return Workspace.CurrentCamera
+end
+
+local function getParts()
+    local char = player.Character
+    if not char then return nil end
+    return char:FindFirstChild("HumanoidRootPart"), char:FindFirstChildOfClass("Humanoid"), char
+end
+
+--==================================================
+-- ESP (luz azul neón + nombre / barra de vida / distancia)
+--==================================================
+
+local ESP = {
+    blue = Color3.fromRGB(0, 140, 255),
+    cyan = Color3.fromRGB(0, 230, 255),
+    ok = ColorSequence.new(Color3.fromRGB(0, 120, 255), Color3.fromRGB(0, 235, 255)),
+    low = ColorSequence.new(Color3.fromRGB(255, 40, 70), Color3.fromRGB(255, 150, 40)),
+}
+local espObjects = {}
+
+local function removeESP(plr)
+    local d = espObjects[plr]
+    if d then
+        if d.hl then d.hl:Destroy() end
+        if d.bb then d.bb:Destroy() end
+        espObjects[plr] = nil
+    end
+end
+
+local function clearESP()
+    for plr in pairs(espObjects) do removeESP(plr) end
+end
+
+local function espText(parent, size, font, color, pos, sz)
+    local l = Instance.new("TextLabel")
+    l.BackgroundTransparency = 1
+    l.Font = font
+    l.TextSize = size
+    l.TextColor3 = color
+    l.TextStrokeTransparency = 0.25
+    l.TextStrokeColor3 = Color3.new(0, 0, 0)
+    l.Position = pos
+    l.Size = sz
+    l.Parent = parent
+    return l
+end
+
+local function applyESP(plr)
+    if plr == player then return end
+    local char = plr.Character
+    if not char then return end
+    removeESP(plr)
+
+    local hl = Instance.new("Highlight")
+    hl.Adornee = char
+    hl.FillColor = ESP.blue
+    hl.OutlineColor = ESP.cyan
+    hl.FillTransparency = 0.1
+    hl.OutlineTransparency = 0
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.Parent = Workspace
+
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "EfrenESP"
+    bb.Size = UDim2.fromOffset(150, 46)
+    bb.StudsOffset = Vector3.new(0, 3.1, 0)
+    bb.AlwaysOnTop = true
+    bb.LightInfluence = 0
+    bb.Adornee = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
+    bb.Parent = Workspace
+
+    local nameL = espText(bb, 12, Enum.Font.GothamBold, Color3.fromRGB(0, 235, 255),
+        UDim2.fromOffset(0, 0), UDim2.new(1, 0, 0, 14))
+    nameL.Text = plr.Name
+
+    local bar = Instance.new("Frame")
+    bar.AnchorPoint = Vector2.new(0.5, 0)
+    bar.Position = UDim2.new(0.5, 0, 0, 16)
+    bar.Size = UDim2.new(0.9, 0, 0, 13)
+    bar.BackgroundColor3 = Color3.fromRGB(3, 8, 22)
+    bar.BackgroundTransparency = 0.1
+    bar.BorderSizePixel = 0
+    bar.Parent = bb
+    corner(bar, 4)
+
+    local bs = Instance.new("UIStroke")
+    bs.Color = ESP.cyan
+    bs.Thickness = 1.4
+    bs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    bs.Parent = bar
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.fromScale(1, 1)
+    fill.BackgroundColor3 = Color3.new(1, 1, 1)
+    fill.BorderSizePixel = 0
+    fill.Parent = bar
+    corner(fill, 4)
+
+    local grad = Instance.new("UIGradient")
+    grad.Color = ESP.ok
+    grad.Parent = fill
+
+    for i = 1, 3 do
+        local tk = Instance.new("Frame")
+        tk.Size = UDim2.new(0, 1, 1, 0)
+        tk.Position = UDim2.fromScale(i / 4, 0)
+        tk.BackgroundColor3 = Color3.new(0, 0, 0)
+        tk.BackgroundTransparency = 0.45
+        tk.BorderSizePixel = 0
+        tk.ZIndex = 2
+        tk.Parent = bar
+    end
+
+    local hpL = espText(bar, 9, Enum.Font.GothamBlack, Color3.new(1, 1, 1), UDim2.new(), UDim2.fromScale(1, 1))
+    hpL.ZIndex = 3
+    hpL.TextStrokeTransparency = 0.1
+
+    local distL = espText(bb, 9, Enum.Font.GothamMedium, Color3.fromRGB(150, 200, 255),
+        UDim2.fromOffset(0, 31), UDim2.new(1, 0, 0, 12))
+
+    espObjects[plr] = {
+        hl = hl, bb = bb, fill = fill, grad = grad, hpL = hpL, distL = distL,
+        char = char, hp = -1, mx = -1, dist = -1, low = false,
+    }
+end
+
+local function hookPlayer(plr)
+    if plr == player then return end
+    plr.CharacterAdded:Connect(function()
+        if S.esp then
+            task.wait(1)
+            if S.esp then applyESP(plr) end
+        end
+    end)
+end
+
+do
+    local acc = 0
+    track(RunService.Heartbeat:Connect(function(dt)
+        if not S.esp then return end
+        acc += dt
+        if acc < 0.1 then return end
+        acc = 0
+
+        local lr = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= player then
+                local char = plr.Character
+                local d = espObjects[plr]
+
+                if char and (not d or d.char ~= char) then
+                    applyESP(plr)
+                    d = espObjects[plr]
+                end
+
+                if d and char then
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+                    local root = char:FindFirstChild("HumanoidRootPart")
+                    local head = char:FindFirstChild("Head") or root
+                    if head and d.bb.Adornee ~= head then d.bb.Adornee = head end
+
+                    local hp, mx = 0, 100
+                    if hum then
+                        hp = math.max(0, math.floor(hum.Health + 0.5))
+                        mx = math.max(1, math.floor(hum.MaxHealth + 0.5))
+                    end
+
+                    if d.hp ~= hp or d.mx ~= mx then
+                        d.hp, d.mx = hp, mx
+                        local ratio = math.clamp(hp / mx, 0, 1)
+                        d.fill.Size = UDim2.fromScale(ratio, 1)
+                        d.hpL.Text = "♥ " .. hp .. "/" .. mx
+                        local low = ratio < 0.3
+                        if d.low ~= low then
+                            d.low = low
+                            d.grad.Color = low and ESP.low or ESP.ok
+                        end
+                    end
+
+                    local dist = (root and lr) and math.floor((root.Position - lr.Position).Magnitude + 0.5) or 0
+                    if d.dist ~= dist then
+                        d.dist = dist
+                        d.distL.Text = dist .. " m"
+                    end
+                end
+            end
+        end
+    end))
+end
+
+for _, plr in ipairs(Players:GetPlayers()) do
+    hookPlayer(plr)
+end
+
+--==================================================
+-- CAM LOCK (cámara + personaje apuntan al objetivo)
+--==================================================
+
+local function releaseCamLock()
+    local cam = getCamera()
+    if cam then cam.CameraType = Enum.CameraType.Custom end
+    local _, hum = getParts()
+    if hum then hum.AutoRotate = true end
+end
+
+RunService:BindToRenderStep("TargetCamera", Enum.RenderPriority.Camera.Value + 1, function()
+    if not S.camLock or not S.target then return end
+
+    local tChar = S.target.Character
+    local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+    local root, hum = getParts()
+    local cam = getCamera()
+    if not tRoot or not root or not cam then return end
+
+    local flat = Vector3.new(tRoot.Position.X - root.Position.X, 0, tRoot.Position.Z - root.Position.Z)
+    if flat.Magnitude < 0.5 then return end
+    local dir = flat.Unit
+
+    cam.CameraType = Enum.CameraType.Scriptable
+    cam.CFrame = CFrame.lookAt(root.Position - dir * 9 + Vector3.new(0, 3.5, 0), tRoot.Position + Vector3.new(0, 1.5, 0))
+
+    if hum then hum.AutoRotate = false end
+    root.CFrame = CFrame.lookAt(root.Position, root.Position + dir)
+end)
+
+--==================================================
+-- FLY (joystick + botones subir / bajar)
+--==================================================
+
+local flyBV
+
+local function stopFly()
+    if flyBV then
+        flyBV:Destroy()
+        flyBV = nil
+    end
+end
+
+track(RunService.Heartbeat:Connect(function()
+    if not S.fly then
+        if flyBV then stopFly() end
+        return
+    end
+
+    local root, hum = getParts()
+    local cam = getCamera()
+    if not root or not hum or not cam then
+        stopFly()
+        return
+    end
+
+    if not flyBV or flyBV.Parent ~= root then
+        stopFly()
+        flyBV = Instance.new("BodyVelocity")
+        flyBV.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+        flyBV.Velocity = Vector3.zero
+        flyBV.Parent = root
+    end
+
+    local move = hum.MoveDirection
+    local velocity = Vector3.zero
+
+    if move.Magnitude > 0.05 then
+        local rel = cam.CFrame:VectorToObjectSpace(move)
+        local dir = cam.CFrame.LookVector * (-rel.Z) + cam.CFrame.RightVector * rel.X
+        if dir.Magnitude > 0.01 then
+            velocity = dir.Unit * move.Magnitude * S.flySpeed
+        end
+    end
+
+    local vertical = (flyInput.up and 1 or 0) - (flyInput.down and 1 or 0)
+    if vertical ~= 0 then
+        velocity += Vector3.new(0, vertical * S.flySpeed, 0)
+    end
+
+    flyBV.Velocity = velocity
+end))
+
+--==================================================
+-- NOCLIP
+--==================================================
+
+local setNoclip
+do
+    local parts, orig, refreshAt = {}, {}, 0
+
+    local function collect()
+        table.clear(parts)
+        local char = player.Character
+        if not char then return end
+        for _, d in ipairs(char:GetDescendants()) do
+            if d:IsA("BasePart") then parts[#parts + 1] = d end
+        end
+    end
+
+    setNoclip = function(enabled)
+        S.noclip = enabled
+        if not enabled then
+            for p in pairs(orig) do
+                if p.Parent then p.CanCollide = true end
+            end
+            table.clear(orig)
+        else
+            refreshAt = 0
+        end
+    end
+
+    track(RunService.Stepped:Connect(function()
+        if not S.noclip then return end
+        local now = os.clock()
+        if now >= refreshAt then
+            refreshAt = now + 1
+            collect()
+        end
+        for i = 1, #parts do
+            local p = parts[i]
+            if p.Parent and p.CanCollide then
+                orig[p] = true
+                p.CanCollide = false
+            end
+        end
+    end))
+
+    track(player.CharacterAdded:Connect(function()
+        table.clear(orig)
+        refreshAt = 0
+    end))
+end
+
+--==================================================
+-- WALK SPEED (con límite anti-bucle)
+--==================================================
+
+local setWalkEnabled
+do
+    local humConn, reverts, fallback = nil, 0, false
+
+    local function unbind()
+        if humConn then
+            humConn:Disconnect()
+            humConn = nil
+        end
+    end
+
+    local function bindHum(hum)
+        unbind()
+        if not hum then return end
+        humConn = hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+            if S.walk and hum.WalkSpeed ~= S.walkSpeed and reverts < 20 then
+                reverts += 1
+                hum.WalkSpeed = S.walkSpeed
+            end
+        end)
+    end
+
+    setWalkEnabled = function(value)
+        local _, hum = getParts()
+        if value then
+            if hum and not S.walk and hum.WalkSpeed ~= S.walkSpeed then
+                S.defWalk = hum.WalkSpeed
+            end
+            S.walk = true
+            reverts = 0
+            bindHum(hum)
+            if hum then hum.WalkSpeed = S.walkSpeed end
+        else
+            S.walk = false
+            fallback = false
+            unbind()
+            if hum then hum.WalkSpeed = S.defWalk end
+        end
+    end
+
+    track(player.CharacterAdded:Connect(function(char)
+        local hum = char:WaitForChild("Humanoid", 10)
+        if S.walk and hum then
+            bindHum(hum)
+            hum.WalkSpeed = S.walkSpeed
+        end
+    end))
+
+    track(RunService.Heartbeat:Connect(function(dt)
+        if not S.walk then return end
+        local root, hum = getParts()
+        if not root or not hum then return end
+
+        if hum.WalkSpeed ~= S.walkSpeed then hum.WalkSpeed = S.walkSpeed end
+
+        if fallback and not S.fly and hum.MoveDirection.Magnitude > 0.05 then
+            local v = root.AssemblyLinearVelocity
+            local extra = S.walkSpeed - Vector3.new(v.X, 0, v.Z).Magnitude
+            if extra > 1 then
+                root.CFrame = root.CFrame + hum.MoveDirection * extra * dt
+            end
+        end
+    end))
+
+    task.spawn(function()
+        while Screen.Parent do
+            task.wait(1)
+            fallback = S.walk and reverts >= 15
+            reverts = 0
+        end
+    end)
+end
+
+--==================================================
+-- INFINITE JUMP
+--==================================================
+
+track(UserInputService.JumpRequest:Connect(function()
+    if S.infJump then
+        local _, hum = getParts()
+        if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+    end
+end))
+
+--==================================================
+-- FPS BOOST (gráficos mínimos, reversible)
+--==================================================
+
+local setFpsBoost
+do
+    local orig, glob, conn = {}, {}, nil
+
+    local function inCharacter(inst)
+        local m = inst:FindFirstAncestorOfClass("Model")
+        while m do
+            if m:FindFirstChildOfClass("Humanoid") then return true end
+            m = m:FindFirstAncestorOfClass("Model")
+        end
+        return false
+    end
+
+    local function boost(inst)
+        if not S.boost or orig[inst] then return end
+        local saved
+        pcall(function()
+            if inst:IsA("Terrain") then
+                return
+            elseif inst:IsA("BasePart") then
+                if inCharacter(inst) then return end
+                saved = { Material = inst.Material, Reflectance = inst.Reflectance, CastShadow = inst.CastShadow }
+                inst.Material = Enum.Material.SmoothPlastic
+                inst.Reflectance = 0
+                inst.CastShadow = false
+                if inst:IsA("MeshPart") then
+                    saved.TextureID = inst.TextureID
+                    inst.TextureID = ""
+                end
+            elseif inst:IsA("Decal") then
+                if inCharacter(inst) then return end
+                saved = { Transparency = inst.Transparency }
+                inst.Transparency = 1
+            elseif inst:IsA("ParticleEmitter") or inst:IsA("Trail") or inst:IsA("Smoke")
+                or inst:IsA("Fire") or inst:IsA("Sparkles") or inst:IsA("Beam")
+                or inst:IsA("Light") or inst:IsA("PostEffect") then
+                saved = { Enabled = inst.Enabled }
+                inst.Enabled = false
+            elseif inst:IsA("Atmosphere") then
+                saved = { Density = inst.Density, Haze = inst.Haze }
+                inst.Density = 0
+                inst.Haze = 0
+            elseif inst:IsA("SurfaceAppearance") then
+                saved = { Parent = inst.Parent }
+                inst.Parent = nil
+            end
+        end)
+        if saved then orig[inst] = saved end
+    end
+
+    local function applyGlobal()
+        pcall(function()
+            glob.Quality = settings().Rendering.QualityLevel
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        end)
+        pcall(function()
+            glob.Shadows = Lighting.GlobalShadows
+            Lighting.GlobalShadows = false
+        end)
+        pcall(function()
+            local t = Workspace.Terrain
+            glob.Terrain = { WaterWaveSize = t.WaterWaveSize, WaterWaveSpeed = t.WaterWaveSpeed, WaterReflectance = t.WaterReflectance }
+            t.WaterWaveSize, t.WaterWaveSpeed, t.WaterReflectance = 0, 0, 0
+            glob.Decoration = t.Decoration
+            t.Decoration = false
+        end)
+    end
+
+    local function restoreGlobal()
+        pcall(function() if glob.Quality then settings().Rendering.QualityLevel = glob.Quality end end)
+        pcall(function() if glob.Shadows ~= nil then Lighting.GlobalShadows = glob.Shadows end end)
+        pcall(function()
+            if glob.Terrain then
+                for k, v in pairs(glob.Terrain) do Workspace.Terrain[k] = v end
+            end
+            if glob.Decoration ~= nil then Workspace.Terrain.Decoration = glob.Decoration end
+        end)
+        glob = {}
+    end
+
+    setFpsBoost = function(enabled)
+        if enabled == S.boost then return end
+        S.boost = enabled
+
+        if enabled then
+            applyGlobal()
+            if conn then conn:Disconnect() end
+            conn = Workspace.DescendantAdded:Connect(function(inst)
+                if S.boost then task.defer(boost, inst) end
+            end)
+            task.spawn(function()
+                for _, inst in ipairs(Lighting:GetChildren()) do boost(inst) end
+                local n = 0
+                for _, inst in ipairs(Workspace:GetDescendants()) do
+                    if not S.boost then return end
+                    boost(inst)
+                    n += 1
+                    if n % 300 == 0 then task.wait() end
+                end
+            end)
+        else
+            if conn then
+                conn:Disconnect()
+                conn = nil
+            end
+            for inst, saved in pairs(orig) do
+                pcall(function()
+                    for prop, value in pairs(saved) do inst[prop] = value end
+                end)
+            end
+            orig = {}
+            restoreGlobal()
+        end
+    end
+end
+
+print("[EfrenHub] parte 2 lista")
