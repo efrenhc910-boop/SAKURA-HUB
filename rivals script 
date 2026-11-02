@@ -1187,3 +1187,528 @@ do
 end
 
 print("[EfrenHub] parte 2 lista")
+--==================================================
+--    EFRÉN HUB  •  PARTE 3 / 3  (PÁGINAS Y EXTRAS)
+--==================================================
+
+local FunctionPage = addTab("Funciones")
+local ListPage = addTab("Lista")
+local SettingsPage = addTab("Configuración")
+
+--==================================================
+-- BOTONES DE FLY ▲ ▼ (solo con Fly activo, arcoíris neón)
+--==================================================
+
+UI.padItems = {}
+local heldInputs = {}
+
+do
+    local PAD_BG = Color3.fromRGB(8, 12, 30)
+    local PAD_ON = Color3.fromRGB(38, 46, 92)
+
+    local pad = Instance.new("Frame")
+    pad.Name = "FlyPad"
+    pad.Size = UDim2.fromOffset(54, 138)
+    pad.Position = UDim2.new(1, -76, 0.5, -69)
+    pad.BackgroundTransparency = 1
+    pad.Visible = false
+    pad.ZIndex = 10
+    pad.Parent = Screen
+    UI.flyPad = pad
+
+    local function styleItem(btn, strokeThickness, withText)
+        local s = Instance.new("UIStroke")
+        s.Thickness = strokeThickness
+        s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        s.Parent = btn
+        UI.padItems[#UI.padItems + 1] = { btn = btn, stroke = s, text = withText }
+    end
+
+    local handle = Instance.new("TextButton")
+    handle.Size = UDim2.fromOffset(54, 16)
+    handle.BackgroundColor3 = PAD_BG
+    handle.BackgroundTransparency = 0.15
+    handle.AutoButtonColor = false
+    handle.Text = "FLY"
+    handle.TextSize = 9
+    handle.Font = Enum.Font.GothamBlack
+    handle.ZIndex = 10
+    handle.Parent = pad
+    corner(handle, 8)
+    styleItem(handle, 1.4, true)
+
+    handle.InputBegan:Connect(function(input)
+        if isPointer(input) then
+            local startPos, startMouse = pad.Position, input.Position
+            beginDrag(input, function(i)
+                local d = i.Position - startMouse
+                pad.Position = UDim2.new(
+                    startPos.X.Scale, startPos.X.Offset + d.X,
+                    startPos.Y.Scale, startPos.Y.Offset + d.Y
+                )
+            end)
+        end
+    end)
+
+    local padBtns = {}
+    local function makePadButton(text, y, key)
+        local b = Instance.new("TextButton")
+        b.Size = UDim2.fromOffset(54, 54)
+        b.Position = UDim2.fromOffset(0, y)
+        b.BackgroundColor3 = PAD_BG
+        b.BackgroundTransparency = 0.2
+        b.AutoButtonColor = false
+        b.Text = text
+        b.TextSize = 22
+        b.Font = Enum.Font.GothamBlack
+        b.ZIndex = 10
+        b.Parent = pad
+        corner(b, 14)
+        styleItem(b, 2, true)
+        padBtns[key] = b
+
+        b.InputBegan:Connect(function(input)
+            if isPointer(input) then
+                flyInput[key] = true
+                heldInputs[key] = input
+                b.BackgroundColor3 = PAD_ON
+            end
+        end)
+    end
+    makePadButton("▲", 20, "up")
+    makePadButton("▼", 80, "down")
+
+    UI.resetFlyInput = function()
+        for key in pairs(flyInput) do
+            flyInput[key] = false
+            heldInputs[key] = nil
+            if padBtns[key] then padBtns[key].BackgroundColor3 = PAD_BG end
+        end
+    end
+
+    track(UserInputService.InputEnded:Connect(function(input)
+        for key, held in pairs(heldInputs) do
+            if held == input or input.UserInputType == Enum.UserInputType.MouseButton1 then
+                heldInputs[key] = nil
+                flyInput[key] = false
+                if padBtns[key] then padBtns[key].BackgroundColor3 = PAD_BG end
+            end
+        end
+    end))
+end
+
+--==================================================
+-- PÁGINA: FUNCIONES
+--==================================================
+
+local setCamToggle
+do
+    createSection(FunctionPage, "FUNCIONES PRINCIPALES")
+    local grid = createGrid(FunctionPage)
+
+    createButton(grid, "ESP Player", "Luz azul + vida + distancia", function(v)
+        S.esp = v
+        if v then
+            for _, plr in ipairs(Players:GetPlayers()) do applyESP(plr) end
+        else
+            clearESP()
+        end
+    end)
+
+    local _, setCam = createButton(grid, "Cam Lock", "Apunta al objetivo elegido", function(v)
+        S.camLock = v
+        if v then
+            Status.Text = S.target and ("Objetivo: @" .. S.target.Name) or "Elige un objetivo en Lista"
+        else
+            S.target = nil
+            releaseCamLock()
+            Status.Text = "Cam Lock desactivado"
+        end
+    end)
+    setCamToggle = setCam
+
+    createButton(grid, "Fly", "Vuela + botones ▲ ▼", function(v)
+        S.fly = v
+        UI.flyPad.Visible = v
+        if not v then
+            UI.resetFlyInput()
+            stopFly()
+        end
+    end)
+
+    createButton(grid, "Walk Speed", "Corre más rápido", function(v)
+        setWalkEnabled(v)
+    end)
+
+    createButton(grid, "Infinite Jump", "Salta sin parar", function(v)
+        S.infJump = v
+    end)
+
+    createButton(grid, "Noclip", "Atraviesa paredes", function(v)
+        setNoclip(v)
+    end)
+end
+
+--==================================================
+-- PÁGINA: LISTA
+--==================================================
+
+local updatePlayerList
+do
+    createSection(ListPage, "BÚSQUEDA DE USUARIOS")
+
+    local search = Instance.new("TextBox")
+    search.Size = UDim2.new(1, -4, 0, 28)
+    search.BackgroundTransparency = 0.18
+    search.PlaceholderText = "🔍 Buscar usuario..."
+    search.Text = ""
+    search.TextColor3 = C.White
+    search.PlaceholderColor3 = C.Gray
+    search.TextSize = 11
+    search.Font = Enum.Font.GothamBold
+    search.ClearTextOnFocus = false
+    search.LayoutOrder = nextOrder()
+    search.Parent = ListPage
+    bind(search, "BackgroundColor3", "Row")
+    corner(search, 7)
+    stroke(search, "Acc", 1, 0.3)
+
+    createSection(ListPage, "JUGADORES CONECTADOS")
+
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, -4, 0, 0)
+    container.BackgroundTransparency = 1
+    container.AutomaticSize = Enum.AutomaticSize.Y
+    container.LayoutOrder = nextOrder()
+    container.Parent = ListPage
+
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 4)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = container
+
+    updatePlayerList = function()
+        local filter = string.lower(search.Text or "")
+
+        for _, child in ipairs(container:GetChildren()) do
+            if child:IsA("TextButton") then child:Destroy() end
+        end
+
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= player and (filter == "" or string.find(string.lower(plr.Name), filter, 1, true)) then
+                local isTarget = S.target == plr
+
+                local btn = Instance.new("TextButton")
+                btn.Size = UDim2.new(1, 0, 0, 26)
+                btn.BackgroundColor3 = isTarget and C.RowOn or C.Row
+                btn.BackgroundTransparency = 0.18
+                btn.Text = "  @" .. plr.Name
+                btn.TextColor3 = C.White
+                btn.TextSize = 11
+                btn.Font = Enum.Font.GothamBold
+                btn.TextXAlignment = Enum.TextXAlignment.Left
+                btn.AutoButtonColor = false
+                btn.Parent = container
+                corner(btn, 7)
+
+                local s = Instance.new("UIStroke")
+                s.Color = isTarget and C.Acc2 or C.Off
+                s.Thickness = isTarget and 1.6 or 1
+                s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+                s.Parent = btn
+
+                btn.Activated:Connect(function()
+                    S.target = plr
+                    S.camLock = true
+                    setCamToggle(true, true)
+                    Status.Text = "Objetivo: @" .. plr.Name
+                    updatePlayerList()
+                    showPage("Funciones")
+                end)
+            end
+        end
+    end
+
+    search:GetPropertyChangedSignal("Text"):Connect(function() updatePlayerList() end)
+    onTheme(function() updatePlayerList() end)
+end
+
+track(Players.PlayerAdded:Connect(function(plr)
+    hookPlayer(plr)
+    updatePlayerList()
+end))
+
+track(Players.PlayerRemoving:Connect(function(plr)
+    removeESP(plr)
+    if S.target == plr then
+        S.target = nil
+        S.camLock = false
+        setCamToggle(false, true)
+        releaseCamLock()
+        Status.Text = "El objetivo salió del juego"
+    end
+    task.defer(updatePlayerList)
+end))
+
+--==================================================
+-- PÁGINA: CONFIGURACIÓN
+--==================================================
+
+do
+    createSection(SettingsPage, "ESTILO")
+
+    createSlider(SettingsPage, "Tamaño del menú", 0.6, 1.2, 1,
+        function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
+        function(v) MenuScale.Scale = v end)
+
+    createSlider(SettingsPage, "Transparencia", 0, 0.85, MENU_T,
+        function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
+        setMenuTransparency)
+
+    createChoice(SettingsPage, "Color del menú", {
+        { "Rosa", Color3.fromRGB(255, 105, 165) },
+        { "Rojo", Color3.fromRGB(235, 40, 65) },
+        { "Azul", Color3.fromRGB(40, 130, 255) },
+    }, "Azul", applyTheme)
+
+    createSection(SettingsPage, "VELOCIDADES")
+
+    createSlider(SettingsPage, "Velocidad de Fly", 20, 150, 60,
+        function(v) return tostring(math.floor(v + 0.5)) end,
+        function(v) S.flySpeed = v end)
+
+    createSlider(SettingsPage, "Velocidad de caminar", 16, 200, 32,
+        function(v) return tostring(math.floor(v + 0.5)) end,
+        function(v) S.walkSpeed = v end)
+
+    createSection(SettingsPage, "OPCIONES")
+    local grid = createGrid(SettingsPage)
+
+    createButton(grid, "FPS Boost", "Gráficos mínimos", function(v)
+        setFpsBoost(v)
+        Status.Text = v and "FPS Boost activado" or "FPS Boost desactivado"
+    end)
+
+    local _, setLed = createButton(grid, "Efectos LED", "Borde animado", function(v)
+        UI.led = v
+        UI.refreshBorder()
+    end)
+    setLed(true, true)
+
+    local _, setSnake = createButton(grid, "Serpiente", "Animación del pie", function(v)
+        UI.snake = v
+        UI.snakeFrame.Visible = v and UI.open
+    end)
+    setSnake(true, true)
+end
+
+showPage("Funciones")
+
+--==================================================
+-- DECORACIÓN (esquinas, línea de escaneo, serpiente)
+--==================================================
+
+UI.snakeSegs = {}
+
+do
+    -- Esquinas
+    local function bracket(ax, ay, px, py)
+        for i = 1, 2 do
+            local f = Instance.new("Frame")
+            f.AnchorPoint = Vector2.new(ax, ay)
+            f.Position = UDim2.new(px, ax == 0 and 5 or -5, py, ay == 0 and 5 or -5)
+            f.Size = i == 1 and UDim2.fromOffset(10, 2) or UDim2.fromOffset(2, 10)
+            f.BorderSizePixel = 0
+            f.ZIndex = 6
+            f.Parent = Main
+            bind(f, "BackgroundColor3", "Acc2")
+        end
+    end
+    bracket(0, 0, 0, 0)
+    bracket(1, 0, 1, 0)
+    bracket(0, 1, 0, 1)
+    bracket(1, 1, 1, 1)
+
+    -- Línea de escaneo bajo la cabecera
+    local scan = Instance.new("Frame")
+    scan.Size = UDim2.fromOffset(70, 2)
+    scan.Position = UDim2.fromOffset(0, HEADER_H - 2)
+    scan.BackgroundColor3 = Color3.new(1, 1, 1)
+    scan.BorderSizePixel = 0
+    scan.ZIndex = 5
+    scan.Parent = Main
+    local sg = Instance.new("UIGradient")
+    sg.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1),
+        NumberSequenceKeypoint.new(0.5, 0),
+        NumberSequenceKeypoint.new(1, 1),
+    })
+    sg.Parent = scan
+    UI.scan = scan
+
+    -- Serpiente
+    local snake = Instance.new("Frame")
+    snake.Size = UDim2.fromOffset(100, 20)
+    snake.Position = UDim2.new(1, -112, 1, -22)
+    snake.BackgroundTransparency = 1
+    snake.Parent = Main
+    UI.snakeFrame = snake
+
+    for i = 1, 9 do
+        local seg = Instance.new("Frame")
+        local size = i == 1 and 9 or math.max(3, 8 - i * 0.5)
+        seg.Size = UDim2.fromOffset(size, size)
+        seg.AnchorPoint = Vector2.new(0.5, 0.5)
+        seg.BorderSizePixel = 0
+        seg.Parent = snake
+        corner(seg, 20)
+        bind(seg, "BackgroundColor3", i % 2 == 0 and "Acc" or "Acc2")
+        UI.snakeSegs[i] = seg
+    end
+end
+
+--==================================================
+-- BOTÓN FLOTANTE 🌸 + ABRIR / CERRAR (siempre vuelve al centro)
+--==================================================
+
+local Toggle = Instance.new("TextButton")
+Toggle.Size = UDim2.fromOffset(40, 40)
+Toggle.Position = UDim2.new(0, 16, 0.5, -20)
+Toggle.BackgroundTransparency = 0.15
+Toggle.Text = "🌸"
+Toggle.TextSize = 20
+Toggle.Font = Enum.Font.GothamBold
+Toggle.AutoButtonColor = false
+Toggle.ZIndex = 10
+Toggle.Parent = Screen
+bind(Toggle, "BackgroundColor3", "Dark")
+corner(Toggle, 12)
+stroke(Toggle, "Acc", 2)
+
+local function setOpen(v)
+    if v == UI.open then return end
+    UI.open = v
+    if v then
+        Main.Position = HOME
+        Main.Size = UDim2.fromOffset(10, 10)
+        Main.Visible = true
+        UI.snakeFrame.Visible = UI.snake
+        tween(Main, { Size = UDim2.fromOffset(BASE_W, BASE_H) }, 0.25)
+    else
+        tween(Main, { Size = UDim2.fromOffset(10, 10) }, 0.15)
+        task.delay(0.17, function()
+            if not UI.open then Main.Visible = false end
+        end)
+    end
+end
+
+Toggle.Activated:Connect(function() setOpen(not UI.open) end)
+Close.Activated:Connect(function() setOpen(false) end)
+
+--==================================================
+-- FPS: TEXTO FLOTANTE ROJO NEÓN (arrastrable)
+--==================================================
+
+local FpsText = Instance.new("TextButton")
+FpsText.Size = UDim2.fromOffset(86, 22)
+FpsText.Position = UDim2.new(0.5, -43, 0, 6)
+FpsText.BackgroundTransparency = 1
+FpsText.AutoButtonColor = false
+FpsText.Text = "FPS --"
+FpsText.TextColor3 = Color3.fromRGB(255, 20, 40)
+FpsText.TextSize = 15
+FpsText.Font = Enum.Font.GothamMedium
+FpsText.TextStrokeColor3 = Color3.new(0, 0, 0)
+FpsText.TextStrokeTransparency = 0.2
+FpsText.ZIndex = 10
+FpsText.Parent = Screen
+
+FpsText.InputBegan:Connect(function(input)
+    if isPointer(input) then
+        local startPos, startMouse = FpsText.Position, input.Position
+        beginDrag(input, function(i)
+            local d = i.Position - startMouse
+            FpsText.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + d.X,
+                startPos.Y.Scale, startPos.Y.Offset + d.Y
+            )
+        end)
+    end
+end)
+
+--==================================================
+-- BUCLE CENTRAL DE ANIMACIÓN (una sola conexión, 15 veces/seg)
+--==================================================
+
+do
+    local clock, animAcc, frames, fpsAcc = 0, 0, 0, 0
+
+    track(RunService.Heartbeat:Connect(function(dt)
+        frames += 1
+        fpsAcc += dt
+        if fpsAcc >= 0.5 then
+            FpsText.Text = "FPS " .. math.floor(frames / fpsAcc + 0.5)
+            frames, fpsAcc = 0, 0
+        end
+
+        animAcc += dt
+        if animAcc < 1 / 15 then return end
+        clock += animAcc
+        animAcc = 0
+
+        if UI.open then
+            -- Letras: ola negro ↔ azul marino
+            for i, l in ipairs(UI.letters) do
+                local w = math.sin(clock * 2.2 + i * 0.7) * 0.5 + 0.5
+                l.lbl.TextColor3 = UI.INK_A:Lerp(UI.INK_B, w)
+                l.lbl.Position = UDim2.fromOffset(l.x, 2 + math.sin(clock * 3 + i * 0.6) * 1.5)
+            end
+
+            -- Línea de escaneo
+            UI.scan.Position = UDim2.fromOffset((math.sin(clock * 1.3) * 0.5 + 0.5) * (BASE_W - 70), HEADER_H - 2)
+            UI.scan.BackgroundColor3 = C.Acc2
+
+            -- Serpiente
+            if UI.snake then
+                for i, seg in ipairs(UI.snakeSegs) do
+                    local phase = clock * 2 - i * 0.5
+                    seg.Position = UDim2.fromOffset(95 - i * 9, 10 + math.sin(phase) * (i * 0.55))
+                end
+            end
+
+            -- Borde LED
+            if UI.led then
+                MainGrad.Rotation = (clock * 50) % 360
+            end
+        end
+
+        -- Botones de Fly: arcoíris neón cambiante
+        if UI.flyPad.Visible then
+            for i, it in ipairs(UI.padItems) do
+                local c = Color3.fromHSV((clock * 0.4 + i * 0.17) % 1, 1, 1)
+                it.stroke.Color = c
+                it.btn.TextColor3 = c
+            end
+        end
+    end))
+end
+
+--==================================================
+-- LIMPIEZA
+--==================================================
+
+Screen.Destroying:Connect(function()
+    S.camLock, S.fly, S.esp, S.infJump = false, false, false, false
+    setWalkEnabled(false)
+    setNoclip(false)
+    setFpsBoost(false)
+    stopFly()
+    for _, c in ipairs(conns) do
+        pcall(function() c:Disconnect() end)
+    end
+    pcall(function() RunService:UnbindFromRenderStep("TargetCamera") end)
+    clearESP()
+    releaseCamLock()
+end)
+
+print("🌸 EFRÉN HUB v3.0 CARGADO")
