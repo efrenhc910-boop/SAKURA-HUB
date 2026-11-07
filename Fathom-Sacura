@@ -180,3 +180,265 @@ track(UserInputService.InputEnded:Connect(function(input)
         activeDrag, activeInput = nil, nil
     end
 end))
+--==================================================
+-- VENTANA PRINCIPAL
+--==================================================
+
+local BASE_W, BASE_H, HEADER_H = 460, 292, 38
+local HOME = UDim2.fromScale(0.5, 0.5)
+local MENU_T = 0.35
+
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.AnchorPoint = Vector2.new(0.5, 0.5)
+Main.Size = UDim2.fromOffset(BASE_W, BASE_H)
+Main.Position = HOME
+Main.BackgroundTransparency = MENU_T
+Main.BorderSizePixel = 0
+Main.ClipsDescendants = true
+Main.Parent = Screen
+bind(Main, "BackgroundColor3", "Dark")
+corner(Main, 12)
+
+local MenuScale = Instance.new("UIScale")
+MenuScale.Scale = 1
+MenuScale.Parent = Main
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Thickness = 2
+MainStroke.Color = Color3.new(1, 1, 1)
+MainStroke.Parent = Main
+local MainGrad = Instance.new("UIGradient")
+MainGrad.Parent = MainStroke
+
+local function refreshBorder()
+    MainGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, C.Acc),
+        ColorSequenceKeypoint.new(0.5, C.Acc2),
+        ColorSequenceKeypoint.new(1, C.Acc),
+    })
+    MainGrad.Enabled = UI.led
+    MainStroke.Color = UI.led and Color3.new(1, 1, 1) or C.Acc
+end
+UI.refreshBorder = refreshBorder
+onTheme(refreshBorder)
+
+--==================================================
+-- CABECERA (letras espaciadas negro / azul marino)
+--==================================================
+
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, HEADER_H)
+Header.BackgroundColor3 = Color3.new(1, 1, 1)
+Header.BackgroundTransparency = 0.2
+Header.BorderSizePixel = 0
+Header.Parent = Main
+local HeaderGrad = Instance.new("UIGradient")
+HeaderGrad.Parent = Header
+onTheme(function() HeaderGrad.Color = ColorSequence.new(C.Acc2, C.Acc) end)
+
+UI.INK_A = Color3.fromRGB(4, 6, 14)
+UI.INK_B = Color3.fromRGB(14, 32, 112)
+UI.letters = {}
+
+do
+    local box = Instance.new("Frame")
+    box.BackgroundTransparency = 1
+    box.Position = UDim2.fromOffset(12, 2)
+    box.Size = UDim2.fromOffset(170, 24)
+    box.Parent = Header
+
+    local x = 0
+    for _, code in utf8.codes("EFRÉN HUB") do
+        local ch = utf8.char(code)
+        if ch == " " then
+            x += 10
+        else
+            local l = Instance.new("TextLabel")
+            l.BackgroundTransparency = 1
+            l.Size = UDim2.fromOffset(16, 22)
+            l.Position = UDim2.fromOffset(x, 2)
+            l.Font = Enum.Font.GothamBlack
+            l.TextSize = 18
+            l.Text = ch
+            l.TextColor3 = UI.INK_A
+            l.Parent = box
+            UI.letters[#UI.letters + 1] = { lbl = l, x = x }
+            x += 16
+        end
+    end
+
+    local sub = Instance.new("TextLabel")
+    sub.BackgroundTransparency = 1
+    sub.Position = UDim2.fromOffset(13, 25)
+    sub.Size = UDim2.fromOffset(200, 10)
+    sub.Font = Enum.Font.GothamBold
+    sub.TextSize = 8
+    sub.TextXAlignment = Enum.TextXAlignment.Left
+    sub.TextColor3 = Color3.fromRGB(12, 26, 80)
+    sub.Text = "C Y B E R   S Y S T E M   •   V 3 . 1"
+    sub.Parent = Header
+end
+
+local Close = Instance.new("TextButton")
+Close.Size = UDim2.fromOffset(22, 22)
+Close.Position = UDim2.new(1, -30, 0, 8)
+Close.BackgroundColor3 = Color3.fromRGB(8, 12, 32)
+Close.BackgroundTransparency = 0.1
+Close.Text = "×"
+Close.TextColor3 = C.White
+Close.TextSize = 16
+Close.Font = Enum.Font.GothamBold
+Close.AutoButtonColor = false
+Close.ZIndex = 4
+Close.Parent = Header
+corner(Close, 6)
+
+local DragZone = Instance.new("Frame")
+DragZone.Size = UDim2.new(1, -40, 1, 0)
+DragZone.BackgroundTransparency = 1
+DragZone.ZIndex = 3
+DragZone.Parent = Header
+
+DragZone.InputBegan:Connect(function(input)
+    if isPointer(input) then
+        local startPos, startMouse = Main.Position, input.Position
+        beginDrag(input, function(i)
+            local d = i.Position - startMouse
+            Main.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + d.X,
+                startPos.Y.Scale, startPos.Y.Offset + d.Y
+            )
+        end)
+    end
+end)
+
+--==================================================
+-- BARRA DE PESTAÑAS EXTENSA (se pueden agregar más)
+--==================================================
+
+local TAB_BAR_W = BASE_W - 16
+
+local TabBar = Instance.new("Frame")
+TabBar.Position = UDim2.fromOffset(8, HEADER_H + 5)
+TabBar.Size = UDim2.new(1, -16, 0, 22)
+TabBar.BackgroundTransparency = 0.3
+TabBar.BorderSizePixel = 0
+TabBar.Parent = Main
+bind(TabBar, "BackgroundColor3", "Tab")
+corner(TabBar, 7)
+stroke(TabBar, "Acc", 1, 0.5)
+
+local TabScroll = Instance.new("ScrollingFrame")
+TabScroll.Size = UDim2.fromScale(1, 1)
+TabScroll.BackgroundTransparency = 1
+TabScroll.BorderSizePixel = 0
+TabScroll.ScrollBarThickness = 0
+TabScroll.ScrollingDirection = Enum.ScrollingDirection.X
+TabScroll.CanvasSize = UDim2.new()
+TabScroll.Parent = TabBar
+
+local Content = Instance.new("Frame")
+Content.Position = UDim2.fromOffset(8, HEADER_H + 32)
+Content.Size = UDim2.new(1, -16, 1, -(HEADER_H + 32 + 22))
+Content.BackgroundTransparency = 0.45
+Content.BorderSizePixel = 0
+Content.ClipsDescendants = true
+Content.Parent = Main
+bind(Content, "BackgroundColor3", "Panel")
+corner(Content, 9)
+
+local Status = mkLabel(Main, "Listo  •  Toca 🌸 para ocultar", 9, Enum.Font.Gotham, "Gray",
+    UDim2.new(0, 12, 1, -18), UDim2.fromOffset(260, 14))
+
+local TabButtons, Pages, tabOrder = {}, {}, {}
+local CurrentPage
+
+local function layoutTabs()
+    local n = #tabOrder
+    if n == 0 then return end
+    local gap = 3
+    local w = (TAB_BAR_W - 6 - gap * (n - 1)) / n
+    if w < 84 then w = 84 end
+    for i, name in ipairs(tabOrder) do
+        local b = TabButtons[name]
+        b.Size = UDim2.fromOffset(w, 18)
+        b.Position = UDim2.fromOffset(3 + (i - 1) * (w + gap), 2)
+    end
+    TabScroll.CanvasSize = UDim2.fromOffset(6 + n * (w + gap), 0)
+end
+
+local function paintTabs()
+    for name, b in pairs(TabButtons) do
+        local sel = name == CurrentPage
+        b.BackgroundColor3 = sel and C.Acc or C.Tab
+        b.BackgroundTransparency = sel and 0.1 or 0.5
+    end
+end
+onTheme(paintTabs)
+
+local function showPage(name)
+    if CurrentPage == name then return end
+    CurrentPage = name
+    for pageName, page in pairs(Pages) do
+        page.Visible = pageName == name
+    end
+    paintTabs()
+end
+
+local function createPage(name)
+    local page = Instance.new("ScrollingFrame")
+    page.Name = name
+    page.Size = UDim2.fromScale(1, 1)
+    page.BackgroundTransparency = 1
+    page.BorderSizePixel = 0
+    page.ScrollBarThickness = 3
+    page.CanvasSize = UDim2.new()
+    page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    page.Visible = false
+    page.Parent = Content
+    bind(page, "ScrollBarImageColor3", "Acc")
+
+    local pad = Instance.new("UIPadding")
+    pad.PaddingTop = UDim.new(0, 6)
+    pad.PaddingBottom = UDim.new(0, 6)
+    pad.PaddingLeft = UDim.new(0, 6)
+    pad.PaddingRight = UDim.new(0, 6)
+    pad.Parent = page
+
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 5)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = page
+
+    Pages[name] = page
+    return page
+end
+
+local function addTab(name)
+    local b = Instance.new("TextButton")
+    b.Name = name
+    b.Text = name
+    b.TextSize = 11
+    b.Font = Enum.Font.GothamBold
+    b.TextColor3 = C.White
+    b.AutoButtonColor = false
+    b.BorderSizePixel = 0
+    b.Parent = TabScroll
+    corner(b, 6)
+    TabButtons[name] = b
+    tabOrder[#tabOrder + 1] = name
+    local page = createPage(name)
+    b.Activated:Connect(function() showPage(name) end)
+    layoutTabs()
+    paintTabs()
+    return page
+end
+
+local function setMenuTransparency(v)
+    UI.t = v
+    Main.BackgroundTransparency = v
+    Content.BackgroundTransparency = math.min(0.95, v + 0.1)
+    TabBar.BackgroundTransparency = math.min(0.95, v + 0.0)
+    Header.BackgroundTransparency = math.min(0.9, 0.1 + v * 0.5)
+end
