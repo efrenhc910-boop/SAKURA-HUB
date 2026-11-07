@@ -442,3 +442,318 @@ local function setMenuTransparency(v)
     TabBar.BackgroundTransparency = math.min(0.95, v + 0.0)
     Header.BackgroundTransparency = math.min(0.9, 0.1 + v * 0.5)
 end
+--==================================================
+-- COMPONENTES COMPACTOS
+--==================================================
+
+local function createSection(page, text)
+    local l = mkLabel(page, "✦  " .. text, 10, Enum.Font.GothamBlack, "Acc2", nil, UDim2.new(1, 0, 0, 14))
+    l.LayoutOrder = nextOrder()
+    return l
+end
+
+local function createGrid(page)
+    local grid = Instance.new("Frame")
+    grid.Size = UDim2.new(1, -4, 0, 0)
+    grid.BackgroundTransparency = 1
+    grid.AutomaticSize = Enum.AutomaticSize.Y
+    grid.LayoutOrder = nextOrder()
+    grid.Parent = page
+
+    local layout = Instance.new("UIGridLayout")
+    layout.CellSize = UDim2.new(0.5, -3, 0, 30)
+    layout.CellPadding = UDim2.fromOffset(5, 5)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = grid
+    return grid
+end
+
+-- Devuelve: botón, setEnabled(valor, silencioso)
+local function createButton(parent, name, description, callback)
+    local row = Instance.new("TextButton")
+    row.Size = UDim2.new(1, -4, 0, 30)
+    row.BackgroundTransparency = 0.18
+    row.Text = ""
+    row.AutoButtonColor = false
+    row.LayoutOrder = nextOrder()
+    row.Parent = parent
+    corner(row, 7)
+    local st = stroke(row, nil, 1)
+
+    mkLabel(row, name, 11, Enum.Font.GothamBold, "White", UDim2.fromOffset(8, 3), UDim2.new(1, -46, 0, 13))
+    local desc = mkLabel(row, description, 8, Enum.Font.Gotham, "Gray", UDim2.fromOffset(8, 16), UDim2.new(1, -46, 0, 11))
+    desc.TextTruncate = Enum.TextTruncate.AtEnd
+
+    local state = Instance.new("TextLabel")
+    state.Size = UDim2.fromOffset(30, 14)
+    state.Position = UDim2.new(1, -36, 0.5, -7)
+    state.TextColor3 = C.White
+    state.TextSize = 9
+    state.Font = Enum.Font.GothamBold
+    state.Parent = row
+    corner(state, 5)
+
+    local enabled = false
+    local function paint()
+        row.BackgroundColor3 = enabled and C.RowOn or C.Row
+        st.Color = enabled and C.Acc2 or C.Off
+        st.Thickness = enabled and 1.6 or 1
+        state.BackgroundColor3 = enabled and C.Acc or C.Off
+        state.Text = enabled and "ON" or "OFF"
+    end
+    onTheme(paint)
+
+    local function setEnabled(value, silent)
+        enabled = value
+        paint()
+        if callback and not silent then callback(enabled) end
+    end
+
+    row.Activated:Connect(function() setEnabled(not enabled) end)
+    return row, setEnabled
+end
+
+local function createSlider(page, name, min, max, default, fmt, callback)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, -4, 0, 38)
+    row.BackgroundTransparency = 0.18
+    row.LayoutOrder = nextOrder()
+    row.Parent = page
+    bind(row, "BackgroundColor3", "Row")
+    corner(row, 7)
+    stroke(row, "Off", 1)
+
+    mkLabel(row, name, 11, Enum.Font.GothamBold, "White", UDim2.fromOffset(8, 2), UDim2.new(0.6, 0, 0, 15))
+    local valueLabel = mkLabel(row, "", 10, Enum.Font.GothamBold, "Acc2",
+        UDim2.new(0.6, 0, 0, 2), UDim2.new(0.4, -8, 0, 15), Enum.TextXAlignment.Right)
+
+    local hit = Instance.new("Frame")
+    hit.Size = UDim2.new(1, -16, 0, 20)
+    hit.Position = UDim2.fromOffset(8, 17)
+    hit.BackgroundTransparency = 1
+    hit.Parent = row
+
+    local bar = Instance.new("Frame")
+    bar.AnchorPoint = Vector2.new(0, 0.5)
+    bar.Size = UDim2.new(1, 0, 0, 5)
+    bar.Position = UDim2.fromScale(0, 0.5)
+    bar.BorderSizePixel = 0
+    bar.Parent = hit
+    bind(bar, "BackgroundColor3", "Off")
+    corner(bar, 3)
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.fromScale(0, 1)
+    fill.BorderSizePixel = 0
+    fill.Parent = bar
+    bind(fill, "BackgroundColor3", "Acc")
+    corner(fill, 3)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.fromOffset(13, 13)
+    knob.AnchorPoint = Vector2.new(0.5, 0.5)
+    knob.BorderSizePixel = 0
+    knob.Parent = bar
+    bind(knob, "BackgroundColor3", "White")
+    corner(knob, 7)
+
+    local function setRatio(r)
+        r = math.clamp(r, 0, 1)
+        fill.Size = UDim2.fromScale(r, 1)
+        knob.Position = UDim2.fromScale(r, 0.5)
+        local value = min + (max - min) * r
+        valueLabel.Text = fmt(value)
+        if callback then callback(value) end
+    end
+
+    local function fromInput(input)
+        local w = bar.AbsoluteSize.X
+        if w > 0 then
+            setRatio((input.Position.X - bar.AbsolutePosition.X) / w)
+        end
+    end
+
+    hit.InputBegan:Connect(function(input)
+        if isPointer(input) then
+            fromInput(input)
+            beginDrag(input, fromInput)
+        end
+    end)
+
+    setRatio((default - min) / (max - min))
+end
+
+-- Selector de colores rápidos. Devuelve paint(clave) para marcar o limpiar
+local function createChoice(page, name, options, default, callback)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, -4, 0, 46)
+    row.BackgroundTransparency = 0.18
+    row.LayoutOrder = nextOrder()
+    row.Parent = page
+    bind(row, "BackgroundColor3", "Row")
+    corner(row, 7)
+    stroke(row, "Off", 1)
+
+    mkLabel(row, name, 11, Enum.Font.GothamBold, "White", UDim2.fromOffset(8, 3), UDim2.new(1, -16, 0, 14))
+
+    local items = {}
+    local function paint(sel)
+        for key, it in pairs(items) do
+            it.Transparency = (key == sel) and 0 or 1
+        end
+    end
+
+    for i, opt in ipairs(options) do
+        local b = Instance.new("TextButton")
+        b.Size = UDim2.new(1 / #options, -8, 0, 22)
+        b.Position = UDim2.new((i - 1) / #options, 4, 0, 19)
+        b.BackgroundColor3 = opt[2]
+        b.Text = opt[1]
+        b.TextColor3 = Color3.new(1, 1, 1)
+        b.TextSize = 10
+        b.Font = Enum.Font.GothamBold
+        b.AutoButtonColor = false
+        b.Parent = row
+        corner(b, 6)
+
+        local s = Instance.new("UIStroke")
+        s.Color = Color3.new(1, 1, 1)
+        s.Thickness = 2
+        s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        s.Parent = b
+        items[opt[1]] = s
+
+        b.Activated:Connect(function()
+            paint(opt[1])
+            callback(opt[1])
+        end)
+    end
+    paint(default)
+    return paint
+end
+
+--==================================================
+-- COLOR PERSONALIZADO + RUEDA DE COLORES
+--==================================================
+
+local customPending, customBusy = nil, false
+local function applyCustom(col)
+    customPending = col
+    if customBusy then return end
+    customBusy = true
+    task.delay(0.07, function()
+        customBusy = false
+        local c = customPending
+        if not c then return end
+        local h, s, v = c:ToHSV()
+        local acc = Color3.fromHSV(h, s, math.max(v, 0.6))
+        THEMES.Custom = {
+            Acc = acc,
+            Acc2 = acc:Lerp(Color3.new(1, 1, 1), 0.4),
+            Dark = Color3.fromHSV(h, s * 0.7, 0.09),
+            Panel = Color3.fromHSV(h, s * 0.7, 0.14),
+            Row = Color3.fromHSV(h, s * 0.7, 0.22),
+            Off = Color3.fromHSV(h, s * 0.5, 0.30),
+            Tab = Color3.fromHSV(h, s * 0.7, 0.17),
+        }
+        applyTheme("Custom")
+    end)
+end
+
+local function createWheel(page, name, callback)
+    local R = 46
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, -4, 0, 2 * R + 30)
+    row.BackgroundTransparency = 0.18
+    row.LayoutOrder = nextOrder()
+    row.Parent = page
+    bind(row, "BackgroundColor3", "Row")
+    corner(row, 7)
+    stroke(row, "Off", 1)
+
+    mkLabel(row, name, 11, Enum.Font.GothamBold, "White", UDim2.fromOffset(8, 3), UDim2.new(1, -16, 0, 14))
+
+    local wheel = Instance.new("Frame")
+    wheel.AnchorPoint = Vector2.new(0.5, 0)
+    wheel.Position = UDim2.new(0.5, 0, 0, 22)
+    wheel.Size = UDim2.fromOffset(2 * R, 2 * R)
+    wheel.BackgroundTransparency = 1
+    wheel.Parent = row
+
+    -- Rueda armada con 72 rayos (blanco en el centro → color intenso en el borde)
+    local SPOKES = 72
+    local spokeH = math.ceil(2 * math.pi * R / SPOKES) + 2
+    for i = 0, SPOKES - 1 do
+        local hue = i / SPOKES
+        local s = Instance.new("Frame")
+        s.AnchorPoint = Vector2.new(0.5, 0.5)
+        s.Position = UDim2.fromOffset(R, R)
+        s.Size = UDim2.fromOffset(2 * R, spokeH)
+        s.Rotation = hue * 360
+        s.BackgroundColor3 = Color3.new(1, 1, 1)
+        s.BorderSizePixel = 0
+        s.Parent = wheel
+
+        local g = Instance.new("UIGradient")
+        g.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+            ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)),
+            ColorSequenceKeypoint.new(1, Color3.fromHSV(hue, 1, 1)),
+        })
+        g.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 1),
+            NumberSequenceKeypoint.new(0.4999, 1),
+            NumberSequenceKeypoint.new(0.5, 0),
+            NumberSequenceKeypoint.new(1, 0),
+        })
+        g.Parent = s
+    end
+
+    local marker = Instance.new("Frame")
+    marker.AnchorPoint = Vector2.new(0.5, 0.5)
+    marker.Position = UDim2.fromScale(0.5, 0.5)
+    marker.Size = UDim2.fromOffset(12, 12)
+    marker.BackgroundTransparency = 1
+    marker.ZIndex = 5
+    marker.Parent = wheel
+    corner(marker, 6)
+    local ms = Instance.new("UIStroke")
+    ms.Color = Color3.new(1, 1, 1)
+    ms.Thickness = 2
+    ms.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    ms.Parent = marker
+
+    local hit = Instance.new("TextButton")
+    hit.Size = UDim2.fromScale(1, 1)
+    hit.BackgroundTransparency = 1
+    hit.Text = ""
+    hit.AutoButtonColor = false
+    hit.ZIndex = 6
+    hit.Parent = wheel
+
+    local function pick(input)
+        local size = wheel.AbsoluteSize.X
+        if size <= 0 then return end
+        local rad = size / 2
+        local cx = wheel.AbsolutePosition.X + rad
+        local cy = wheel.AbsolutePosition.Y + rad
+        local dx, dy = input.Position.X - cx, input.Position.Y - cy
+        local dist = math.sqrt(dx * dx + dy * dy)
+        local sat = math.clamp(dist / rad, 0, 1)
+        local hue = (math.deg(math.atan2(dy, dx)) % 360) / 360
+
+        local k = dist > rad and (rad / dist) or 1
+        marker.Position = UDim2.fromScale(0.5 + (dx * k) / size, 0.5 + (dy * k) / size)
+
+        callback(Color3.fromHSV(hue, sat, 1))
+    end
+
+    hit.InputBegan:Connect(function(input)
+        if isPointer(input) then
+            pick(input)
+            beginDrag(input, pick)
+        end
+    end)
+end
+
+print("[EfrenHub] parte 3 lista")
