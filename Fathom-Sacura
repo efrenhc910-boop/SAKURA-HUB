@@ -757,3 +757,318 @@ local function createWheel(page, name, callback)
 end
 
 print("[EfrenHub] parte 3 lista")
+--==================================================
+-- ESTADO
+--==================================================
+
+local S = {
+    esp = false, camLock = false, infJump = false, fly = false,
+    walk = false, noclip = false, boost = false,
+    flySpeed = 60, walkSpeed = 32, defWalk = 16, target = nil,
+}
+local flyInput = { up = false, down = false }
+
+local function getCamera()
+    return Workspace.CurrentCamera
+end
+
+local function getParts()
+    local char = player.Character
+    if not char then return nil end
+    return char:FindFirstChild("HumanoidRootPart"), char:FindFirstChildOfClass("Humanoid"), char
+end
+
+--==================================================
+-- ESP (enemigos en rojo, aliados en azul)
+--==================================================
+
+local PAL = {
+    enemy = {
+        main = Color3.fromRGB(255, 35, 45),
+        light = Color3.fromRGB(255, 130, 130),
+        dark = Color3.fromRGB(120, 0, 8),
+    },
+    ally = {
+        main = Color3.fromRGB(35, 120, 255),
+        light = Color3.fromRGB(130, 200, 255),
+        dark = Color3.fromRGB(0, 40, 140),
+    },
+}
+local espObjects = {}
+
+local function isAlly(plr)
+    if player.Team ~= nil and plr.Team ~= nil then
+        return plr.Team == player.Team
+    end
+    local a, b = player:GetAttribute("Team"), plr:GetAttribute("Team")
+    if a ~= nil and b ~= nil then
+        return a == b
+    end
+    return false
+end
+
+local function removeESP(plr)
+    local d = espObjects[plr]
+    if d then
+        if d.hl then d.hl:Destroy() end
+        if d.bb then d.bb:Destroy() end
+        espObjects[plr] = nil
+    end
+end
+
+local function clearESP()
+    for plr in pairs(espObjects) do removeESP(plr) end
+end
+
+local function espText(parent, size, font, pos, sz)
+    local l = Instance.new("TextLabel")
+    l.BackgroundTransparency = 1
+    l.Font = font
+    l.TextSize = size
+    l.TextColor3 = Color3.new(1, 1, 1)
+    l.TextStrokeTransparency = 0.2
+    l.TextStrokeColor3 = Color3.new(0, 0, 0)
+    l.Position = pos
+    l.Size = sz
+    l.Parent = parent
+    return l
+end
+
+local function paintESP(d, ally)
+    local p = ally and PAL.ally or PAL.enemy
+    d.ally = ally
+    d.hl.FillColor = p.main
+    d.hl.OutlineColor = p.light
+    d.nameL.TextColor3 = p.main
+    d.distL.TextColor3 = p.light
+    d.barStroke.Color = p.light
+    d.barBack.BackgroundColor3 = p.dark:Lerp(Color3.new(0, 0, 0), 0.65)
+    d.grad.Color = ColorSequence.new(p.dark, p.main)
+end
+
+local function applyESP(plr)
+    if plr == player then return end
+    local char = plr.Character
+    if not char then return end
+    removeESP(plr)
+
+    local hl = Instance.new("Highlight")
+    hl.Adornee = char
+    hl.FillTransparency = 0.2
+    hl.OutlineTransparency = 0
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.Parent = Workspace
+
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "EfrenESP"
+    bb.Size = UDim2.fromOffset(150, 46)
+    bb.StudsOffset = Vector3.new(0, 3.1, 0)
+    bb.AlwaysOnTop = true
+    bb.LightInfluence = 0
+    bb.Adornee = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
+    bb.Parent = Workspace
+
+    local nameL = espText(bb, 13, Enum.Font.GothamBlack, UDim2.fromOffset(0, 0), UDim2.new(1, 0, 0, 14))
+    nameL.Text = plr.Name
+
+    local barBack = Instance.new("Frame")
+    barBack.AnchorPoint = Vector2.new(0.5, 0)
+    barBack.Position = UDim2.new(0.5, 0, 0, 16)
+    barBack.Size = UDim2.new(0.9, 0, 0, 13)
+    barBack.BackgroundTransparency = 0.1
+    barBack.BorderSizePixel = 0
+    barBack.Parent = bb
+    corner(barBack, 4)
+
+    local barStroke = Instance.new("UIStroke")
+    barStroke.Thickness = 1.4
+    barStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    barStroke.Parent = barBack
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.fromScale(1, 1)
+    fill.BackgroundColor3 = Color3.new(1, 1, 1)
+    fill.BorderSizePixel = 0
+    fill.Parent = barBack
+    corner(fill, 4)
+
+    local grad = Instance.new("UIGradient")
+    grad.Parent = fill
+
+    for i = 1, 3 do
+        local tk = Instance.new("Frame")
+        tk.Size = UDim2.new(0, 1, 1, 0)
+        tk.Position = UDim2.fromScale(i / 4, 0)
+        tk.BackgroundColor3 = Color3.new(0, 0, 0)
+        tk.BackgroundTransparency = 0.45
+        tk.BorderSizePixel = 0
+        tk.ZIndex = 2
+        tk.Parent = barBack
+    end
+
+    local hpL = espText(barBack, 9, Enum.Font.GothamBlack, UDim2.new(), UDim2.fromScale(1, 1))
+    hpL.ZIndex = 3
+    hpL.TextStrokeTransparency = 0.1
+
+    local distL = espText(bb, 10, Enum.Font.GothamBold, UDim2.fromOffset(0, 31), UDim2.new(1, 0, 0, 12))
+
+    local d = {
+        hl = hl, bb = bb, nameL = nameL, distL = distL, barBack = barBack,
+        barStroke = barStroke, fill = fill, grad = grad, hpL = hpL,
+        char = char, hp = -1, mx = -1, dist = -1, ally = nil,
+    }
+    espObjects[plr] = d
+    paintESP(d, isAlly(plr))
+end
+
+local function hookPlayer(plr)
+    if plr == player then return end
+    plr.CharacterAdded:Connect(function()
+        if S.esp then
+            task.wait(1)
+            if S.esp then applyESP(plr) end
+        end
+    end)
+end
+
+do
+    local acc = 0
+    track(RunService.Heartbeat:Connect(function(dt)
+        if not S.esp then return end
+        acc += dt
+        if acc < 0.1 then return end
+        acc = 0
+
+        local lr = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= player then
+                local char = plr.Character
+                local d = espObjects[plr]
+
+                if char and (not d or d.char ~= char) then
+                    applyESP(plr)
+                    d = espObjects[plr]
+                end
+
+                if d and char then
+                    local ally = isAlly(plr)
+                    if d.ally ~= ally then paintESP(d, ally) end
+
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+                    local root = char:FindFirstChild("HumanoidRootPart")
+                    local head = char:FindFirstChild("Head") or root
+                    if head and d.bb.Adornee ~= head then d.bb.Adornee = head end
+
+                    local hp, mx = 0, 100
+                    if hum then
+                        hp = math.max(0, math.floor(hum.Health + 0.5))
+                        mx = math.max(1, math.floor(hum.MaxHealth + 0.5))
+                    end
+
+                    if d.hp ~= hp or d.mx ~= mx then
+                        d.hp, d.mx = hp, mx
+                        d.fill.Size = UDim2.fromScale(math.clamp(hp / mx, 0, 1), 1)
+                        d.hpL.Text = "♥ " .. hp .. "/" .. mx
+                    end
+
+                    local dist = (root and lr) and math.floor((root.Position - lr.Position).Magnitude + 0.5) or 0
+                    if d.dist ~= dist then
+                        d.dist = dist
+                        d.distL.Text = dist .. " m"
+                    end
+                end
+            end
+        end
+    end))
+end
+
+for _, plr in ipairs(Players:GetPlayers()) do
+    hookPlayer(plr)
+end
+
+--==================================================
+-- CAM LOCK (cámara + personaje apuntan al objetivo)
+--==================================================
+
+local function releaseCamLock()
+    local cam = getCamera()
+    if cam then cam.CameraType = Enum.CameraType.Custom end
+    local _, hum = getParts()
+    if hum then hum.AutoRotate = true end
+end
+
+RunService:BindToRenderStep("TargetCamera", Enum.RenderPriority.Camera.Value + 1, function()
+    if not S.camLock or not S.target then return end
+
+    local tChar = S.target.Character
+    local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+    local root, hum = getParts()
+    local cam = getCamera()
+    if not tRoot or not root or not cam then return end
+
+    local flat = Vector3.new(tRoot.Position.X - root.Position.X, 0, tRoot.Position.Z - root.Position.Z)
+    if flat.Magnitude < 0.5 then return end
+    local dir = flat.Unit
+
+    cam.CameraType = Enum.CameraType.Scriptable
+    cam.CFrame = CFrame.lookAt(root.Position - dir * 9 + Vector3.new(0, 3.5, 0), tRoot.Position + Vector3.new(0, 1.5, 0))
+
+    if hum then hum.AutoRotate = false end
+    root.CFrame = CFrame.lookAt(root.Position, root.Position + dir)
+end)
+
+--==================================================
+-- FLY (joystick + botones subir / bajar)
+--==================================================
+
+local flyBV
+
+local function stopFly()
+    if flyBV then
+        flyBV:Destroy()
+        flyBV = nil
+    end
+end
+
+track(RunService.Heartbeat:Connect(function()
+    if not S.fly then
+        if flyBV then stopFly() end
+        return
+    end
+
+    local root, hum = getParts()
+    local cam = getCamera()
+    if not root or not hum or not cam then
+        stopFly()
+        return
+    end
+
+    if not flyBV or flyBV.Parent ~= root then
+        stopFly()
+        flyBV = Instance.new("BodyVelocity")
+        flyBV.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+        flyBV.Velocity = Vector3.zero
+        flyBV.Parent = root
+    end
+
+    local move = hum.MoveDirection
+    local velocity = Vector3.zero
+
+    if move.Magnitude > 0.05 then
+        local rel = cam.CFrame:VectorToObjectSpace(move)
+        local dir = cam.CFrame.LookVector * (-rel.Z) + cam.CFrame.RightVector * rel.X
+        if dir.Magnitude > 0.01 then
+            velocity = dir.Unit * move.Magnitude * S.flySpeed
+        end
+    end
+
+    local vertical = (flyInput.up and 1 or 0) - (flyInput.down and 1 or 0)
+    if vertical ~= 0 then
+        velocity += Vector3.new(0, vertical * S.flySpeed, 0)
+    end
+
+    flyBV.Velocity = velocity
+end))
+
+print("[EfrenHub] parte 4 lista")
