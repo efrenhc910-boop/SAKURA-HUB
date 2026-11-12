@@ -1,0 +1,225 @@
+--==================================================
+--         EFRÉN HUB  •  CYBER COMPACT v4.0
+--                  PARTE 1 / 8
+--==================================================
+print("[EfrenHub] cargando...")
+
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local GuiService = game:GetService("GuiService")
+
+local player = Players.LocalPlayer
+while not player do
+    task.wait()
+    player = Players.LocalPlayer
+end
+local playerGui = player:WaitForChild("PlayerGui")
+
+local function getGuiParent()
+    local ok, ui = pcall(function() return gethui and gethui() end)
+    if ok and ui then return ui end
+    local okCore, core = pcall(function() return game:GetService("CoreGui") end)
+    if okCore and core then
+        local canUse = pcall(function()
+            local f = Instance.new("Folder")
+            f.Parent = core
+            f:Destroy()
+        end)
+        if canUse then return core end
+    end
+    return playerGui
+end
+
+local guiParent = getGuiParent()
+for _, container in ipairs({guiParent, playerGui}) do
+    local old = container:FindFirstChild("EfrenHub")
+    if old then old:Destroy() end
+end
+pcall(function() RunService:UnbindFromRenderStep("TargetCamera") end)
+
+local Screen = Instance.new("ScreenGui")
+Screen.Name = "EfrenHub"
+Screen.ResetOnSpawn = false
+Screen.IgnoreGuiInset = true
+Screen.DisplayOrder = 9999
+Screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+Screen.Parent = guiParent
+
+--==================================================
+-- TEMA (azul por defecto, el resto sale de la rueda)
+--==================================================
+
+local AZUL = {
+    Acc = Color3.fromRGB(40, 130, 255), Acc2 = Color3.fromRGB(95, 205, 255),
+    Dark = Color3.fromRGB(8, 12, 26), Panel = Color3.fromRGB(14, 22, 42),
+    Row = Color3.fromRGB(18, 38, 76), Off = Color3.fromRGB(34, 50, 78),
+    Tab = Color3.fromRGB(17, 26, 48),
+}
+
+local C = {
+    White = Color3.fromRGB(240, 245, 255),
+    Gray = Color3.fromRGB(165, 178, 200),
+}
+
+local binds, refreshers, conns = {}, {}, {}
+local UI = { led = true, open = true, size = 1 }
+
+local function track(c)
+    conns[#conns + 1] = c
+    return c
+end
+
+local function bind(obj, prop, key)
+    binds[#binds + 1] = { obj, prop, key }
+    obj[prop] = C[key]
+    return obj
+end
+
+local function onTheme(fn)
+    refreshers[#refreshers + 1] = fn
+    fn()
+end
+
+local function applyTheme(t)
+    for k, v in pairs(t) do C[k] = v end
+    C.RowOn = t.Row:Lerp(t.Acc, 0.3)
+    for i = 1, #binds do
+        local b = binds[i]
+        pcall(function() b[1][b[2]] = C[b[3]] end)
+    end
+    for i = 1, #refreshers do pcall(refreshers[i]) end
+end
+applyTheme(AZUL)
+
+local function makeTheme(h, s, v)
+    local acc = Color3.fromHSV(h, s, math.max(v, 0.55))
+    return {
+        Acc = acc,
+        Acc2 = acc:Lerp(Color3.new(1, 1, 1), 0.4),
+        Dark = Color3.fromHSV(h, s * 0.7, 0.09),
+        Panel = Color3.fromHSV(h, s * 0.7, 0.14),
+        Row = Color3.fromHSV(h, s * 0.7, 0.22),
+        Off = Color3.fromHSV(h, s * 0.5, 0.30),
+        Tab = Color3.fromHSV(h, s * 0.7, 0.17),
+    }
+end
+
+--==================================================
+-- UTILIDADES
+--==================================================
+
+local function tween(obj, props, time, style)
+    local t = TweenService:Create(obj, TweenInfo.new(time or 0.2, style or Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props)
+    t:Play()
+    return t
+end
+
+local function corner(obj, r)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, r or 8)
+    c.Parent = obj
+    return c
+end
+
+local function stroke(obj, key, thickness, transparency)
+    local s = Instance.new("UIStroke")
+    s.Thickness = thickness or 1
+    s.Transparency = transparency or 0
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    s.Parent = obj
+    if key then bind(s, "Color", key) end
+    return s
+end
+
+local function mkLabel(parent, text, size, font, key, pos, sz, alignX)
+    local l = Instance.new("TextLabel")
+    l.BackgroundTransparency = 1
+    l.Text = text
+    l.TextSize = size
+    l.Font = font
+    l.TextXAlignment = alignX or Enum.TextXAlignment.Left
+    if pos then l.Position = pos end
+    if sz then l.Size = sz end
+    l.Parent = parent
+    bind(l, "TextColor3", key)
+    return l
+end
+
+local function isPointer(input)
+    return input.UserInputType == Enum.UserInputType.Touch
+        or input.UserInputType == Enum.UserInputType.MouseButton1
+end
+
+-- Posición del dedo en coordenadas de pantalla (compensa el inset superior)
+local function screenPos(input)
+    local inset = GuiService:GetGuiInset()
+    return Vector2.new(input.Position.X + inset.X, input.Position.Y + inset.Y)
+end
+
+local orderN = 0
+local function nextOrder()
+    orderN += 1
+    return orderN
+end
+
+-- Animación al tocar: el botón se hunde y rebota
+local function squish(btn)
+    local sc = Instance.new("UIScale")
+    sc.Parent = btn
+    btn.InputBegan:Connect(function(i)
+        if isPointer(i) then tween(sc, { Scale = 0.93 }, 0.07) end
+    end)
+    btn.InputEnded:Connect(function(i)
+        if isPointer(i) then tween(sc, { Scale = 1 }, 0.16, Enum.EasingStyle.Back) end
+    end)
+end
+
+-- Un solo controlador de arrastre para todo (menos conexiones = menos lag)
+local activeDrag, activeInput
+local function beginDrag(input, handler)
+    activeDrag, activeInput = handler, input
+end
+track(UserInputService.InputChanged:Connect(function(input)
+    if activeDrag and (input == activeInput
+        or input.UserInputType == Enum.UserInputType.MouseMovement) then
+        activeDrag(input)
+    end
+end))
+track(UserInputService.InputEnded:Connect(function(input)
+    if activeDrag and (input == activeInput
+        or input.UserInputType == Enum.UserInputType.MouseButton1) then
+        activeDrag, activeInput = nil, nil
+    end
+end))
+
+local function notify(text)
+    local toast = Instance.new("TextLabel")
+    toast.AnchorPoint = Vector2.new(0.5, 1)
+    toast.Size = UDim2.fromOffset(220, 26)
+    toast.Position = UDim2.new(0.5, 0, 1, 10)
+    toast.BackgroundTransparency = 0.15
+    toast.Text = text
+    toast.TextSize = 11
+    toast.Font = Enum.Font.GothamBold
+    toast.ZIndex = 20
+    toast.Parent = Screen
+    bind(toast, "BackgroundColor3", "Dark")
+    bind(toast, "TextColor3", "White")
+    corner(toast, 8)
+    stroke(toast, "Acc", 1.5)
+    tween(toast, { Position = UDim2.new(0.5, 0, 1, -18) }, 0.3, Enum.EasingStyle.Back)
+    task.delay(2, function()
+        if toast.Parent then
+            tween(toast, { Position = UDim2.new(0.5, 0, 1, 40) }, 0.25)
+            task.delay(0.3, function() toast:Destroy() end)
+        end
+    end)
+end
+
+print("[EfrenHub] parte 1 lista")
