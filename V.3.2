@@ -518,3 +518,315 @@ local function setMenuTransparency(v)
 end
 
 print("[EfrenHub] parte 2 lista")
+--==================================================
+-- COMPONENTES COMPACTOS
+--==================================================
+
+local function createSection(page, text)
+    local l = mkLabel(page, "✦  " .. text, 10, Enum.Font.GothamBlack, "Acc2", nil, UDim2.new(1, 0, 0, 14))
+    l.LayoutOrder = nextOrder()
+    return l
+end
+
+local function createGrid(page)
+    local grid = Instance.new("Frame")
+    grid.Size = UDim2.new(1, -4, 0, 0)
+    grid.BackgroundTransparency = 1
+    grid.AutomaticSize = Enum.AutomaticSize.Y
+    grid.LayoutOrder = nextOrder()
+    grid.Parent = page
+
+    local layout = Instance.new("UIGridLayout")
+    layout.CellSize = UDim2.new(0.5, -3, 0, 30)
+    layout.CellPadding = UDim2.fromOffset(5, 5)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = grid
+    return grid
+end
+
+-- Interruptor animado. Devuelve: botón, setEnabled(valor, silencioso)
+local function createButton(parent, name, description, callback)
+    local row = Instance.new("TextButton")
+    row.Size = UDim2.new(1, -4, 0, 30)
+    row.BackgroundTransparency = 0.18
+    row.Text = ""
+    row.AutoButtonColor = false
+    row.LayoutOrder = nextOrder()
+    row.Parent = parent
+    corner(row, 7)
+    local st = stroke(row, nil, 1)
+    squish(row)
+
+    mkLabel(row, name, 11, Enum.Font.GothamBold, "White", UDim2.fromOffset(8, 3), UDim2.new(1, -46, 0, 13))
+    local desc = mkLabel(row, description, 8, Enum.Font.Gotham, "Gray", UDim2.fromOffset(8, 16), UDim2.new(1, -46, 0, 11))
+    desc.TextTruncate = Enum.TextTruncate.AtEnd
+
+    local pill = Instance.new("Frame")
+    pill.Size = UDim2.fromOffset(30, 14)
+    pill.Position = UDim2.new(1, -38, 0.5, -7)
+    pill.BorderSizePixel = 0
+    pill.Parent = row
+    corner(pill, 7)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.fromOffset(10, 10)
+    knob.BackgroundColor3 = Color3.new(1, 1, 1)
+    knob.BorderSizePixel = 0
+    knob.Parent = pill
+    corner(knob, 5)
+
+    local enabled = false
+    local function paint(animated)
+        local targets = {
+            { row, { BackgroundColor3 = enabled and C.RowOn or C.Row } },
+            { st, { Color = enabled and C.Acc2 or C.Off, Thickness = enabled and 1.6 or 1 } },
+            { pill, { BackgroundColor3 = enabled and C.Acc or C.Off } },
+            { knob, { Position = enabled and UDim2.new(1, -12, 0.5, -5) or UDim2.new(0, 2, 0.5, -5) } },
+        }
+        for _, t in ipairs(targets) do
+            if animated then
+                tween(t[1], t[2], 0.18)
+            else
+                for k, v in pairs(t[2]) do t[1][k] = v end
+            end
+        end
+    end
+    onTheme(function() paint(false) end)
+
+    local function setEnabled(value, silent)
+        enabled = value
+        paint(true)
+        if callback and not silent then callback(enabled) end
+    end
+
+    row.Activated:Connect(function() setEnabled(not enabled) end)
+    return row, setEnabled
+end
+
+-- Barra deslizante compacta (táctil). Devuelve la fila
+local function createSlider(page, name, min, max, default, fmt, callback)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, -4, 0, 38)
+    row.BackgroundTransparency = 0.18
+    row.LayoutOrder = nextOrder()
+    row.Parent = page
+    bind(row, "BackgroundColor3", "Row")
+    corner(row, 7)
+    stroke(row, "Off", 1)
+
+    mkLabel(row, name, 11, Enum.Font.GothamBold, "White", UDim2.fromOffset(8, 2), UDim2.new(0.6, 0, 0, 15))
+    local valueLabel = mkLabel(row, "", 10, Enum.Font.GothamBold, "Acc2",
+        UDim2.new(0.6, 0, 0, 2), UDim2.new(0.4, -8, 0, 15), Enum.TextXAlignment.Right)
+
+    local hit = Instance.new("Frame")
+    hit.Size = UDim2.new(1, -16, 0, 20)
+    hit.Position = UDim2.fromOffset(8, 17)
+    hit.BackgroundTransparency = 1
+    hit.Parent = row
+
+    local bar = Instance.new("Frame")
+    bar.AnchorPoint = Vector2.new(0, 0.5)
+    bar.Size = UDim2.new(1, 0, 0, 5)
+    bar.Position = UDim2.fromScale(0, 0.5)
+    bar.BorderSizePixel = 0
+    bar.Parent = hit
+    bind(bar, "BackgroundColor3", "Off")
+    corner(bar, 3)
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.fromScale(0, 1)
+    fill.BorderSizePixel = 0
+    fill.Parent = bar
+    bind(fill, "BackgroundColor3", "Acc")
+    corner(fill, 3)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.fromOffset(13, 13)
+    knob.AnchorPoint = Vector2.new(0.5, 0.5)
+    knob.BorderSizePixel = 0
+    knob.Parent = bar
+    bind(knob, "BackgroundColor3", "White")
+    corner(knob, 7)
+
+    local function setRatio(r)
+        r = math.clamp(r, 0, 1)
+        fill.Size = UDim2.fromScale(r, 1)
+        knob.Position = UDim2.fromScale(r, 0.5)
+        local value = min + (max - min) * r
+        valueLabel.Text = fmt(value)
+        if callback then callback(value) end
+    end
+
+    local function fromInput(input)
+        local w = bar.AbsoluteSize.X
+        if w > 0 then
+            setRatio((input.Position.X - bar.AbsolutePosition.X) / w)
+        end
+    end
+
+    hit.InputBegan:Connect(function(input)
+        if isPointer(input) then
+            fromInput(input)
+            beginDrag(input, fromInput)
+        end
+    end)
+
+    setRatio((default - min) / (max - min))
+    return row
+end
+
+-- Sección deslizante: al tocarla se despliega. Devuelve el cuerpo
+local function createCollapsible(page, title, bodyH)
+    local holder = Instance.new("Frame")
+    holder.Size = UDim2.new(1, -4, 0, 30)
+    holder.BackgroundTransparency = 0.18
+    holder.ClipsDescendants = true
+    holder.LayoutOrder = nextOrder()
+    holder.Parent = page
+    bind(holder, "BackgroundColor3", "Row")
+    corner(holder, 7)
+    stroke(holder, "Off", 1)
+
+    local head = Instance.new("TextButton")
+    head.Size = UDim2.new(1, 0, 0, 30)
+    head.BackgroundTransparency = 1
+    head.Text = ""
+    head.AutoButtonColor = false
+    head.Parent = holder
+    squish(head)
+
+    mkLabel(head, title, 11, Enum.Font.GothamBold, "White", UDim2.fromOffset(8, 0), UDim2.new(1, -40, 1, 0))
+    local arrow = mkLabel(head, "▼", 10, Enum.Font.GothamBold, "Acc2",
+        UDim2.new(1, -26, 0, 0), UDim2.fromOffset(20, 30), Enum.TextXAlignment.Center)
+
+    local body = Instance.new("Frame")
+    body.Position = UDim2.fromOffset(0, 30)
+    body.Size = UDim2.new(1, 0, 0, bodyH)
+    body.BackgroundTransparency = 1
+    body.Parent = holder
+
+    local open = false
+    head.Activated:Connect(function()
+        open = not open
+        tween(holder, { Size = UDim2.new(1, -4, 0, open and (30 + bodyH + 4) or 30) }, 0.3)
+        tween(arrow, { Rotation = open and 180 or 0 }, 0.25)
+    end)
+    return body
+end
+
+--==================================================
+-- RUEDA DE COLORES (dentro de la sección deslizante)
+--==================================================
+
+local custom = { h = 0.6, s = 0.85, v = 1 }
+local customBusy = false
+
+local function applyCustom()
+    if customBusy then return end
+    customBusy = true
+    task.delay(0.08, function()
+        customBusy = false
+        applyTheme(makeTheme(custom.h, custom.s, custom.v))
+    end)
+end
+
+local function createColorPicker(page)
+    local R = 46
+    local body = createCollapsible(page, "🎨  Color del menú  (toca para abrir)", 2 * R + 54)
+
+    local wheel = Instance.new("Frame")
+    wheel.AnchorPoint = Vector2.new(0.5, 0)
+    wheel.Position = UDim2.new(0.5, 0, 0, 4)
+    wheel.Size = UDim2.fromOffset(2 * R, 2 * R)
+    wheel.BackgroundTransparency = 1
+    wheel.ClipsDescendants = true
+    wheel.Parent = body
+    corner(wheel, R)
+
+    -- 72 rayos: blanco en el centro → color intenso en el borde
+    local SPOKES = 72
+    local spokeH = math.ceil(2 * math.pi * R / SPOKES) + 2
+    for i = 0, SPOKES - 1 do
+        local hue = i / SPOKES
+        local s = Instance.new("Frame")
+        s.AnchorPoint = Vector2.new(0.5, 0.5)
+        s.Position = UDim2.fromOffset(R, R)
+        s.Size = UDim2.fromOffset(2 * R, spokeH)
+        s.Rotation = hue * 360
+        s.BackgroundColor3 = Color3.new(1, 1, 1)
+        s.BorderSizePixel = 0
+        s.Parent = wheel
+
+        local g = Instance.new("UIGradient")
+        g.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+            ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)),
+            ColorSequenceKeypoint.new(1, Color3.fromHSV(hue, 1, 1)),
+        })
+        g.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 1),
+            NumberSequenceKeypoint.new(0.4999, 1),
+            NumberSequenceKeypoint.new(0.5, 0),
+            NumberSequenceKeypoint.new(1, 0),
+        })
+        g.Parent = s
+    end
+
+    local marker = Instance.new("Frame")
+    marker.AnchorPoint = Vector2.new(0.5, 0.5)
+    marker.Size = UDim2.fromOffset(12, 12)
+    marker.BackgroundTransparency = 1
+    marker.ZIndex = 5
+    marker.Parent = wheel
+    corner(marker, 6)
+    local ms = Instance.new("UIStroke")
+    ms.Color = Color3.new(1, 1, 1)
+    ms.Thickness = 2
+    ms.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    ms.Parent = marker
+    local a0 = math.rad(custom.h * 360)
+    marker.Position = UDim2.fromScale(0.5 + math.cos(a0) * custom.s * 0.5, 0.5 + math.sin(a0) * custom.s * 0.5)
+
+    local hit = Instance.new("TextButton")
+    hit.Size = UDim2.fromScale(1, 1)
+    hit.BackgroundTransparency = 1
+    hit.Text = ""
+    hit.AutoButtonColor = false
+    hit.ZIndex = 6
+    hit.Parent = wheel
+
+    local function pick(input)
+        local size = wheel.AbsoluteSize.X
+        if size <= 0 then return end
+        local rad = size / 2
+        local p = screenPos(input)
+        local dx = p.X - (wheel.AbsolutePosition.X + rad)
+        local dy = p.Y - (wheel.AbsolutePosition.Y + rad)
+        local dist = math.sqrt(dx * dx + dy * dy)
+        local k = dist > rad and (rad / dist) or 1
+        marker.Position = UDim2.fromScale(0.5 + (dx * k) / size, 0.5 + (dy * k) / size)
+        custom.h = (math.deg(math.atan2(dy, dx)) % 360) / 360
+        custom.s = math.clamp(dist / rad, 0, 1)
+        applyCustom()
+    end
+
+    hit.InputBegan:Connect(function(input)
+        if isPointer(input) then
+            pick(input)
+            beginDrag(input, pick)
+        end
+    end)
+
+    -- Barra de brillo
+    local ready = false
+    local row = createSlider(body, "Brillo", 0.4, 1, 1,
+        function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
+        function(v)
+            custom.v = v
+            if ready then applyCustom() end
+        end)
+    row.Position = UDim2.fromOffset(2, 2 * R + 10)
+    ready = true
+end
+
+print("[EfrenHub] parte 3 lista")
