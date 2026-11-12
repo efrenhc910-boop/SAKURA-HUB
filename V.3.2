@@ -223,3 +223,298 @@ local function notify(text)
 end
 
 print("[EfrenHub] parte 1 lista")
+--==================================================
+-- VENTANA PRINCIPAL
+--==================================================
+
+local BASE_W, BASE_H, HEADER_H = 460, 292, 38
+local HOME = UDim2.fromScale(0.5, 0.5)
+local MENU_T = 0.35
+
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.AnchorPoint = Vector2.new(0.5, 0.5)
+Main.Size = UDim2.fromOffset(BASE_W, BASE_H)
+Main.Position = HOME
+Main.BackgroundTransparency = MENU_T
+Main.BorderSizePixel = 0
+Main.ClipsDescendants = true
+Main.Parent = Screen
+bind(Main, "BackgroundColor3", "Dark")
+corner(Main, 12)
+
+local MenuScale = Instance.new("UIScale")
+MenuScale.Scale = 0.8
+MenuScale.Parent = Main
+tween(MenuScale, { Scale = 1 }, 0.35, Enum.EasingStyle.Back)
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Thickness = 2
+MainStroke.Color = Color3.new(1, 1, 1)
+MainStroke.Parent = Main
+local MainGrad = Instance.new("UIGradient")
+MainGrad.Parent = MainStroke
+onTheme(function()
+    MainGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, C.Acc),
+        ColorSequenceKeypoint.new(0.5, C.Acc2),
+        ColorSequenceKeypoint.new(1, C.Acc),
+    })
+end)
+-- El borde gira solo, con animación del motor (cero costo en Lua)
+TweenService:Create(MainGrad, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, -1),
+    { Rotation = 360 }):Play()
+
+--==================================================
+-- CABECERA + TÍTULO FLUIDO (negro / azul marino)
+--==================================================
+
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, HEADER_H)
+Header.BackgroundColor3 = Color3.new(1, 1, 1)
+Header.BackgroundTransparency = 0.2
+Header.BorderSizePixel = 0
+Header.Parent = Main
+local HeaderGrad = Instance.new("UIGradient")
+HeaderGrad.Parent = Header
+onTheme(function() HeaderGrad.Color = ColorSequence.new(C.Acc2, C.Acc) end)
+
+local INK_A = Color3.fromRGB(3, 5, 12)
+local INK_B = Color3.fromRGB(18, 48, 150)
+
+do
+    local box = Instance.new("Frame")
+    box.BackgroundTransparency = 1
+    box.Position = UDim2.fromOffset(12, 2)
+    box.Size = UDim2.fromOffset(172, 26)
+    box.ClipsDescendants = true
+    box.Parent = Header
+
+    -- Letras: cada una sube, baja y cambia de tono en ola
+    local x, idx = 0, 0
+    for _, code in utf8.codes("EFRÉN HUB") do
+        local ch = utf8.char(code)
+        if ch == " " then
+            x += 11
+        else
+            idx += 1
+            local l = Instance.new("TextLabel")
+            l.BackgroundTransparency = 1
+            l.Size = UDim2.fromOffset(17, 24)
+            l.Position = UDim2.fromOffset(x, 3)
+            l.Font = Enum.Font.GothamBlack
+            l.TextSize = 20
+            l.Text = ch
+            l.TextColor3 = INK_A
+            l.Parent = box
+
+            local tw = TweenService:Create(l,
+                TweenInfo.new(0.85, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+                { TextColor3 = INK_B, Position = UDim2.fromOffset(x, 0) })
+            task.delay(idx * 0.09, function() tw:Play() end)
+            x += 17
+        end
+    end
+
+    -- Brillo que cruza el título
+    local shine = Instance.new("Frame")
+    shine.Size = UDim2.fromOffset(26, 40)
+    shine.Position = UDim2.fromOffset(-40, -8)
+    shine.Rotation = 20
+    shine.BackgroundColor3 = Color3.new(1, 1, 1)
+    shine.BackgroundTransparency = 0.5
+    shine.BorderSizePixel = 0
+    shine.ZIndex = 5
+    shine.Parent = box
+    local sg = Instance.new("UIGradient")
+    sg.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1),
+        NumberSequenceKeypoint.new(0.5, 0),
+        NumberSequenceKeypoint.new(1, 1),
+    })
+    sg.Parent = shine
+    TweenService:Create(shine, TweenInfo.new(1.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1),
+        { Position = UDim2.fromOffset(190, -8) }):Play()
+
+    local sub = Instance.new("TextLabel")
+    sub.BackgroundTransparency = 1
+    sub.Position = UDim2.fromOffset(13, 26)
+    sub.Size = UDim2.fromOffset(220, 10)
+    sub.Font = Enum.Font.GothamBold
+    sub.TextSize = 8
+    sub.TextXAlignment = Enum.TextXAlignment.Left
+    sub.TextColor3 = Color3.fromRGB(12, 26, 80)
+    sub.Text = "C Y B E R   S Y S T E M   •   V 4 . 0"
+    sub.Parent = Header
+end
+
+local Close = Instance.new("TextButton")
+Close.Size = UDim2.fromOffset(22, 22)
+Close.Position = UDim2.new(1, -30, 0, 8)
+Close.BackgroundColor3 = Color3.fromRGB(8, 12, 32)
+Close.BackgroundTransparency = 0.1
+Close.Text = "×"
+Close.TextColor3 = C.White
+Close.TextSize = 16
+Close.Font = Enum.Font.GothamBold
+Close.AutoButtonColor = false
+Close.ZIndex = 4
+Close.Parent = Header
+corner(Close, 6)
+squish(Close)
+
+local DragZone = Instance.new("Frame")
+DragZone.Size = UDim2.new(1, -40, 1, 0)
+DragZone.BackgroundTransparency = 1
+DragZone.ZIndex = 3
+DragZone.Parent = Header
+DragZone.InputBegan:Connect(function(input)
+    if isPointer(input) then
+        local startPos, startMouse = Main.Position, input.Position
+        beginDrag(input, function(i)
+            local d = i.Position - startMouse
+            Main.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + d.X,
+                startPos.Y.Scale, startPos.Y.Offset + d.Y
+            )
+        end)
+    end
+end)
+
+--==================================================
+-- BARRA DE PESTAÑAS EXTENSA (se pueden agregar más)
+--==================================================
+
+local TAB_BAR_W = BASE_W - 16
+
+local TabBar = Instance.new("Frame")
+TabBar.Position = UDim2.fromOffset(8, HEADER_H + 5)
+TabBar.Size = UDim2.new(1, -16, 0, 22)
+TabBar.BackgroundTransparency = 0.3
+TabBar.BorderSizePixel = 0
+TabBar.Parent = Main
+bind(TabBar, "BackgroundColor3", "Tab")
+corner(TabBar, 7)
+stroke(TabBar, "Acc", 1, 0.5)
+
+local TabScroll = Instance.new("ScrollingFrame")
+TabScroll.Size = UDim2.fromScale(1, 1)
+TabScroll.BackgroundTransparency = 1
+TabScroll.BorderSizePixel = 0
+TabScroll.ScrollBarThickness = 0
+TabScroll.ScrollingDirection = Enum.ScrollingDirection.X
+TabScroll.CanvasSize = UDim2.new()
+TabScroll.Parent = TabBar
+
+local Content = Instance.new("Frame")
+Content.Position = UDim2.fromOffset(8, HEADER_H + 32)
+Content.Size = UDim2.new(1, -16, 1, -(HEADER_H + 32 + 22))
+Content.BackgroundTransparency = 0.45
+Content.BorderSizePixel = 0
+Content.ClipsDescendants = true
+Content.Parent = Main
+bind(Content, "BackgroundColor3", "Panel")
+corner(Content, 9)
+
+local Status = mkLabel(Main, "Listo  •  Toca 🌸 para ocultar", 9, Enum.Font.Gotham, "Gray",
+    UDim2.new(0, 12, 1, -18), UDim2.fromOffset(300, 14))
+
+local TabButtons, Pages, tabOrder = {}, {}, {}
+local CurrentPage
+
+local function layoutTabs()
+    local n = #tabOrder
+    if n == 0 then return end
+    local gap = 3
+    local w = (TAB_BAR_W - 6 - gap * (n - 1)) / n
+    if w < 84 then w = 84 end
+    for i, name in ipairs(tabOrder) do
+        local b = TabButtons[name]
+        b.Size = UDim2.fromOffset(w, 18)
+        b.Position = UDim2.fromOffset(3 + (i - 1) * (w + gap), 2)
+    end
+    TabScroll.CanvasSize = UDim2.fromOffset(6 + n * (w + gap), 0)
+end
+
+local function paintTabs(animated)
+    for name, b in pairs(TabButtons) do
+        local sel = name == CurrentPage
+        local col = sel and C.Acc or C.Tab
+        local tr = sel and 0.1 or 0.5
+        if animated then
+            tween(b, { BackgroundColor3 = col, BackgroundTransparency = tr }, 0.18)
+        else
+            b.BackgroundColor3 = col
+            b.BackgroundTransparency = tr
+        end
+    end
+end
+onTheme(function() paintTabs(false) end)
+
+local function showPage(name)
+    if CurrentPage == name then return end
+    CurrentPage = name
+    for pageName, page in pairs(Pages) do
+        page.Visible = pageName == name
+    end
+    paintTabs(true)
+end
+
+local function createPage(name)
+    local page = Instance.new("ScrollingFrame")
+    page.Name = name
+    page.Size = UDim2.fromScale(1, 1)
+    page.BackgroundTransparency = 1
+    page.BorderSizePixel = 0
+    page.ScrollBarThickness = 3
+    page.CanvasSize = UDim2.new()
+    page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    page.Visible = false
+    page.Parent = Content
+    bind(page, "ScrollBarImageColor3", "Acc")
+
+    local pad = Instance.new("UIPadding")
+    pad.PaddingTop = UDim.new(0, 6)
+    pad.PaddingBottom = UDim.new(0, 6)
+    pad.PaddingLeft = UDim.new(0, 6)
+    pad.PaddingRight = UDim.new(0, 6)
+    pad.Parent = page
+
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 5)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = page
+
+    Pages[name] = page
+    return page
+end
+
+local function addTab(name)
+    local b = Instance.new("TextButton")
+    b.Name = name
+    b.Text = name
+    b.TextSize = 11
+    b.Font = Enum.Font.GothamBold
+    b.TextColor3 = C.White
+    b.AutoButtonColor = false
+    b.BorderSizePixel = 0
+    b.Parent = TabScroll
+    corner(b, 6)
+    squish(b)
+    TabButtons[name] = b
+    tabOrder[#tabOrder + 1] = name
+    local page = createPage(name)
+    b.Activated:Connect(function() showPage(name) end)
+    layoutTabs()
+    paintTabs(false)
+    return page
+end
+
+local function setMenuTransparency(v)
+    Main.BackgroundTransparency = v
+    Content.BackgroundTransparency = math.min(0.95, v + 0.1)
+    TabBar.BackgroundTransparency = math.min(0.95, v)
+    Header.BackgroundTransparency = math.min(0.9, 0.1 + v * 0.5)
+end
+
+print("[EfrenHub] parte 2 lista")
