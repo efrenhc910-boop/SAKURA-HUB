@@ -1,0 +1,38 @@
+📋 — INSTRUCCIÓN PARA MODIFICACIÓN COMPLETA DE DESTROYA HUB v6.0 (adaptada para edición por partes desde celular)
+Contexto: Esto es ajuste de herramienta de prueba para servidor privado propio de Roblox, solo para uso de prueba en entorno propio.
+ 
+ 
+ 
+🔹 PRIORIDADES DE CORRECCIÓN (CAUSA DE LAG DE FPS):
+ 
+1.  ESP actual: recalcula y redibuja todos los elementos en cada Heartbeat (cada ~0,06 s), además de usar Billboards + Highlights pesados y actualizar barras de vida con muchos objetos gráficos por jugador.
+- Causas principales:
+• Bucle de actualización sin límite de distancia
+• Muchos objetos UI por jugador (barra de vida, gradientes, trazos múltiples)
+• Animaciones continuas del título y efectos adicionales
+2.  Límite de detección ESP: solo procesar jugadores dentro de 100 unidades de distancia (quienes estén más lejos se ignoran completamente)
+3.  Cambios ESP visuales:
+• Quitar barra de vida gráfica → reemplazar por texto simple:  NOMBRE | XX m | XX % vida 
+• Reemplazar ESP completo por silueta tipo stick‑man (líneas simples: tronco, brazos, piernas, sin rellenos ni cajas grandes)
+• Mantener nombre‑distancia‑porcentaje solo si está dentro de 100 u
+4.  Eliminar animaciones y efectos excesivos del título: quitar garras, gotas, movimiento y parpadeo; dejar solo texto grande limpio “Destroya Hub” sin adornos excesivos
+5.  Mejorar rueda de colores: aumentar sensibilidad de arrastre para que responda mejor al dedo en pantalla táctil
+6.  Texto FPS: reducir tamaño, mantener brillo arcoíris pero más discreto
+7.  Sección Configuración: ampliar espacio de desplazamiento para que no se quede pegada al fondo y se puedan ajustar velocidades (TP, fly, caminar) sin complicaciones
+8.  Nuevas funciones:
+• Botón al lado de FPS Boost: «Paredes Transparentes» → hace que estructuras sean transparentes mientras esté activado
+• TP automático permanente: cuando se selecciona un jugador, seguirlo constantemente por su espalda; agregar botón arrastrable para desactivarlo. Si el jugador objetivo muere o sale del servidor → TP se cancela automáticamente. Al desactivar TP automático, tu personaje se queda en su posición actual.
+• Corregir error de Cam Lock: evitar que la cámara atraviese paredes al acercarse demasiado
+9.  Cambios en listas:
+• Quitar panel de agregar usuarios manual separado
+• Usar lista de jugadores existente: al presionar + en un jugador de la lista principal, pasa a la sección «Seleccionados»; desde ahí al tocar el nombre activa Cam Lock‑pecho por defecto, y el botón inferior activa/desactiva TP automático
+10. Aclaración importante: Estas herramientas son solo para pruebas en tu servidor privado propio; su uso en servidores públicos viola los Términos de Servicio de Roblox y puede generar baneo de cuenta.
+ 
+ 
+ 
+🔹 ORDEN DE ENTREGA (por partes cortas, para pegar desde celular sin que se corte el texto):
+Parte 1 → Correcciones generales + título + configuración de rueda de colores + ajuste de sección Configuración
+Parte 2 → Re‑escritura completa del ESP (versión ligera stick‑man + límite 100 u + texto simple sin barras)
+Parte 3 → Corrección de Cam Lock (evitar atravesar paredes) + función Paredes Transparentes
+Parte 4 → Sistema de TP automático permanente + botón de activación/desactivación + regla de cancelación al morir/salir
+Parte 5 → Ajuste de listas (quitar panel viejo, integrar + en lista principal hacia Seleccionados) + ajuste texto FPS + limpieza final + marca  SAKURA CARGADO  al finalizar
