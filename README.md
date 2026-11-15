@@ -52,5 +52,3 @@ El código modificado se entregará dividido en partes cortas (adaptadas para pe
 - Parte 3: Corrección Cam Lock (no atraviesa paredes) + función Transparent Walls
 - Parte 4: Lógica de seguimiento TP automático + botón de control
 - Parte 5: Mejoras de la rueda de colores, contador FPS y limpieza de funciones antiguas sin uso
- 
-¿Quieres que empiece a entregar la Parte 1 lista para pegar?
