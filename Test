@@ -1,5 +1,6 @@
 --==================================================
---          DESTROYA HUB  •  v7.0  •  PARTE 1 / 9
+--            DESTROYA HUB  •  v6.1
+--                 PARTE 1 / 18
 --==================================================
 print("[DestroyaHub] cargando...")
 
@@ -43,7 +44,6 @@ for _, container in ipairs({ guiParent, playerGui }) do
         if old then old:Destroy() end
     end
 end
-pcall(function() RunService:UnbindFromRenderStep("TargetCamera") end)
 pcall(function() RunService:UnbindFromRenderStep("DestroyaCam") end)
 
 local Screen = Instance.new("ScreenGui")
@@ -54,28 +54,18 @@ Screen.DisplayOrder = 9999
 Screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 Screen.Parent = guiParent
 
---==================================================
--- FUENTES
---==================================================
-
 local function pickFont(name, fallback)
     local ok, f = pcall(function() return Enum.Font[name] end)
     return (ok and f) or fallback
 end
 
 local F = {
-    title = pickFont("Oswald", Enum.Font.GothamBlack),
+    title = pickFont("GothamBold", Enum.Font.GothamBold),
     head = pickFont("Oswald", Enum.Font.GothamBold),
     section = pickFont("Michroma", Enum.Font.GothamBold),
     body = Enum.Font.GothamMedium,
     bold = Enum.Font.GothamBold,
 }
-
---==================================================
--- TEMA (azul por defecto, el resto sale de la rueda)
---==================================================
-
-local RED = Color3.fromRGB(255, 30, 55)
 
 local AZUL = {
     Acc = Color3.fromRGB(40, 130, 255), Acc2 = Color3.fromRGB(95, 205, 255),
@@ -147,10 +137,6 @@ local function makeTheme(h, s, v)
     }
 end
 
---==================================================
--- UTILIDADES
---==================================================
-
 local function tween(obj, props, time, style, dir)
     local t = TweenService:Create(obj,
         TweenInfo.new(time or 0.2, style or Enum.EasingStyle.Quint, dir or Enum.EasingDirection.Out), props)
@@ -214,9 +200,7 @@ end
 local function safe(fn, label)
     return function(...)
         local ok, err = pcall(fn, ...)
-        if not ok then
-            warn("[DestroyaHub] error en " .. tostring(label) .. ": " .. tostring(err))
-        end
+        if not ok then warn("[DestroyaHub] error en " .. tostring(label) .. ": " .. tostring(err)) end
     end
 end
 
@@ -233,7 +217,6 @@ local function debounced(fn)
     end
 end
 
--- Animación al tocar: se hunde y rebota
 local function squish(btn, depth)
     local sc = Instance.new("UIScale")
     sc.Parent = btn
@@ -246,7 +229,6 @@ local function squish(btn, depth)
     return sc
 end
 
--- Un solo controlador de arrastre (bloquea el scroll mientras arrastras)
 local activeDrag, activeInput, activeEnd
 local function endDrag()
     if not activeDrag then return end
@@ -281,7 +263,7 @@ local function notify(text)
     local toast = Instance.new("Frame")
     lastToast = toast
     toast.AnchorPoint = Vector2.new(0.5, 1)
-    toast.Size = UDim2.fromOffset(260, 30)
+    toast.Size = UDim2.fromOffset(280, 30)
     toast.Position = UDim2.new(0.5, 0, 1, 14)
     toast.BackgroundColor3 = Color3.fromRGB(12, 8, 12)
     toast.BackgroundTransparency = 0.08
@@ -309,13 +291,15 @@ end
 
 print("[DestroyaHub] parte 1 lista")
 --==================================================
---          DESTROYA HUB  •  PARTE 2 / 9
---              VENTANA, CABECERA Y PESTAÑAS
+--            DESTROYA HUB  •  PARTE 2 / 18
+--            VENTANA Y TÍTULO SOBRIO
 --==================================================
 
-local BASE_W, BASE_H, HEADER_H = 500, 376, 44
+local BASE_W, BASE_H, HEADER_H = 520, 470, 56
 local HOME = UDim2.fromScale(0.5, 0.5)
 local MENU_T = 0.3
+local RED = Color3.fromRGB(255, 30, 55)
+local WHITE = Color3.fromRGB(245, 245, 250)
 
 local Main = Instance.new("Frame")
 Main.Name = "Main"
@@ -327,45 +311,32 @@ Main.BorderSizePixel = 0
 Main.Parent = Screen
 bind(Main, "BackgroundColor3", "Dark")
 corner(Main, 12)
-stroke(Main, "Acc", 1.5, 0.1)
+stroke(Main, "Acc", 1.4, 0.2)
 
 local MenuScale = Instance.new("UIScale")
-MenuScale.Scale = 0.8
+MenuScale.Scale = 0.85
 MenuScale.Parent = Main
-tween(MenuScale, { Scale = 1 }, 0.4, Enum.EasingStyle.Back)
+tween(MenuScale, { Scale = 1 }, 0.32, Enum.EasingStyle.Quad)
 
--- Cabecera
 local Header = Instance.new("Frame")
 Header.Name = "Header"
 Header.Size = UDim2.new(1, 0, 0, HEADER_H)
-Header.BackgroundColor3 = Color3.fromRGB(10, 8, 14)
-Header.BackgroundTransparency = 0.1
+Header.BackgroundColor3 = Color3.fromRGB(13, 15, 22)
 Header.BorderSizePixel = 0
 Header.Parent = Main
 corner(Header, 12)
 
-local headSquare = Instance.new("Frame")
-headSquare.Position = UDim2.new(0, 0, 1, -12)
-headSquare.Size = UDim2.new(1, 0, 0, 12)
-headSquare.BackgroundColor3 = Color3.fromRGB(10, 8, 14)
-headSquare.BackgroundTransparency = 0.1
-headSquare.BorderSizePixel = 0
-headSquare.Parent = Header
-
-local headLine = Instance.new("Frame")
-headLine.Position = UDim2.new(0, 0, 1, -2)
-headLine.Size = UDim2.new(1, 0, 0, 2)
-headLine.BorderSizePixel = 0
-headLine.ZIndex = 2
-headLine.Parent = Header
-bind(headLine, "BackgroundColor3", "Acc")
-
-local Title = plain(Header, "DESTROYA HUB", 24, F.title, C.White, nil,
-    UDim2.new(1, 0, 1, 0), Enum.TextXAlignment.Center)
+local Title = plain(Header, 'Destroya <font color="#4FA8FF">Hub</font>', 31, F.title, WHITE,
+    UDim2.fromOffset(48, 10), UDim2.new(1, -160, 0, 36))
+Title.RichText = true
+Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.ZIndex = 3
-Title.TextXAlignment = Enum.TextXAlignment.Center
 
-local function headerIcon(kind, pos, bgColor)
+local Sub = plain(Header, "v6.1", 10, F.body, Color3.fromRGB(120, 132, 155),
+    UDim2.new(1, -58, 0, 24), UDim2.fromOffset(40, 14), Enum.TextXAlignment.Right)
+Sub.TextTransparency = 0.35
+
+local function iconButton(kind, pos, bgColor)
     local b = Instance.new("TextButton")
     b.Size = UDim2.fromOffset(26, 26)
     b.Position = pos
@@ -377,29 +348,29 @@ local function headerIcon(kind, pos, bgColor)
     b.Parent = Header
     corner(b, 8)
     squish(b, 0.88)
-    local function bar(w, rot)
+    local function glyph(w, rot)
         local f = Instance.new("Frame")
         f.AnchorPoint = Vector2.new(0.5, 0.5)
         f.Position = UDim2.fromScale(0.5, 0.5)
         f.Size = UDim2.fromOffset(w, 2)
         f.Rotation = rot
-        f.BackgroundColor3 = C.White
+        f.BackgroundColor3 = WHITE
         f.BorderSizePixel = 0
         f.ZIndex = 6
         f.Parent = b
         corner(f, 1)
     end
     if kind == "x" then
-        bar(13, 45)
-        bar(13, -45)
+        glyph(13, 45)
+        glyph(13, -45)
     else
-        bar(12, 0)
+        glyph(12, 0)
     end
     return b
 end
 
-local DestroyBtn = headerIcon("x", UDim2.fromOffset(9, 9), Color3.fromRGB(120, 12, 28))
-local HideBtn = headerIcon("minus", UDim2.new(1, -35, 0, 9), Color3.fromRGB(38, 26, 38))
+local DestroyBtn = iconButton("x", UDim2.fromOffset(8, 15), Color3.fromRGB(120, 12, 28))
+local HideBtn = iconButton("minus", UDim2.new(1, -34, 0, 15), Color3.fromRGB(38, 26, 38))
 
 local DragZone = Instance.new("Frame")
 DragZone.Position = UDim2.fromOffset(44, 0)
@@ -418,7 +389,12 @@ DragZone.InputBegan:Connect(function(input)
     end
 end)
 
--- Pestañas
+print("[DestroyaHub] parte 2 lista")
+--==================================================
+--            DESTROYA HUB  •  PARTE 3 / 18
+--        PESTAÑAS, PÁGINAS Y PIE DEL MENÚ
+--==================================================
+
 local TabBar = Instance.new("Frame")
 TabBar.Position = UDim2.fromOffset(8, HEADER_H + 6)
 TabBar.Size = UDim2.new(1, -16, 0, 26)
@@ -446,25 +422,23 @@ TabIndicator.Parent = TabScroll
 bind(TabIndicator, "BackgroundColor3", "Acc")
 corner(TabIndicator, 7)
 
--- Contenido
 local Content = Instance.new("Frame")
 Content.Position = UDim2.fromOffset(8, HEADER_H + 38)
-Content.Size = UDim2.new(1, -16, 1, -(HEADER_H + 38 + 26))
+Content.Size = UDim2.new(1, -16, 1, -(HEADER_H + 38 + 24))
 Content.BackgroundTransparency = 0.45
 Content.BorderSizePixel = 0
 Content.Parent = Main
 bind(Content, "BackgroundColor3", "Panel")
 corner(Content, 10)
 
--- Pie
-local Status = plain(Main, "Listo. Usa el botón - para ocultar.", 9, F.body, C.Gray,
-    UDim2.new(0, 12, 1, -21), UDim2.fromOffset(330, 12))
+local Status = plain(Main, "Listo.", 9, F.body, C.Gray,
+    UDim2.new(0, 12, 1, -21), UDim2.fromOffset(380, 12))
 UI.setStatus = function(t) Status.Text = t end
 
 local Author = plain(Main, "by Efrén Hub", 7, F.body, C.Gray,
-    UDim2.new(1, -10, 1, -12), UDim2.fromOffset(90, 8), Enum.TextXAlignment.Right)
+    UDim2.new(1, -10, 1, -12), UDim2.fromOffset(80, 8), Enum.TextXAlignment.Right)
 Author.AnchorPoint = Vector2.new(1, 0)
-Author.TextTransparency = 0.4
+Author.TextTransparency = 0.45
 
 local TabButtons, Pages, tabOrder = {}, {}, {}
 local CurrentPage
@@ -473,7 +447,7 @@ local function moveIndicator(animated)
     local b = TabButtons[CurrentPage]
     if not b then return end
     if animated then
-        tween(TabIndicator, { Position = b.Position, Size = b.Size }, 0.32, Enum.EasingStyle.Quint)
+        tween(TabIndicator, { Position = b.Position, Size = b.Size }, 0.26, Enum.EasingStyle.Quint)
     else
         TabIndicator.Position = b.Position
         TabIndicator.Size = b.Size
@@ -493,7 +467,7 @@ local function layoutTabs()
     local n = #tabOrder
     if n == 0 then return end
     local gap = 3
-    local w = math.max(84, (BASE_W - 16 - 6 - gap * (n - 1)) / n)
+    local w = math.max(96, (BASE_W - 16 - 6 - gap * (n - 1)) / n)
     for i, name in ipairs(tabOrder) do
         local b = TabButtons[name]
         b.Size = UDim2.fromOffset(w, 22)
@@ -507,12 +481,7 @@ local function showPage(name)
     if CurrentPage == name then return end
     CurrentPage = name
     for pageName, page in pairs(Pages) do
-        local vis = pageName == name
-        page.Visible = vis
-        if vis then
-            page.Position = UDim2.fromOffset(0, 12)
-            tween(page, { Position = UDim2.fromOffset(0, 0) }, 0.3, Enum.EasingStyle.Quint)
-        end
+        page.Visible = (pageName == name)
     end
     paintTabs(true)
 end
@@ -521,7 +490,7 @@ local function addTab(name)
     local b = Instance.new("TextButton")
     b.Name = name
     b.Text = string.upper(name)
-    b.TextSize = 12
+    b.TextSize = 13
     b.Font = F.head
     b.BackgroundTransparency = 1
     b.AutoButtonColor = false
@@ -537,9 +506,10 @@ local function addTab(name)
     page.Size = UDim2.fromScale(1, 1)
     page.BackgroundTransparency = 1
     page.BorderSizePixel = 0
-    page.ScrollBarThickness = 3
+    page.ScrollBarThickness = 4
     page.CanvasSize = UDim2.new()
     page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    page.ScrollingDirection = Enum.ScrollingDirection.Y
     page.Visible = false
     page.Parent = Content
     bind(page, "ScrollBarImageColor3", "Acc")
@@ -547,12 +517,12 @@ local function addTab(name)
     local pad = Instance.new("UIPadding")
     pad.PaddingTop = UDim.new(0, 8)
     pad.PaddingBottom = UDim.new(0, 12)
-    pad.PaddingLeft = UDim.new(0, 8)
-    pad.PaddingRight = UDim.new(0, 8)
+    pad.PaddingLeft = UDim.new(0, 10)
+    pad.PaddingRight = UDim.new(0, 10)
     pad.Parent = page
 
     local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 9)
+    layout.Padding = UDim.new(0, 10)
     layout.SortOrder = Enum.SortOrder.LayoutOrder
     layout.Parent = page
 
@@ -573,21 +543,21 @@ local function setMenuTransparency(v)
     TabBar.BackgroundTransparency = math.min(0.95, v + 0.05)
 end
 
-print("[DestroyaHub] parte 2 lista")
+print("[DestroyaHub] parte 3 lista")
 --==================================================
---          DESTROYA HUB  •  PARTE 3 / 9
---                 COMPONENTES
+--            DESTROYA HUB  •  PARTE 4 / 18
+--        COMPONENTES: SECCIONES Y MINI BOTONES
 --==================================================
 
 local function createSection(page, text)
     local h = Instance.new("Frame")
-    h.Size = UDim2.new(1, -4, 0, 26)
+    h.Size = UDim2.new(1, -4, 0, 28)
     h.BackgroundTransparency = 1
     h.LayoutOrder = nextOrder()
     h.Parent = page
 
     local barF = Instance.new("Frame")
-    barF.Position = UDim2.fromOffset(2, 8)
+    barF.Position = UDim2.fromOffset(2, 12)
     barF.Size = UDim2.fromOffset(3, 12)
     barF.BorderSizePixel = 0
     barF.Parent = h
@@ -595,10 +565,10 @@ local function createSection(page, text)
     corner(barF, 2)
 
     local up = string.upper(text)
-    mkLabel(h, up, 10, F.section, "Acc2", UDim2.fromOffset(12, 6), UDim2.fromOffset(340, 16))
-    local w = TextService:GetTextSize(up, 10, F.section, Vector2.new(600, 20)).X
+    mkLabel(h, up, 9, F.section, "Acc2", UDim2.fromOffset(12, 11), UDim2.fromOffset(320, 14))
+    local w = TextService:GetTextSize(up, 9, F.section, Vector2.new(600, 20)).X
     local line = Instance.new("Frame")
-    line.Position = UDim2.fromOffset(12 + w + 10, 14)
+    line.Position = UDim2.fromOffset(12 + w + 10, 18)
     line.Size = UDim2.new(1, -(12 + w + 10) - 8, 0, 1)
     line.BorderSizePixel = 0
     line.Parent = h
@@ -625,7 +595,6 @@ local function createGrid(page)
     return grid
 end
 
--- Flecha dibujada con barras
 local function drawChevron(parent, color, k)
     k = k or 1
     local box = Instance.new("Frame")
@@ -643,18 +612,16 @@ local function drawChevron(parent, color, k)
         p.BorderSizePixel = 0
         p.Parent = box
         corner(p, 1)
-        if typeof(color) == "string" then
-            bind(p, "BackgroundColor3", color)
-        else
-            p.BackgroundColor3 = color
-        end
+        if typeof(color) == "string" then bind(p, "BackgroundColor3", color) else p.BackgroundColor3 = color end
         parts[i] = p
     end
     return box, parts
 end
 
--- Botones + y - dibujados con barras
-local miniSets = { plus = setmetatable({}, { __mode = "k" }), minus = setmetatable({}, { __mode = "k" }) }
+local miniSets = {
+    plus = setmetatable({}, { __mode = "k" }),
+    minus = setmetatable({}, { __mode = "k" }),
+}
 
 local function createMiniButton(parent, kind, size)
     size = size or 26
@@ -691,7 +658,12 @@ local function recolorMini(kind)
     end
 end
 
--- Interruptor animado. Devuelve api: Set(valor, silencioso), Get()
+print("[DestroyaHub] parte 4 lista")
+--==================================================
+--            DESTROYA HUB  •  PARTE 5 / 18
+--          COMPONENTES: INTERRUPTOR Y SLIDER
+--==================================================
+
 local function createButton(parent, name, desc, callback)
     local cb = callback and safe(callback, name)
 
@@ -705,6 +677,11 @@ local function createButton(parent, name, desc, callback)
     corner(row, 10)
     squish(row, 0.95)
 
+    local sheen = Instance.new("UIGradient")
+    sheen.Rotation = 90
+    sheen.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(165, 170, 185))
+    sheen.Parent = row
+
     local accent = Instance.new("Frame")
     accent.AnchorPoint = Vector2.new(0, 0.5)
     accent.Position = UDim2.fromScale(0, 0.5)
@@ -713,10 +690,8 @@ local function createButton(parent, name, desc, callback)
     accent.Parent = row
     corner(accent, 2)
 
-    local nameL = plain(row, string.upper(name), 13, F.head, C.White,
-        UDim2.fromOffset(12, 4), UDim2.new(1, -62, 0, 18))
-    local descL = plain(row, desc, 8, F.body, C.Gray,
-        UDim2.fromOffset(12, 22), UDim2.new(1, -62, 0, 12))
+    local nameL = plain(row, string.upper(name), 13, F.head, C.White, UDim2.fromOffset(12, 4), UDim2.new(1, -62, 0, 18))
+    local descL = plain(row, desc, 8, F.body, C.Gray, UDim2.fromOffset(12, 22), UDim2.new(1, -62, 0, 12))
     descL.TextTruncate = Enum.TextTruncate.AtEnd
 
     local pill = Instance.new("Frame")
@@ -737,15 +712,14 @@ local function createButton(parent, name, desc, callback)
     local function paint(animated)
         local on = enabled
         local set = {
-            { row, { BackgroundColor3 = on and C.RowOn or C.Row }, 0.25 },
-            { accent, { Size = UDim2.fromOffset(3, on and 22 or 0), BackgroundColor3 = C.Acc2 }, 0.3 },
-            { pill, { BackgroundColor3 = on and C.Acc or C.Off }, 0.22 },
-            { knob, { Position = on and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7) }, 0.28 },
-            { nameL, { TextColor3 = on and C.White or Color3.fromRGB(196, 204, 222) }, 0.2 },
+            { row, { BackgroundColor3 = on and C.RowOn or C.Row }, 0.25, Enum.EasingStyle.Quint },
+            { accent, { Size = UDim2.fromOffset(3, on and 22 or 0), BackgroundColor3 = C.Acc2 }, 0.3, Enum.EasingStyle.Back },
+            { pill, { BackgroundColor3 = on and C.Acc or C.Off }, 0.22, Enum.EasingStyle.Quint },
+            { knob, { Position = on and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7) }, 0.28, Enum.EasingStyle.Back },
         }
         for _, s in ipairs(set) do
             if animated then
-                tween(s[1], s[2], s[3], Enum.EasingStyle.Quint)
+                tween(s[1], s[2], s[3], s[4])
             else
                 for k, v in pairs(s[2]) do s[1][k] = v end
             end
@@ -766,25 +740,24 @@ local function createButton(parent, name, desc, callback)
     return api
 end
 
--- Barra deslizante. Devuelve la fila
 local function createSlider(page, name, min, max, default, fmt, callback)
     local cb = callback and safe(callback, name)
 
     local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, -4, 0, 46)
+    row.Size = UDim2.new(1, -4, 0, 58)
     row.BackgroundTransparency = 0.06
     row.LayoutOrder = nextOrder()
     row.Parent = page
     bind(row, "BackgroundColor3", "Row")
     corner(row, 10)
 
-    mkLabel(row, string.upper(name), 11, F.head, "White", UDim2.fromOffset(12, 5), UDim2.new(0.62, 0, 0, 16))
-    local valueL = mkLabel(row, "", 11, F.head, "Acc2", UDim2.new(0.62, 0, 0, 5),
+    mkLabel(row, string.upper(name), 12, F.head, "White", UDim2.fromOffset(12, 8), UDim2.new(0.62, 0, 0, 16))
+    local valueL = mkLabel(row, "", 12, F.head, "Acc2", UDim2.new(0.62, 0, 0, 8),
         UDim2.new(0.38, -12, 0, 16), Enum.TextXAlignment.Right)
 
     local hit = Instance.new("Frame")
-    hit.Size = UDim2.new(1, -24, 0, 24)
-    hit.Position = UDim2.fromOffset(12, 21)
+    hit.Size = UDim2.new(1, -24, 0, 26)
+    hit.Position = UDim2.fromOffset(12, 30)
     hit.BackgroundTransparency = 1
     hit.Parent = row
 
@@ -840,7 +813,12 @@ local function createSlider(page, name, min, max, default, fmt, callback)
     return row
 end
 
--- Sección deslizante (el contenido se arma solo la primera vez que se abre)
+print("[DestroyaHub] parte 5 lista")
+--==================================================
+--            DESTROYA HUB  •  PARTE 6 / 18
+--        DESPLEGABLES Y MUESTRAS DE COLOR
+--==================================================
+
 local function createCollapsible(page, title, height, onFirstOpen)
     local HEAD = 38
     local contentH = height or 0
@@ -866,13 +844,13 @@ local function createCollapsible(page, title, height, onFirstOpen)
     local dia = Instance.new("Frame")
     dia.AnchorPoint = Vector2.new(0.5, 0.5)
     dia.Position = UDim2.fromOffset(18, HEAD / 2)
-    dia.Size = UDim2.fromOffset(8, 8)
+    dia.Size = UDim2.fromOffset(9, 9)
     dia.Rotation = 45
     dia.BorderSizePixel = 0
     dia.Parent = head
     bind(dia, "BackgroundColor3", "Acc2")
 
-    mkLabel(head, string.upper(title), 12, F.head, "White", UDim2.fromOffset(34, 0), UDim2.new(1, -70, 1, 0))
+    mkLabel(head, string.upper(title), 13, F.head, "White", UDim2.fromOffset(34, 0), UDim2.new(1, -70, 1, 0))
     local chev = drawChevron(head, "Acc2", 1)
     chev.Position = UDim2.new(1, -22, 0.5, 0)
 
@@ -882,7 +860,7 @@ local function createCollapsible(page, title, height, onFirstOpen)
     body.BackgroundTransparency = 1
     body.Parent = holder
 
-    local api = { body = body }
+    local api = { body = body, holder = holder }
     local function target() return open and (HEAD + contentH + 10) or HEAD end
 
     function api.setHeight(h)
@@ -898,13 +876,12 @@ local function createCollapsible(page, title, height, onFirstOpen)
             if onFirstOpen then onFirstOpen(body) end
         end
         tween(chev, { Rotation = open and 180 or 0 }, 0.3, Enum.EasingStyle.Back)
-        tween(holder, { Size = UDim2.new(1, -4, 0, target()) }, 0.3)
+        tween(holder, { Size = UDim2.new(1, -4, 0, target()) }, 0.3, Enum.EasingStyle.Quint)
     end, title))
 
     return api
 end
 
--- Filas de colores para los botones + y -
 local function createSwatches(page, title, colors, defaultIdx, kind, onPick)
     local row = Instance.new("Frame")
     row.Size = UDim2.new(1, -4, 0, 58)
@@ -914,7 +891,7 @@ local function createSwatches(page, title, colors, defaultIdx, kind, onPick)
     bind(row, "BackgroundColor3", "Row")
     corner(row, 10)
 
-    mkLabel(row, string.upper(title), 11, F.head, "White", UDim2.fromOffset(12, 6), UDim2.new(1, -60, 0, 16))
+    mkLabel(row, string.upper(title), 12, F.head, "White", UDim2.fromOffset(12, 6), UDim2.new(1, -60, 0, 16))
 
     local rings = {}
     local function mark(idx)
@@ -926,7 +903,7 @@ local function createSwatches(page, title, colors, defaultIdx, kind, onPick)
     for i, c in ipairs(colors) do
         local b = Instance.new("TextButton")
         b.Size = UDim2.fromOffset(24, 24)
-        b.Position = UDim2.fromOffset(12 + (i - 1) * 32, 28)
+        b.Position = UDim2.fromOffset(12 + (i - 1) * 32, 29)
         b.BackgroundColor3 = c[2]
         b.Text = ""
         b.AutoButtonColor = false
@@ -952,8 +929,10 @@ local function createSwatches(page, title, colors, defaultIdx, kind, onPick)
     return row
 end
 
+print("[DestroyaHub] parte 6 lista")
 --==================================================
--- RUEDA DE COLORES (se arrastra a los lados)
+--            DESTROYA HUB  •  PARTE 7 / 18
+--           RUEDA DE COLOR Y ESTADO GENERAL
 --==================================================
 
 local hh, ss, vv = AZUL.Acc:ToHSV()
@@ -963,88 +942,96 @@ local customBusy = false
 local function applyCustom()
     if customBusy then return end
     customBusy = true
-    task.delay(0.06, function()
+    task.delay(0.03, function()
         customBusy = false
         applyTheme(makeTheme(custom.h, custom.s, custom.v))
     end)
 end
 
 local function createColorPicker(page)
-    local R, r0, N = 58, 26, 72
+    local R, r0, N = 82, 40, 84
     local mid = (R + r0) / 2
     local midRatio = mid / (2 * R)
-    local BODY = 2 * R + 8 + 46 + 8 + 46 + 8
+    local BODY_H = 8 + 2 * R + 12 + 62 + 12 + 62
 
-    createCollapsible(page, "Color del menú", BODY, function(body)
+    createCollapsible(page, "Color del menú", BODY_H, function(body)
         local wheel = Instance.new("Frame")
         wheel.AnchorPoint = Vector2.new(0.5, 0)
-        wheel.Position = UDim2.new(0.5, 0, 0, 4)
+        wheel.Position = UDim2.new(0.5, 0, 0, 8)
         wheel.Size = UDim2.fromOffset(2 * R, 2 * R)
         wheel.BackgroundTransparency = 1
         wheel.Parent = body
 
         local len = R - r0
-        local thick = math.ceil(2 * math.pi * R / N) + 1
+        local thick = math.ceil(2 * math.pi * R / N) + 2
         for i = 0, N - 1 do
             local hue = i / N
             local ang = hue * 2 * math.pi
-            local seg = Instance.new("Frame")
-            seg.AnchorPoint = Vector2.new(0.5, 0.5)
-            seg.Size = UDim2.fromOffset(len, thick)
-            seg.Position = UDim2.fromOffset(R + math.cos(ang) * mid, R + math.sin(ang) * mid)
-            seg.Rotation = math.deg(ang)
-            seg.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
-            seg.BorderSizePixel = 0
-            seg.Parent = wheel
+            local s = Instance.new("Frame")
+            s.AnchorPoint = Vector2.new(0.5, 0.5)
+            s.Size = UDim2.fromOffset(len, thick)
+            s.Position = UDim2.fromOffset(R + math.cos(ang) * mid, R + math.sin(ang) * mid)
+            s.Rotation = math.deg(ang)
+            s.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
+            s.BorderSizePixel = 0
+            s.Parent = wheel
         end
 
         local preview = Instance.new("Frame")
         preview.AnchorPoint = Vector2.new(0.5, 0.5)
         preview.Position = UDim2.fromScale(0.5, 0.5)
-        preview.Size = UDim2.fromOffset(2 * (r0 - 4), 2 * (r0 - 4))
+        preview.Size = UDim2.fromOffset(2 * (r0 - 6), 2 * (r0 - 6))
         preview.BorderSizePixel = 0
         preview.Parent = wheel
         corner(preview, r0)
+        local function updatePreview()
+            preview.BackgroundColor3 = Color3.fromHSV(custom.h, custom.s, math.max(custom.v, 0.55))
+        end
+        updatePreview()
 
         local marker = Instance.new("Frame")
         marker.AnchorPoint = Vector2.new(0.5, 0.5)
-        marker.Size = UDim2.fromOffset(14, 14)
+        marker.Size = UDim2.fromOffset(20, 20)
         marker.BackgroundTransparency = 1
         marker.ZIndex = 5
         marker.Parent = wheel
-        corner(marker, 7)
+        corner(marker, 10)
         local ms = Instance.new("UIStroke")
         ms.Color = Color3.new(1, 1, 1)
-        ms.Thickness = 2.4
+        ms.Thickness = 3
         ms.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
         ms.Parent = marker
+        local a0 = custom.h * 2 * math.pi
+        marker.Position = UDim2.fromScale(0.5 + math.cos(a0) * midRatio, 0.5 + math.sin(a0) * midRatio)
 
-        local function paintWheel()
-            preview.BackgroundColor3 = Color3.fromHSV(custom.h, custom.s, math.max(custom.v, 0.55))
-            local ang = custom.h * 2 * math.pi
-            marker.Position = UDim2.fromScale(0.5 + math.cos(ang) * midRatio, 0.5 + math.sin(ang) * midRatio)
-        end
-        paintWheel()
-
-        -- Zona táctil más grande que la rueda
         local hit = Instance.new("TextButton")
-        hit.Position = UDim2.fromOffset(-14, -14)
-        hit.Size = UDim2.new(1, 28, 1, 28)
+        hit.Position = UDim2.fromOffset(-30, -30)
+        hit.Size = UDim2.new(1, 60, 1, 60)
         hit.BackgroundTransparency = 1
         hit.Text = ""
         hit.AutoButtonColor = false
         hit.ZIndex = 6
         hit.Parent = wheel
 
-        -- Arrastre lineal: moverte 260 px de lado da una vuelta completa de color
+        local function pick(input)
+            local size = wheel.AbsoluteSize.X
+            if size <= 0 then return end
+            local p = screenPos(input)
+            local dx = p.X - (wheel.AbsolutePosition.X + size / 2)
+            local dy = p.Y - (wheel.AbsolutePosition.Y + size / 2)
+            local dead = size * 0.08
+            if dx * dx + dy * dy < dead * dead then return end
+            local ang = math.atan2(dy, dx)
+            custom.h = (math.deg(ang) % 360) / 360
+            marker.Position = UDim2.fromScale(0.5 + math.cos(ang) * midRatio, 0.5 + math.sin(ang) * midRatio)
+            updatePreview()
+            applyCustom()
+        end
+
         hit.InputBegan:Connect(function(input)
             if isPointer(input) then
-                local startX, startH = input.Position.X, custom.h
-                beginDrag(input, function(i)
-                    custom.h = (startH + (i.Position.X - startX) / 260) % 1
-                    paintWheel()
-                    applyCustom()
-                end, true)
+                pick(input)
+                beginDrag(input, pick, true)
             end
         end)
 
@@ -1054,42 +1041,35 @@ local function createColorPicker(page)
             function(v)
                 custom.s = v
                 if ready then
-                    paintWheel()
+                    updatePreview()
                     applyCustom()
                 end
             end)
         r1.BackgroundTransparency = 1
-        r1.Position = UDim2.fromOffset(2, 2 * R + 12)
+        r1.Position = UDim2.fromOffset(2, 8 + 2 * R + 12)
 
         local r2 = createSlider(body, "Brillo", 0.4, 1, custom.v,
             function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
             function(v)
                 custom.v = v
                 if ready then
-                    paintWheel()
+                    updatePreview()
                     applyCustom()
                 end
             end)
         r2.BackgroundTransparency = 1
-        r2.Position = UDim2.fromOffset(2, 2 * R + 12 + 52)
+        r2.Position = UDim2.fromOffset(2, 8 + 2 * R + 12 + 62)
         ready = true
     end)
 end
 
-print("[DestroyaHub] parte 3 lista")
---==================================================
---          DESTROYA HUB  •  PARTE 4 / 9
---                 ESTADO Y ESP
---==================================================
-
 local S = {
     esp = false, lockMode = nil, target = nil,
     infJump = false, fly = false, walk = false, noclip = false,
-    boost = false, full = false, tpActive = false,
+    boost = false, walls = false, full = false, tpActive = false,
     flySpeed = 60, walkSpeed = 32, defWalk = 16, tpSpeed = 120,
 }
 local flyInput = { up = false, down = false }
-local ESP_RANGE = 100 -- studs
 
 local function getCamera()
     return Workspace.CurrentCamera
@@ -1101,10 +1081,23 @@ local function getParts()
     return char:FindFirstChild("HumanoidRootPart"), char:FindFirstChildOfClass("Humanoid"), char
 end
 
+print("[DestroyaHub] parte 7 lista")
+--==================================================
+--            DESTROYA HUB  •  PARTE 8 / 18
+--    ESP LIGERO: ESQUELETO 2D POR API DRAWING
+--==================================================
+
+local HAS_DRAWING = (type(Drawing) == "table" or type(Drawing) == "userdata")
+
+local ESP_MAX = 100
+local ESP_TICK = 0.06
+
 local PAL = {
-    enemy = { main = Color3.fromRGB(255, 35, 45), light = Color3.fromRGB(255, 140, 140) },
-    ally = { main = Color3.fromRGB(35, 120, 255), light = Color3.fromRGB(140, 205, 255) },
+    enemy = Color3.fromRGB(255, 45, 55),
+    ally = Color3.fromRGB(60, 145, 255),
 }
+local espData = {}
+local espAcc = 0
 
 local function isAlly(plr)
     if player.Team ~= nil and plr.Team ~= nil then return plr.Team == player.Team end
@@ -1113,186 +1106,357 @@ local function isAlly(plr)
     return false
 end
 
--- Articulaciones del muñeco de palitos (R15 y R6)
-local R15 = {
-    { { "Head", 0 }, { "UpperTorso", 0 } },
-    { { "UpperTorso", 0 }, { "LowerTorso", 0 } },
-    { { "UpperTorso", 0.3 }, { "LeftUpperArm", 0 } },
-    { { "LeftUpperArm", 0 }, { "LeftLowerArm", 0 } },
-    { { "UpperTorso", 0.3 }, { "RightUpperArm", 0 } },
-    { { "RightUpperArm", 0 }, { "RightLowerArm", 0 } },
-    { { "LowerTorso", -0.3 }, { "LeftUpperLeg", 0 } },
-    { { "LeftUpperLeg", 0 }, { "LeftLowerLeg", 0 } },
-    { { "LowerTorso", -0.3 }, { "RightUpperLeg", 0 } },
-    { { "RightUpperLeg", 0 }, { "RightLowerLeg", 0 } },
-}
-local R6 = {
-    { { "Head", -0.5 }, { "Torso", 0.5 } },
-    { { "Torso", 0.5 }, { "Torso", -0.5 } },
-    { { "Torso", 0.4 }, { "Left Arm", 0.4 } },
-    { { "Left Arm", 0.4 }, { "Left Arm", -0.4 } },
-    { { "Torso", 0.4 }, { "Right Arm", 0.4 } },
-    { { "Right Arm", 0.4 }, { "Right Arm", -0.4 } },
-    { { "Torso", -0.5 }, { "Left Leg", 0.4 } },
-    { { "Left Leg", 0.4 }, { "Left Leg", -0.4 } },
-    { { "Torso", -0.5 }, { "Right Leg", 0.4 } },
-    { { "Right Leg", 0.4 }, { "Right Leg", -0.4 } },
-}
-
-local function attachAt(part, frac)
-    local name = "DH" .. string.format("%.2f", frac)
-    local a = part:FindFirstChild(name)
-    if not a then
-        a = Instance.new("Attachment")
-        a.Name = name
-        a.Position = Vector3.new(0, part.Size.Y * frac, 0)
-        a.Parent = part
+local function findPart(char, ...)
+    for i = 1, select("#", ...) do
+        local p = char:FindFirstChild((select(i, ...)))
+        if p and p:IsA("BasePart") then return p end
     end
-    return a
+    return nil
 end
 
-local espObjects = {}
+local function buildBones(char)
+    local list = {}
+    local head = findPart(char, "Head")
+    local torso = findPart(char, "UpperTorso", "Torso")
+    local lower = findPart(char, "LowerTorso", "Torso")
+    local la = findPart(char, "LeftUpperArm", "Left Arm")
+    local ra = findPart(char, "RightUpperArm", "Right Arm")
+    local lf = findPart(char, "LeftLowerArm", "Left Arm")
+    local rf = findPart(char, "RightLowerArm", "Right Arm")
+    local lul = findPart(char, "LeftUpperLeg", "Left Leg")
+    local rul = findPart(char, "RightUpperLeg", "Right Leg")
+    local lll = findPart(char, "LeftLowerLeg", "Left Leg")
+    local rll = findPart(char, "RightLowerLeg", "Right Leg")
+
+    local function add(a, b)
+        if a and b then list[#list + 1] = { a, b } end
+    end
+    add(head, torso)
+    add(torso, lower)
+    add(torso, la)
+    add(la, lf)
+    add(torso, ra)
+    add(ra, rf)
+    add(lower, lul)
+    add(lul, lll)
+    add(lower, rul)
+    add(rul, rll)
+    return list
+end
 
 local function removeESP(plr)
-    local d = espObjects[plr]
+    local d = espData[plr]
     if not d then return end
-    for _, b in ipairs(d.beams) do b:Destroy() end
+    espData[plr] = nil
+    for _, l in ipairs(d.lines) do
+        l.Visible = false
+        pcall(function() l:Remove() end)
+    end
+    if d.text then
+        d.text.Visible = false
+        pcall(function() d.text:Remove() end)
+    end
     if d.bb then d.bb:Destroy() end
-    espObjects[plr] = nil
 end
 
 local function clearESP()
-    for plr in pairs(espObjects) do removeESP(plr) end
+    for plr in pairs(espData) do removeESP(plr) end
 end
 
-local function paintESP(d, ally)
-    local p = ally and PAL.ally or PAL.enemy
-    d.ally = ally
-    for _, b in ipairs(d.beams) do b.Color = ColorSequence.new(p.main) end
-    d.info.TextColor3 = p.light
+local function txtSet(d, s, col, show)
+    if HAS_DRAWING then
+        d.text.Text = s
+        d.text.Color = col
+        d.text.Visible = show
+    else
+        d.label.Text = s
+        d.label.TextColor3 = col
+        d.bb.Enabled = show
+    end
 end
 
-local function applyESP(plr)
-    if plr == player then return end
-    local char = plr.Character
-    local head = char and (char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart"))
-    if not head then return end
-    removeESP(plr)
+local function newData(char)
+    local d = { char = char, bones = buildBones(char), lines = {}, ally = nil, txt = "", dist = -1 }
 
-    local d = { char = char, beams = {}, ally = nil, last = "", inRange = false }
+    if HAS_DRAWING then
+        for _ = 1, #d.bones do
+            local l = Drawing.new("Line")
+            l.Thickness = 1.6
+            l.Transparency = 1
+            l.Visible = false
+            d.lines[#d.lines + 1] = l
+        end
+        local t = Drawing.new("Text")
+        t.Size = 14
+        t.Center = true
+        t.Outline = true
+        t.OutlineColor = Color3.new(0, 0, 0)
+        t.Visible = false
+        d.text = t
+    else
+        local bb = Instance.new("BillboardGui")
+        bb.Size = UDim2.fromOffset(180, 20)
+        bb.StudsOffset = Vector3.new(0, 2.4, 0)
+        bb.Adornee = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
+        bb.Parent = Workspace
+        local l = plain(bb, "", 13, F.head, Color3.new(1, 1, 1),
+            UDim2.fromOffset(0, 0), UDim2.fromScale(1, 1), Enum.TextXAlignment.Center)
+        l.TextStrokeTransparency = 0.25
+        l.TextStrokeColor3 = Color3.new(0, 0, 0)
+        d.bb = bb
+        d.label = l
+    end
+    return d
+end
 
-    local chains = char:FindFirstChild("UpperTorso") and R15 or R6
-    for _, ch in ipairs(chains) do
-        local p0 = char:FindFirstChild(ch[1][1])
-        local p1 = char:FindFirstChild(ch[2][1])
-        if p0 and p1 then
-            local b = Instance.new("Beam")
-            b.Attachment0 = attachAt(p0, ch[1][2])
-            b.Attachment1 = attachAt(p1, ch[2][2])
-            b.Width0 = 0.12
-            b.Width1 = 0.12
-            b.FaceCamera = true
-            b.LightEmission = 1
-            b.Transparency = NumberRange.new(0.1)
-            b.Segments = 1
-            b.Enabled = false
-            b.Parent = p0
-            d.beams[#d.beams + 1] = b
+local function project(cam, pos)
+    local sp, on = cam:WorldToViewportPoint(pos)
+    if not on or sp.Z <= 0 then return nil end
+    return Vector2.new(sp.X, sp.Y)
+end
+
+local function stepESP()
+    local cam = Workspace.CurrentCamera
+    if not cam then return end
+    local myChar = player.Character
+    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= player then
+            local char = plr.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            local d = espData[plr]
+
+            if not (char and root) then
+                if d then removeESP(plr) end
+            else
+                if not d or d.char ~= char then
+                    removeESP(plr)
+                    d = newData(char)
+                    espData[plr] = d
+                end
+
+                local dist = myRoot and math.floor((root.Position - myRoot.Position).Magnitude + 0.5) or 0
+                if dist > ESP_MAX then
+                    if d.txt ~= "" then
+                        d.txt = ""
+                        for _, l in ipairs(d.lines) do l.Visible = false end
+                        txtSet(d, "", PAL.enemy, false)
+                    end
+                else
+                    local ally = isAlly(plr)
+                    local col = ally and PAL.ally or PAL.enemy
+                    if d.ally ~= ally then
+                        d.ally = ally
+                        for _, l in ipairs(d.lines) do l.Color = col end
+                    end
+
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+                    local pct = 0
+                    if hum and hum.MaxHealth > 0 then
+                        pct = math.floor(math.max(0, hum.Health) / hum.MaxHealth * 100 + 0.5)
+                    end
+                    local s = plr.Name .. " | " .. dist .. " m | " .. pct .. "%"
+                    if d.txt ~= s then
+                        d.txt = s
+                        txtSet(d, s, col, true)
+                    elseif d.text and not d.text.Visible then
+                        d.text.Visible = true
+                    elseif d.label and not d.bb.Enabled then
+                        d.bb.Enabled = true
+                    end
+
+                    local head = char:FindFirstChild("Head") or root
+                    if HAS_DRAWING then
+                        local hp = project(cam, head.Position + Vector3.new(0, 0.9, 0))
+                        if hp then d.text.Position = hp else d.text.Visible = false end
+                        for i, bone in ipairs(d.bones) do
+                            local l = d.lines[i]
+                            local a = project(cam, bone[1].Position)
+                            local b = project(cam, bone[2].Position)
+                            if a and b then
+                                l.From = a
+                                l.To = b
+                                l.Visible = true
+                            else
+                                l.Visible = false
+                            end
+                        end
+                    else
+                        if d.bb.Adornee ~= head then d.bb.Adornee = head end
+                    end
+                end
+            end
         end
     end
-
-    local bb = Instance.new("BillboardGui")
-    bb.Name = "DestroyaESP"
-    bb.Size = UDim2.fromOffset(220, 18)
-    bb.StudsOffset = Vector3.new(0, 2.6, 0)
-    bb.AlwaysOnTop = true
-    bb.LightInfluence = 0
-    bb.Adornee = head
-    bb.Enabled = false
-    bb.Parent = head
-
-    local info = plain(bb, "", 12, F.head, C.White, nil, UDim2.fromScale(1, 1), Enum.TextXAlignment.Center)
-    info.TextStrokeTransparency = 0.3
-    info.TextStrokeColor3 = Color3.new(0, 0, 0)
-
-    d.bb = bb
-    d.info = info
-    espObjects[plr] = d
-    paintESP(d, isAlly(plr))
 end
 
 local function hookPlayer(plr)
     if plr == player then return end
     track(plr.CharacterAdded:Connect(function()
-        task.wait(0.8)
-        if S.esp then pcall(applyESP, plr) end
-    end))
-end
-
--- Revisa cada 0.25 s: solo cambia lo que cambió
-do
-    local acc = 0
-    track(RunService.Heartbeat:Connect(function(dt)
-        if not S.esp then return end
-        acc += dt
-        if acc < 0.25 then return end
-        acc = 0
-
-        pcall(function()
-            local lr = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-            for _, plr in ipairs(Players:GetPlayers()) do
-                if plr ~= player then
-                    local char = plr.Character
-                    local d = espObjects[plr]
-                    if char and (not d or d.char ~= char) then
-                        pcall(applyESP, plr)
-                        d = espObjects[plr]
-                    end
-                    if d and char then
-                        local root = char:FindFirstChild("HumanoidRootPart")
-                        local hum = char:FindFirstChildOfClass("Humanoid")
-                        local dist = (root and lr) and (root.Position - lr.Position).Magnitude or math.huge
-                        local inR = dist <= ESP_RANGE
-
-                        if inR ~= d.inRange then
-                            d.inRange = inR
-                            for _, b in ipairs(d.beams) do b.Enabled = inR end
-                            d.bb.Enabled = inR
-                        end
-
-                        if inR then
-                            local ally = isAlly(plr)
-                            if d.ally ~= ally then paintESP(d, ally) end
-
-                            local hp = hum and math.floor(hum.Health + 0.5) or 0
-                            local mx = hum and math.max(1, math.floor(hum.MaxHealth + 0.5)) or 1
-                            local pct = math.floor(math.clamp(hp / mx, 0, 1) * 100 + 0.5)
-                            local text = plr.Name .. "  |  " .. math.floor(dist + 0.5) .. " m  |  " .. pct .. "%"
-                            if text ~= d.last then
-                                d.last = text
-                                d.info.Text = text
-                            end
-                        end
-                    end
-                end
+        if S.esp then
+            task.wait(1)
+            if S.esp then
+                removeESP(plr)
+                espAcc = ESP_TICK
             end
-        end)
+        end
     end))
 end
+
+track(RunService.Heartbeat:Connect(function(dt)
+    if not S.esp then return end
+    espAcc += dt
+    if espAcc < ESP_TICK then return end
+    espAcc = 0
+    local ok, err = pcall(stepESP)
+    if not ok then warn("[DestroyaHub] ESP: " .. tostring(err)) end
+end))
 
 for _, plr in ipairs(Players:GetPlayers()) do hookPlayer(plr) end
 
-print("[DestroyaHub] parte 4 lista")
+print("[DestroyaHub] parte 8 lista")
 --==================================================
---          DESTROYA HUB  •  PARTE 5 / 9
---     CAM LOCK, AUTO TP Y LISTA DE MEJORES USUARIOS
+--            DESTROYA HUB  •  PARTE 9 / 18
+--         TP AUTOMÁTICO Y LISTA DE MEJORES
 --==================================================
 
+local TP = { target = nil, missing = 0, died = nil }
+
+local function clearDeathWatch()
+    if TP.died then
+        TP.died:Disconnect()
+        TP.died = nil
+    end
+end
+
+local function stopTP(msg)
+    local was = TP.target
+    clearDeathWatch()
+    TP.target = nil
+    TP.missing = 0
+    S.tpActive = false
+    if UI.showTpStop then UI.showTpStop(false) end
+    if msg then notify(msg) end
+    if was and UI.refreshLists then UI.refreshLists() end
+end
+
+local function watchDeath(plr)
+    clearDeathWatch()
+    local char = plr.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+    TP.died = hum.Died:Connect(function()
+        if TP.target == plr then stopTP("El objetivo murió") end
+    end)
+end
+
+local function startTP(plr)
+    if TP.target == plr then
+        stopTP("TP cancelado")
+        return
+    end
+    if not plr or plr.Parent ~= Players then
+        notify("Jugador no disponible")
+        return
+    end
+    if not getParts() then
+        notify("Tu personaje no está listo")
+        return
+    end
+    TP.target = plr
+    TP.missing = 0
+    S.tpActive = true
+    watchDeath(plr)
+    notify("TP activo en @" .. plr.Name)
+    if UI.showTpStop then UI.showTpStop(true) end
+    if UI.refreshLists then UI.refreshLists() end
+end
+
+track(RunService.Heartbeat:Connect(function(dt)
+    local plr = TP.target
+    if not plr then return end
+    local ok, err = pcall(function()
+        local root = getParts()
+        if not root then return end
+        if plr.Parent ~= Players then
+            stopTP("El jugador salió del juego")
+            return
+        end
+        local tChar = plr.Character
+        local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+        local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
+        if tHum and tHum.Health <= 0 then
+            stopTP("El objetivo murió")
+            return
+        end
+        if not tRoot then
+            TP.missing += dt
+            if TP.missing > 3 then stopTP("El jugador no tiene personaje") end
+            return
+        end
+        TP.missing = 0
+
+        local look = tRoot.CFrame.LookVector
+        local flat = Vector3.new(look.X, 0, look.Z)
+        if flat.Magnitude < 0.01 then flat = Vector3.new(0, 0, -1) end
+        flat = flat.Unit
+
+        local goal = tRoot.Position - flat * 3.2
+        local diff = goal - root.Position
+        local dist = diff.Magnitude
+
+        if dist <= 1.5 then
+            root.CFrame = CFrame.lookAt(goal, goal + flat)
+            root.AssemblyLinearVelocity = Vector3.zero
+            return
+        end
+
+        local dir = diff.Unit
+        local newPos = root.Position + dir * math.min(dist, S.tpSpeed * dt)
+        local face = Vector3.new(dir.X, 0, dir.Z)
+        if face.Magnitude < 0.05 then face = flat end
+        root.CFrame = CFrame.lookAt(newPos, newPos + face)
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+    end)
+    if not ok then
+        warn("[DestroyaHub] TP: " .. tostring(err))
+        stopTP("TP detenido por un error")
+    end
+end))
+
+local Sel = { list = {}, set = {} }
+
+local function selAdd(plr)
+    if not plr or plr.Parent ~= Players or Sel.set[plr] then return false end
+    Sel.set[plr] = true
+    Sel.list[#Sel.list + 1] = plr
+    if UI.refreshLists then UI.refreshLists() end
+    return true
+end
+
+local function selRemove(plr)
+    if not Sel.set[plr] then return false end
+    Sel.set[plr] = nil
+    for i = #Sel.list, 1, -1 do
+        if Sel.list[i] == plr then table.remove(Sel.list, i) end
+    end
+    if TP.target == plr then stopTP() end
+    if UI.refreshLists then UI.refreshLists() end
+    return true
+end
+
+print("[DestroyaHub] parte 9 lista")
 --==================================================
--- CAM LOCK (un solo estado: "head", "chest" o apagado)
+--            DESTROYA HUB  •  PARTE 10 / 18
+--          CAM LOCK (PEcho / CABEZA) SIN PAREDES
 --==================================================
 
 local camHeld, camPrev, camErr = false, nil, 0
+local camParams = RaycastParams.new()
+camParams.FilterType = Enum.RaycastFilterType.Exclude
+camParams.IgnoreWater = true
 
 local function releaseCamera()
     local cam = getCamera()
@@ -1339,7 +1503,24 @@ local function camStep()
         camPrev = cam.CameraType
     end
     if cam.CameraType ~= Enum.CameraType.Scriptable then cam.CameraType = Enum.CameraType.Scriptable end
-    cam.CFrame = CFrame.lookAt(root.Position - dir * 9 + Vector3.new(0, 3.5, 0), aimPoint(tChar, S.lockMode, tRoot))
+
+    local focus = aimPoint(tChar, S.lockMode, tRoot)
+    local want = root.Position - dir * 8.5 + Vector3.new(0, 3.2, 0)
+
+    camParams.FilterDescendantsInstances = { player.Character }
+    local delta = want - focus
+    local rayLen = delta.Magnitude
+    if rayLen > 0.1 then
+        local hit = Workspace:Raycast(focus, delta, camParams)
+        if hit then
+            want = hit.Position + (focus - hit.Position).Unit * 0.5
+            if (want - focus).Magnitude < 1.4 then
+                want = focus + (want - focus).Unit * 1.4
+            end
+        end
+    end
+
+    cam.CFrame = CFrame.lookAt(want, focus)
 
     if hum and hum.AutoRotate then hum.AutoRotate = false end
     root.CFrame = CFrame.lookAt(root.Position, root.Position + dir)
@@ -1357,7 +1538,7 @@ local function syncLock()
     if UI.chestToggle then UI.chestToggle.Set(S.lockMode == "chest", true) end
     if UI.showCamStop then UI.showCamStop(S.lockMode ~= nil) end
     UI.setStatus(lockStatus())
-    UI.refreshLists()
+    if UI.refreshLists then UI.refreshLists() end
 end
 
 local function setLockMode(mode)
@@ -1367,7 +1548,6 @@ local function setLockMode(mode)
     if not mode then pcall(releaseCamera) end
 end
 
--- Al elegir un jugador: pecho automático, salvo que ya estuviera en cabeza
 local function selectTarget(plr)
     if not plr or plr.Parent ~= Players then
         notify("Jugador no disponible")
@@ -1394,109 +1574,12 @@ RunService:BindToRenderStep("DestroyaCam", Enum.RenderPriority.Last.Value, funct
     end
 end)
 
+print("[DestroyaHub] parte 10 lista")
 --==================================================
--- AUTO TP (siempre detrás del jugador hasta que lo quites)
---==================================================
-
-local TP = { target = nil }
-
-local function stopTP(msg)
-    TP.target = nil
-    S.tpActive = false
-    if UI.syncTP then UI.syncTP() end
-    if msg then notify(msg) end
-    UI.refreshLists()
-end
-
-local function startTP(plr)
-    if not plr or plr.Parent ~= Players then
-        notify("Jugador no disponible")
-        return
-    end
-    TP.target = plr
-    S.tpActive = true
-    if UI.syncTP then UI.syncTP() end
-    notify("Auto TP hacia @" .. plr.Name)
-    UI.refreshLists()
-end
-
-local function toggleTP(plr)
-    if TP.target == plr then
-        stopTP("Auto TP apagado")
-    else
-        startTP(plr)
-    end
-end
-
-track(RunService.Heartbeat:Connect(function(dt)
-    local plr = TP.target
-    if not plr then return end
-    local ok, err = pcall(function()
-        if plr.Parent ~= Players then
-            stopTP("El jugador salió del juego")
-            return
-        end
-        local root = getParts()
-        local tChar = plr.Character
-        local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
-        if not root or not tRoot then return end
-
-        local look = tRoot.CFrame.LookVector
-        local flat = Vector3.new(look.X, 0, look.Z)
-        if flat.Magnitude < 0.01 then flat = Vector3.new(0, 0, -1) end
-        flat = flat.Unit
-
-        local goal = tRoot.Position - flat * 3.2
-        local diff = goal - root.Position
-        local dist = diff.Magnitude
-        local newPos = goal
-        if dist > 1.5 then
-            newPos = root.Position + diff.Unit * math.min(dist, S.tpSpeed * dt)
-        end
-
-        local face = Vector3.new(flat.X, 0, flat.Z)
-        root.CFrame = CFrame.lookAt(newPos, newPos + face)
-        root.AssemblyLinearVelocity = Vector3.zero
-        root.AssemblyAngularVelocity = Vector3.zero
-    end)
-    if not ok then
-        warn("[DestroyaHub] Auto TP: " .. tostring(err))
-        stopTP("Auto TP detenido por un error")
-    end
-end))
-
---==================================================
--- MEJORES USUARIOS (lista guardada)
+--            DESTROYA HUB  •  PARTE 11 / 18
+--      FLY, NOCLIP, WALK SPEED, SALTO, FULLBRIGHT
 --==================================================
 
-local Best = { list = {}, set = {} }
-
-local function bestAdd(plr)
-    if not plr or plr.Parent ~= Players or Best.set[plr] then return false end
-    Best.set[plr] = true
-    Best.list[#Best.list + 1] = plr
-    UI.refreshLists()
-    return true
-end
-
-local function bestRemove(plr)
-    if not Best.set[plr] then return false end
-    Best.set[plr] = nil
-    for i = #Best.list, 1, -1 do
-        if Best.list[i] == plr then table.remove(Best.list, i) end
-    end
-    if TP.target == plr then stopTP() end
-    UI.refreshLists()
-    return true
-end
-
-print("[DestroyaHub] parte 5 lista")
---==================================================
---          DESTROYA HUB  •  PARTE 6 / 9
---      FLY, NOCLIP, WALK SPEED, SALTO, LUZ, FPS BOOST
---==================================================
-
--- FLY
 local flyBV
 
 local function stopFly()
@@ -1536,7 +1619,6 @@ track(RunService.Heartbeat:Connect(function()
     flyBV.Velocity = velocity
 end))
 
--- NOCLIP (también se activa mientras dura el Auto TP)
 local setNoclip
 do
     local parts, changed, refreshAt = {}, {}, 0
@@ -1584,10 +1666,9 @@ do
     end))
 end
 
--- WALK SPEED (refuerzo + límite anti-bucle)
 local setWalkEnabled
 do
-    local humConn, reverts, fallback = nil, 0, false
+    local humConn, reverts = nil, 0
 
     local function unbind()
         if humConn then
@@ -1617,7 +1698,6 @@ do
             if hum then hum.WalkSpeed = S.walkSpeed end
         else
             S.walk = false
-            fallback = false
             unbind()
             if hum then hum.WalkSpeed = S.defWalk end
         end
@@ -1631,28 +1711,14 @@ do
         end
     end))
 
-    track(RunService.Heartbeat:Connect(function(dt)
+    track(RunService.Heartbeat:Connect(function()
         if not S.walk then return end
-        local root, hum = getParts()
-        if not root or not hum then return end
+        local _, hum = getParts()
+        if not hum then return end
         if hum.WalkSpeed ~= S.walkSpeed then hum.WalkSpeed = S.walkSpeed end
-        if fallback and not S.fly and not S.tpActive and hum.MoveDirection.Magnitude > 0.05 then
-            local v = root.AssemblyLinearVelocity
-            local extra = S.walkSpeed - Vector3.new(v.X, 0, v.Z).Magnitude
-            if extra > 1 then root.CFrame = root.CFrame + hum.MoveDirection * extra * dt end
-        end
     end))
-
-    task.spawn(function()
-        while Screen.Parent do
-            task.wait(1)
-            fallback = S.walk and reverts >= 15
-            reverts = 0
-        end
-    end)
 end
 
--- SALTO INFINITO
 track(UserInputService.JumpRequest:Connect(function()
     if S.infJump then
         local _, hum = getParts()
@@ -1660,7 +1726,6 @@ track(UserInputService.JumpRequest:Connect(function()
     end
 end))
 
--- FULLBRIGHT
 local FB, atmos = {}, {}
 
 local function setFullbright(on)
@@ -1706,7 +1771,12 @@ task.spawn(function()
     end
 end)
 
--- FPS BOOST (reversible)
+print("[DestroyaHub] parte 11 lista")
+--==================================================
+--            DESTROYA HUB  •  PARTE 12 / 18
+--          FPS BOOST Y TRANSPARENT WALLS
+--==================================================
+
 local setFpsBoost
 do
     local orig = setmetatable({}, { __mode = "k" })
@@ -1761,16 +1831,13 @@ do
                 inst.CastShadow = false
                 if inst:IsA("MeshPart") then
                     saved.TextureID = inst.TextureID
-                    saved.RenderFidelity = inst.RenderFidelity
                     inst.TextureID = ""
-                    inst.RenderFidelity = Enum.RenderFidelity.Performance
                 end
             end
         end)
         if saved then orig[inst] = saved end
     end
 
-    -- Recorre el mapa en pedacitos de 8 ms para no congelar el juego
     local function sweep(list, myToken)
         local t0 = os.clock()
         for i = 1, #list do
@@ -1884,37 +1951,74 @@ do
     end
 end
 
-print("[DestroyaHub] parte 6 lista")
+local setWalls
+do
+    local saved = setmetatable({}, { __mode = "k" })
+    local token = 0
+
+    local function isChar(inst)
+        local m = inst:FindFirstAncestorOfClass("Model")
+        return m ~= nil and Players:GetPlayerFromCharacter(m) ~= nil
+    end
+
+    local function apply(inst)
+        if not S.walls or saved[inst] then return end
+        if not inst:IsA("BasePart") then return end
+        if isChar(inst) then return end
+        local t = inst.Transparency
+        if t < 0.6 then
+            saved[inst] = t
+            inst.Transparency = 0.65
+        end
+    end
+
+    local function sweep(list, my)
+        local t0 = os.clock()
+        for i = 1, #list do
+            if my ~= token or not S.walls then return end
+            apply(list[i])
+            if os.clock() - t0 > 0.008 then
+                RunService.Heartbeat:Wait()
+                t0 = os.clock()
+            end
+        end
+    end
+
+    setWalls = function(on)
+        if on == S.walls then return end
+        S.walls = on
+        token += 1
+        if on then
+            local my = token
+            task.spawn(function() sweep(Workspace:GetDescendants(), my) end)
+        else
+            for inst, t in pairs(saved) do
+                pcall(function() inst.Transparency = t end)
+            end
+            table.clear(saved)
+        end
+    end
+end
+
+print("[DestroyaHub] parte 12 lista")
 --==================================================
---          DESTROYA HUB  •  PARTE 7 / 9
---      PESTAÑAS: FUNCIONES, LISTA Y MEJORES
+--            DESTROYA HUB  •  PARTE 13 / 18
+--              PESTAÑAS Y FUNCIONES
 --==================================================
 
 local FunctionPage = addTab("Funciones")
 local ListPage = addTab("Lista")
 local BestPage = addTab("Mejores")
-
-local function clearGuiChildren(container)
-    for _, c in ipairs(container:GetChildren()) do
-        if c:IsA("GuiObject") then c:Destroy() end
-    end
-end
-
---==================================================
--- FUNCIONES
---==================================================
+local SettingsPage = addTab("Configuración")
 
 createSection(FunctionPage, "Funciones principales")
 do
     local grid = createGrid(FunctionPage)
 
-    createButton(grid, "ESP Player", "Enemigos rojo, aliados azul", function(v)
+    createButton(grid, "ESP Player", "Esqueleto hasta 100 m", function(v)
         S.esp = v
-        if v then
-            for _, plr in ipairs(Players:GetPlayers()) do pcall(applyESP, plr) end
-        else
-            clearESP()
-        end
+        if not v then clearESP() end
+        espAcc = ESP_TICK
     end)
 
     UI.headToggle = createButton(grid, "Cam Lock Cabeza", "Apunta a la cabeza", function(v)
@@ -1951,13 +2055,15 @@ do
     end)
 end
 
+print("[DestroyaHub] parte 13 lista")
 --==================================================
--- LISTA (+ agrega a Mejores, tocar el nombre fija el objetivo)
+--            DESTROYA HUB  •  PARTE 14 / 18
+--      LISTA DE JUGADORES (con + para mejores)
 --==================================================
 
 local refreshList
 do
-    createSection(ListPage, "Buscar")
+    createSection(ListPage, "Buscar jugador")
 
     local search = Instance.new("TextBox")
     search.Size = UDim2.new(1, -4, 0, 34)
@@ -1978,7 +2084,7 @@ do
     UI.filter = ""
     search:GetPropertyChangedSignal("Text"):Connect(function()
         UI.filter = string.lower(search.Text)
-        UI.refreshLists()
+        if UI.refreshLists then UI.refreshLists() end
     end)
 
     createSection(ListPage, "Jugadores conectados")
@@ -1990,93 +2096,106 @@ do
     container.LayoutOrder = nextOrder()
     container.Parent = ListPage
     local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 6)
+    layout.Padding = UDim.new(0, 8)
     layout.SortOrder = Enum.SortOrder.LayoutOrder
     layout.Parent = container
 
     refreshList = function()
-        clearGuiChildren(container)
+        for _, c in ipairs(container:GetChildren()) do
+            if c:IsA("GuiObject") then c:Destroy() end
+        end
         local n = 0
         for _, plr in ipairs(Players:GetPlayers()) do
             if plr ~= player and (UI.filter == "" or string.find(string.lower(plr.Name), UI.filter, 1, true)) then
                 n += 1
                 local isTarget = S.target == plr
-                local inBest = Best.set[plr] ~= nil
+                local isSel = Sel.set[plr] == true
 
-                local row = Instance.new("Frame")
-                row.LayoutOrder = n
-                row.Size = UDim2.new(1, 0, 0, 36)
-                row.BackgroundColor3 = isTarget and C.RowOn or C.Row
-                row.BackgroundTransparency = 0.06
-                row.BorderSizePixel = 0
-                row.Parent = container
-                corner(row, 10)
+                local btn = Instance.new("TextButton")
+                btn.LayoutOrder = n
+                btn.Size = UDim2.new(1, 0, 0, 40)
+                btn.BackgroundColor3 = isTarget and C.RowOn or C.Row
+                btn.BackgroundTransparency = 0.06
+                btn.Text = ""
+                btn.AutoButtonColor = false
+                btn.Parent = container
+                corner(btn, 10)
+                squish(btn, 0.96)
 
-                local nameBtn = Instance.new("TextButton")
-                nameBtn.Size = UDim2.new(1, -46, 1, 0)
-                nameBtn.BackgroundTransparency = 1
-                nameBtn.Text = ""
-                nameBtn.AutoButtonColor = false
-                nameBtn.Parent = row
-                squish(nameBtn, 0.97)
+                local accent = Instance.new("Frame")
+                accent.AnchorPoint = Vector2.new(0, 0.5)
+                accent.Position = UDim2.fromScale(0, 0.5)
+                accent.Size = UDim2.fromOffset(3, isTarget and 24 or 0)
+                accent.BackgroundColor3 = C.Acc2
+                accent.BorderSizePixel = 0
+                accent.Parent = btn
+                corner(accent, 2)
 
-                local nl = plain(nameBtn, "@" .. plr.Name, 13, F.head, C.White,
-                    UDim2.fromOffset(12, 0), UDim2.new(1, -100, 1, 0))
-                nl.TextTruncate = Enum.TextTruncate.AtEnd
-                if isTarget then
-                    plain(nameBtn, "OBJETIVO", 10, F.section, C.Acc2,
-                        UDim2.new(1, -92, 0, 0), UDim2.fromOffset(84, 36), Enum.TextXAlignment.Right)
+                plain(btn, "@" .. plr.Name, 13, F.head, C.White,
+                    UDim2.fromOffset(12, 0), UDim2.new(1, -60, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
+
+                if isSel then
+                    plain(btn, "EN LISTA", 9, F.section, C.Acc2, UDim2.new(1, -104, 0, 0),
+                        UDim2.fromOffset(50, 40), Enum.TextXAlignment.Right)
                 end
 
-                local mini = createMiniButton(row, inBest and "minus" or "plus", 26)
-                mini.Position = UDim2.new(1, -36, 0.5, -13)
-                mini.Activated:Connect(safe(function()
-                    if Best.set[plr] then bestRemove(plr) else bestAdd(plr) end
-                end, "lista+"))
+                local plus = createMiniButton(btn, "plus", 28)
+                plus.AnchorPoint = Vector2.new(1, 0.5)
+                plus.Position = UDim2.new(1, -10, 0.5, 0)
+                plus.BackgroundTransparency = isSel and 0.65 or 0
 
-                nameBtn.Activated:Connect(safe(function() selectTarget(plr) end, "lista"))
+                btn.Activated:Connect(safe(function()
+                    selectTarget(plr)
+                end, "lista"))
+
+                plus.Activated:Connect(safe(function()
+                    if selAdd(plr) then notify("@" .. plr.Name .. " en Mejores") else notify("Ya está en la lista") end
+                end, "agregar"))
             end
         end
         if n == 0 then
-            local e = plain(container, "No hay jugadores", 11, F.body, C.Gray, nil,
-                UDim2.new(1, 0, 0, 30), Enum.TextXAlignment.Center)
+            local e = plain(container, "No hay jugadores", 11, F.body, C.Gray,
+                nil, UDim2.new(1, 0, 0, 30), Enum.TextXAlignment.Center)
             e.LayoutOrder = 1
         end
     end
 end
 
+print("[DestroyaHub] parte 14 lista")
 --==================================================
--- MEJORES USUARIOS (- quita, TP lleva a su espalda)
+--            DESTROYA HUB  •  PARTE 15 / 18
+--          MEJORES USUARIOS Y EVENTOS
 --==================================================
 
 local refreshBest
 do
     createSection(BestPage, "Mejores usuarios")
-    local hint = plain(BestPage, "Agrega jugadores con + desde la pestaña Lista", 9, F.body, C.Gray,
-        nil, UDim2.new(1, -4, 0, 14))
+    local hint = plain(BestPage, "Toca un nombre para Cam Lock al pecho. Usa el + en Lista para agregar.",
+        10, F.body, C.Gray, nil, UDim2.new(1, -4, 0, 24))
     hint.LayoutOrder = nextOrder()
 
-    local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, -4, 0, 0)
-    container.BackgroundTransparency = 1
-    container.AutomaticSize = Enum.AutomaticSize.Y
-    container.LayoutOrder = nextOrder()
-    container.Parent = BestPage
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 8)
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Parent = container
+    local bestContainer = Instance.new("Frame")
+    bestContainer.Size = UDim2.new(1, -4, 0, 0)
+    bestContainer.BackgroundTransparency = 1
+    bestContainer.AutomaticSize = Enum.AutomaticSize.Y
+    bestContainer.LayoutOrder = nextOrder()
+    bestContainer.Parent = BestPage
+    local bl = Instance.new("UIListLayout")
+    bl.Padding = UDim.new(0, 10)
+    bl.SortOrder = Enum.SortOrder.LayoutOrder
+    bl.Parent = bestContainer
 
     refreshBest = function()
-        clearGuiChildren(container)
-        if #Best.list == 0 then
-            local e = plain(container, "Aún no hay jugadores", 11, F.body, C.Gray, nil,
-                UDim2.new(1, 0, 0, 30), Enum.TextXAlignment.Center)
+        for _, c in ipairs(bestContainer:GetChildren()) do
+            if c:IsA("GuiObject") then c:Destroy() end
+        end
+        if #Sel.list == 0 then
+            local e = plain(bestContainer, "Aún no hay usuarios en Mejores", 11, F.body, C.Gray,
+                nil, UDim2.new(1, 0, 0, 30), Enum.TextXAlignment.Center)
             e.LayoutOrder = 1
             return
         end
-
-        for i, plr in ipairs(Best.list) do
+        for i, plr in ipairs(Sel.list) do
             local isTarget = S.target == plr
             local tping = TP.target == plr
 
@@ -2084,44 +2203,55 @@ do
             entry.LayoutOrder = i
             entry.Size = UDim2.new(1, 0, 0, 74)
             entry.BackgroundTransparency = 1
-            entry.Parent = container
+            entry.Parent = bestContainer
 
             local nameBtn = Instance.new("TextButton")
-            nameBtn.Size = UDim2.new(1, -36, 0, 36)
+            nameBtn.Size = UDim2.new(1, -38, 0, 34)
             nameBtn.BackgroundColor3 = isTarget and C.RowOn or C.Row
             nameBtn.BackgroundTransparency = 0.06
             nameBtn.Text = ""
             nameBtn.AutoButtonColor = false
             nameBtn.Parent = entry
             corner(nameBtn, 10)
-            squish(nameBtn, 0.97)
+            squish(nameBtn, 0.96)
 
-            local nl = plain(nameBtn, "@" .. plr.Name, 13, F.head, C.White,
-                UDim2.fromOffset(12, 0), UDim2.new(1, -100, 1, 0))
-            nl.TextTruncate = Enum.TextTruncate.AtEnd
+            local accent = Instance.new("Frame")
+            accent.AnchorPoint = Vector2.new(0, 0.5)
+            accent.Position = UDim2.fromScale(0, 0.5)
+            accent.Size = UDim2.fromOffset(3, isTarget and 24 or 0)
+            accent.BackgroundColor3 = C.Acc2
+            accent.BorderSizePixel = 0
+            accent.Parent = nameBtn
+            corner(accent, 2)
+
+            plain(nameBtn, "@" .. plr.Name, 13, F.head, C.White,
+                UDim2.fromOffset(12, 0), UDim2.new(1, -100, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
             if isTarget then
-                plain(nameBtn, "OBJETIVO", 10, F.section, C.Acc2,
-                    UDim2.new(1, -92, 0, 0), UDim2.fromOffset(84, 36), Enum.TextXAlignment.Right)
+                plain(nameBtn, "OBJETIVO", 9, F.section, C.Acc2, UDim2.new(1, -90, 0, 0),
+                    UDim2.fromOffset(80, 34), Enum.TextXAlignment.Right)
             end
-            nameBtn.Activated:Connect(safe(function() selectTarget(plr) end, "mejores"))
+            nameBtn.Activated:Connect(safe(function() selectTarget(plr) end, "mejor"))
 
-            local minus = createMiniButton(entry, "minus", 36)
-            minus.Position = UDim2.new(1, -36, 0, 0)
-            minus.Activated:Connect(safe(function() bestRemove(plr) end, "quitar"))
+            local minus = createMiniButton(entry, "minus", 30)
+            minus.AnchorPoint = Vector2.new(1, 0)
+            minus.Position = UDim2.new(1, -30, 0, 2)
+            minus.Activated:Connect(safe(function()
+                if selRemove(plr) then notify("@" .. plr.Name .. " quitado") end
+            end, "quitar"))
 
             local tpBtn = Instance.new("TextButton")
-            tpBtn.Position = UDim2.fromOffset(0, 42)
+            tpBtn.Position = UDim2.fromOffset(0, 40)
             tpBtn.Size = UDim2.new(1, 0, 0, 30)
             tpBtn.BackgroundColor3 = tping and Color3.fromRGB(170, 24, 44) or C.Btn
-            tpBtn.BackgroundTransparency = 0.05
+            tpBtn.BackgroundTransparency = 0.06
             tpBtn.Text = ""
             tpBtn.AutoButtonColor = false
             tpBtn.Parent = entry
             corner(tpBtn, 10)
-            squish(tpBtn, 0.97)
-            plain(tpBtn, tping and "AUTO TP ACTIVO  |  TOCA PARA QUITAR" or "TP A SU ESPALDA",
-                11, F.head, C.White, nil, UDim2.fromScale(1, 1), Enum.TextXAlignment.Center)
-            tpBtn.Activated:Connect(safe(function() toggleTP(plr) end, "tp"))
+            squish(tpBtn, 0.96)
+            plain(tpBtn, tping and "CANCELAR TP" or "TP AUTOMÁTICO", 13, F.head, C.White,
+                nil, UDim2.fromScale(1, 1), Enum.TextXAlignment.Center)
+            tpBtn.Activated:Connect(safe(function() startTP(plr) end, "tp"))
         end
     end
 end
@@ -2133,7 +2263,6 @@ end)
 onThemeSlow(UI.refreshLists)
 UI.refreshLists()
 
--- Eventos de jugadores
 track(Players.PlayerAdded:Connect(safe(function(plr)
     hookPlayer(plr)
     UI.refreshLists()
@@ -2142,43 +2271,62 @@ end, "PlayerAdded")))
 track(Players.PlayerRemoving:Connect(safe(function(plr)
     removeESP(plr)
     if TP.target == plr then stopTP("El jugador salió del juego") end
-    if Best.set[plr] then
-        bestRemove(plr)
+    if Sel.set[plr] then
+        selRemove(plr)
         notify("@" .. plr.Name .. " salió y se quitó de Mejores")
     end
     if S.target == plr then
-        S.target = nil
-        if S.lockMode then
-            syncLock()
-        end
+        setLockMode(nil)
         UI.setStatus("El objetivo salió del juego")
     end
     task.delay(0.25, UI.refreshLists)
 end, "PlayerRemoving")))
 
-showPage("Funciones")
-
-print("[DestroyaHub] parte 7 lista")
+print("[DestroyaHub] parte 15 lista")
 --==================================================
---          DESTROYA HUB  •  PARTE 8 / 9
---                CONFIGURACIÓN
+--            DESTROYA HUB  •  PARTE 16 / 18
+--              CONFIGURACIÓN ESPACIOSA
 --==================================================
-
-local SettingsPage = addTab("Configuración")
 
 do
+    local sLayout = SettingsPage:FindFirstChildOfClass("UIListLayout")
+    if sLayout then sLayout.Padding = UDim.new(0, 14) end
+    local sPad = SettingsPage:FindFirstChildOfClass("UIPadding")
+    if sPad then
+        sPad.PaddingTop = UDim.new(0, 12)
+        sPad.PaddingBottom = UDim.new(0, 26)
+    end
+
+    local function group(page, title, count, builder)
+        local h = count * 70 + 12
+        createCollapsible(page, title, h, function(body)
+            local lay = Instance.new("UIListLayout")
+            lay.Padding = UDim.new(0, 12)
+            lay.SortOrder = Enum.SortOrder.LayoutOrder
+            lay.Parent = body
+            local p = Instance.new("UIPadding")
+            p.PaddingLeft = UDim.new(0, 4)
+            p.PaddingRight = UDim.new(0, 4)
+            p.PaddingTop = UDim.new(0, 2)
+            p.Parent = body
+            builder(body)
+        end)
+    end
+
     createSection(SettingsPage, "Estilo")
 
-    createSlider(SettingsPage, "Tamaño del menú", 0.6, 1.2, 1,
-        function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
-        function(v)
-            UI.size = v
-            if UI.open then MenuScale.Scale = v end
-        end)
+    group(SettingsPage, "Apariencia", 2, function(body)
+        createSlider(body, "Tamaño del menú", 0.6, 1.2, 1,
+            function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
+            function(v)
+                UI.size = v
+                if UI.open then MenuScale.Scale = v end
+            end)
 
-    createSlider(SettingsPage, "Transparencia", 0, 0.85, MENU_T,
-        function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
-        setMenuTransparency)
+        createSlider(body, "Transparencia", 0, 0.85, MENU_T,
+            function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
+            setMenuTransparency)
+    end)
 
     createColorPicker(SettingsPage)
 
@@ -2204,17 +2352,19 @@ do
 
     createSection(SettingsPage, "Velocidades")
 
-    createSlider(SettingsPage, "Velocidad de Fly", 20, 150, 60,
-        function(v) return tostring(math.floor(v + 0.5)) end,
-        function(v) S.flySpeed = v end)
+    group(SettingsPage, "Movimiento", 3, function(body)
+        createSlider(body, "Velocidad de Fly", 20, 150, 60,
+            function(v) return tostring(math.floor(v + 0.5)) end,
+            function(v) S.flySpeed = v end)
 
-    createSlider(SettingsPage, "Velocidad de caminar", 16, 200, 32,
-        function(v) return tostring(math.floor(v + 0.5)) end,
-        function(v) S.walkSpeed = v end)
+        createSlider(body, "Velocidad de caminar", 16, 200, 32,
+            function(v) return tostring(math.floor(v + 0.5)) end,
+            function(v) S.walkSpeed = v end)
 
-    createSlider(SettingsPage, "Velocidad del Auto TP", 40, 400, 120,
-        function(v) return tostring(math.floor(v + 0.5)) end,
-        function(v) S.tpSpeed = v end)
+        createSlider(body, "Velocidad del TP", 40, 400, 120,
+            function(v) return tostring(math.floor(v + 0.5)) end,
+            function(v) S.tpSpeed = v end)
+    end)
 
     createSection(SettingsPage, "Vista")
 
@@ -2232,8 +2382,12 @@ do
 
     createButton(grid, "FPS Boost", "Quita lag y detalles", function(v)
         setFpsBoost(v)
-        UI.setStatus(v and "FPS Boost activado" or "FPS Boost desactivado")
         notify(v and "FPS Boost activado" or "FPS Boost desactivado")
+    end)
+
+    createButton(grid, "Transparent Walls", "Paredes casi transparentes", function(v)
+        setWalls(v)
+        notify(v and "Paredes transparentes" or "Paredes normales")
     end)
 
     createButton(grid, "Animaciones", "Apágalas si hay lag", function(v)
@@ -2241,41 +2395,43 @@ do
     end).Set(true, true)
 end
 
-print("[DestroyaHub] parte 8 lista")
---==================================================
---          DESTROYA HUB  •  PARTE 9 / 9
---     BOTONES FLOTANTES, FPS, FLY Y CIERRE SEGURO
---==================================================
+showPage("Funciones")
 
+print("[DestroyaHub] parte 16 lista")
 --==================================================
--- BOTÓN DEL MENÚ (tres barras dibujadas)
+--            DESTROYA HUB  •  PARTE 17 / 18
+--        BOTÓN DEL MENÚ Y BOTONES DE CORTE
 --==================================================
 
 local Toggle = Instance.new("TextButton")
 Toggle.Name = "MenuButton"
-Toggle.Size = UDim2.fromOffset(46, 46)
-Toggle.Position = UDim2.new(0, 14, 0.5, -23)
-Toggle.BackgroundColor3 = Color3.fromRGB(10, 14, 28)
+Toggle.Size = UDim2.fromOffset(48, 48)
+Toggle.Position = UDim2.new(0, 14, 0.5, -24)
+Toggle.BackgroundColor3 = Color3.fromRGB(14, 8, 12)
 Toggle.BackgroundTransparency = 0.05
 Toggle.Text = ""
 Toggle.AutoButtonColor = false
 Toggle.ZIndex = 10
 Toggle.Parent = Screen
-corner(Toggle, 13)
+corner(Toggle, 14)
 squish(Toggle, 0.9)
 
-local toggleRing = stroke(Toggle, "Acc", 2, 0)
+local ring = Instance.new("UIStroke")
+ring.Color = RED
+ring.Thickness = 2
+ring.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+ring.Parent = Toggle
 
-for i = 0, 2 do
-    local bar = Instance.new("Frame")
-    bar.AnchorPoint = Vector2.new(0.5, 0.5)
-    bar.Position = UDim2.new(0.5, 0, 0.5, -9 + i * 9)
-    bar.Size = UDim2.fromOffset(20, 3)
-    bar.BackgroundColor3 = C.White
-    bar.BorderSizePixel = 0
-    bar.ZIndex = 11
-    bar.Parent = Toggle
-    corner(bar, 2)
+for i = -1, 1 do
+    local f = Instance.new("Frame")
+    f.AnchorPoint = Vector2.new(0.5, 0.5)
+    f.Position = UDim2.fromScale(0.5, 0.5 + i * 0.22)
+    f.Size = UDim2.fromOffset(20, 2)
+    f.BackgroundColor3 = WHITE
+    f.BorderSizePixel = 0
+    f.ZIndex = 11
+    f.Parent = Toggle
+    corner(f, 1)
 end
 
 local function setOpen(v)
@@ -2283,200 +2439,222 @@ local function setOpen(v)
     UI.open = v
     if v then
         Main.Position = HOME
-        MenuScale.Scale = UI.size * 0.8
+        MenuScale.Scale = UI.size * 0.85
         Main.Visible = true
-        tween(MenuScale, { Scale = UI.size }, 0.32, Enum.EasingStyle.Back)
+        tween(MenuScale, { Scale = UI.size }, 0.28, Enum.EasingStyle.Quad)
     else
-        tween(MenuScale, { Scale = UI.size * 0.8 }, 0.16)
+        tween(MenuScale, { Scale = UI.size * 0.85 }, 0.16)
         task.delay(0.18, function()
             if not UI.open then Main.Visible = false end
         end)
     end
 end
 
-Toggle.Activated:Connect(safe(function() setOpen(not UI.open) end, "toggle"))
-HideBtn.Activated:Connect(safe(function() setOpen(false) end, "ocultar"))
+Toggle.Activated:Connect(function() setOpen(not UI.open) end)
+HideBtn.Activated:Connect(function() setOpen(false) end)
 
---==================================================
--- BOTÓN DESACTIVAR CAM LOCK (grande, fijo bajo el botón del menú)
---==================================================
+local function pillButton(pos, label1, label2, tint1, tint2, lineColor)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.fromOffset(126, 44)
+    b.Position = pos
+    b.BackgroundColor3 = Color3.new(1, 1, 1)
+    b.Text = ""
+    b.AutoButtonColor = false
+    b.Visible = false
+    b.ZIndex = 10
+    b.Parent = Screen
+    corner(b, 13)
 
-local CamStop = Instance.new("TextButton")
-CamStop.Name = "CamStop"
-CamStop.Size = UDim2.fromOffset(132, 46)
-CamStop.Position = UDim2.new(0, 14, 0.5, 32)
-CamStop.BackgroundColor3 = Color3.new(1, 1, 1)
-CamStop.Text = ""
-CamStop.AutoButtonColor = false
-CamStop.Visible = false
-CamStop.ZIndex = 10
-CamStop.Parent = Screen
-corner(CamStop, 13)
+    local g = Instance.new("UIGradient")
+    g.Color = ColorSequence.new(tint1, tint2)
+    g.Rotation = 90
+    g.Parent = b
 
-local csGrad = Instance.new("UIGradient")
-csGrad.Color = ColorSequence.new(Color3.fromRGB(130, 12, 30), Color3.fromRGB(34, 4, 10))
-csGrad.Rotation = 90
-csGrad.Parent = CamStop
+    local sc = Instance.new("UIScale")
+    sc.Scale = 0
+    sc.Parent = b
 
-local StopScale = Instance.new("UIScale")
-StopScale.Scale = 0
-StopScale.Parent = CamStop
+    local st = Instance.new("UIStroke")
+    st.Color = lineColor
+    st.Thickness = 2
+    st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    st.Parent = b
 
-local StopStroke = Instance.new("UIStroke")
-StopStroke.Color = RED
-StopStroke.Thickness = 2
-StopStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-StopStroke.Parent = CamStop
+    local box = Instance.new("Frame")
+    box.Position = UDim2.fromOffset(8, 10)
+    box.Size = UDim2.fromOffset(24, 24)
+    box.BackgroundColor3 = lineColor
+    box.BorderSizePixel = 0
+    box.ZIndex = 11
+    box.Parent = b
+    corner(box, 12)
+    for _, rot in ipairs({ 45, -45 }) do
+        local f = Instance.new("Frame")
+        f.AnchorPoint = Vector2.new(0.5, 0.5)
+        f.Position = UDim2.fromScale(0.5, 0.5)
+        f.Size = UDim2.fromOffset(12, 2)
+        f.Rotation = rot
+        f.BackgroundColor3 = WHITE
+        f.BorderSizePixel = 0
+        f.ZIndex = 12
+        f.Parent = box
+        corner(f, 1)
+    end
 
-local xBox = Instance.new("Frame")
-xBox.Position = UDim2.fromOffset(9, 10)
-xBox.Size = UDim2.fromOffset(26, 26)
-xBox.BackgroundColor3 = RED
-xBox.BorderSizePixel = 0
-xBox.ZIndex = 11
-xBox.Parent = CamStop
-corner(xBox, 13)
-for _, rot in ipairs({ 45, -45 }) do
-    local f = Instance.new("Frame")
-    f.AnchorPoint = Vector2.new(0.5, 0.5)
-    f.Position = UDim2.fromScale(0.5, 0.5)
-    f.Size = UDim2.fromOffset(13, 2)
-    f.Rotation = rot
-    f.BackgroundColor3 = C.White
-    f.BorderSizePixel = 0
-    f.ZIndex = 12
-    f.Parent = xBox
-    corner(f, 1)
+    local l1 = plain(b, label1, 14, F.head, C.White, UDim2.fromOffset(40, 7), UDim2.fromOffset(80, 17))
+    l1.ZIndex = 11
+    local l2 = plain(b, label2, 9, F.section, Color3.fromRGB(230, 235, 245), UDim2.fromOffset(40, 25), UDim2.fromOffset(80, 12))
+    l2.ZIndex = 11
+    l2.TextTransparency = 0.15
+
+    b.InputBegan:Connect(function(i)
+        if isPointer(i) then tween(sc, { Scale = 0.92 }, 0.08) end
+    end)
+    b.InputEnded:Connect(function(i)
+        if isPointer(i) then tween(sc, { Scale = 1 }, 0.2, Enum.EasingStyle.Back) end
+    end)
+
+    return b, sc, st
 end
 
-local csL1 = plain(CamStop, "DESACTIVAR", 14, F.head, C.White, UDim2.fromOffset(44, 6), UDim2.fromOffset(82, 18))
-csL1.ZIndex = 11
-local csL2 = plain(CamStop, "CAM LOCK", 10, F.section, Color3.fromRGB(255, 150, 160),
-    UDim2.fromOffset(44, 25), UDim2.fromOffset(82, 14))
-csL2.ZIndex = 11
+local CamStop, StopScale, StopStroke = pillButton(UDim2.new(0, 14, 0.5, 34), "DESACTIVAR", "CAM LOCK",
+    Color3.fromRGB(120, 10, 26), Color3.fromRGB(34, 4, 10), RED)
 
-local stopPulse
+local TpStop, TpScale, TpStroke = pillButton(UDim2.new(0, 14, 0.5, 84), "DESACTIVAR", "TP",
+    Color3.fromRGB(20, 60, 130), Color3.fromRGB(6, 12, 34), Color3.fromRGB(70, 150, 255))
+
+local camPulse, tpPulse
+
 UI.showCamStop = function(v)
     if v then
         CamStop.Visible = true
-        tween(StopScale, { Scale = 1 }, 0.32, Enum.EasingStyle.Back)
-        if not stopPulse then
-            stopPulse = TweenService:Create(StopStroke,
-                TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-                { Transparency = 0.6 })
-            stopPulse:Play()
+        tween(StopScale, { Scale = 1 }, 0.28, Enum.EasingStyle.Back)
+        if not camPulse then
+            camPulse = TweenService:Create(StopStroke,
+                TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+                { Transparency = 0.7 })
+            camPulse:Play()
         end
     else
-        if stopPulse then
-            stopPulse:Cancel()
-            stopPulse = nil
+        if camPulse then
+            camPulse:Cancel()
+            camPulse = nil
             StopStroke.Transparency = 0
         end
-        tween(StopScale, { Scale = 0 }, 0.18)
+        tween(StopScale, { Scale = 0 }, 0.16)
         task.delay(0.2, function()
             if not S.lockMode then CamStop.Visible = false end
         end)
     end
 end
 
-CamStop.InputBegan:Connect(function(i)
-    if isPointer(i) then tween(StopScale, { Scale = 0.9 }, 0.08) end
-end)
-CamStop.InputEnded:Connect(function(i)
-    if isPointer(i) and S.lockMode then tween(StopScale, { Scale = 1 }, 0.2, Enum.EasingStyle.Back) end
-end)
+UI.showTpStop = function(v)
+    if v then
+        TpStop.Visible = true
+        tween(TpScale, { Scale = 1 }, 0.28, Enum.EasingStyle.Back)
+        if not tpPulse then
+            tpPulse = TweenService:Create(TpStroke,
+                TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+                { Transparency = 0.7 })
+            tpPulse:Play()
+        end
+    else
+        if tpPulse then
+            tpPulse:Cancel()
+            tpPulse = nil
+            TpStroke.Transparency = 0
+        end
+        tween(TpScale, { Scale = 0 }, 0.16)
+        task.delay(0.2, function()
+            if not S.tpActive then TpStop.Visible = false end
+        end)
+    end
+end
+
 CamStop.Activated:Connect(safe(function()
     setLockMode(nil)
     notify("Cam Lock desactivado")
 end, "camstop"))
 
---==================================================
--- BOTÓN FLOTANTE: AUTO TP (arrastrable, tocar = quitar)
---==================================================
-
-local TpPill = Instance.new("TextButton")
-TpPill.Name = "TpPill"
-TpPill.AnchorPoint = Vector2.new(1, 0)
-TpPill.Size = UDim2.fromOffset(230, 30)
-TpPill.Position = UDim2.new(1, -14, 0, 56)
-TpPill.BackgroundColor3 = C.Acc
-TpPill.BackgroundTransparency = 0.05
-TpPill.Text = ""
-TpPill.AutoButtonColor = false
-TpPill.Visible = false
-TpPill.ZIndex = 12
-TpPill.Parent = Screen
-corner(TpPill, 10)
-bind(TpPill, "BackgroundColor3", "Acc")
-
-local tpLabel = plain(TpPill, "", 11, F.head, C.White, nil, UDim2.fromScale(1, 1), Enum.TextXAlignment.Center)
-tpLabel.ZIndex = 13
-
-UI.syncTP = function()
-    if TP.target then
-        TpPill.Visible = true
-        tpLabel.Text = "AUTO TP  @" .. TP.target.Name .. "  |  QUITAR"
-    else
-        TpPill.Visible = false
+local tpDragged = false
+TpStop.InputBegan:Connect(function(i)
+    if isPointer(i) then
+        local s = TpStop.Position
+        local sm = i.Position
+        tpDragged = false
+        beginDrag(i, function(m)
+            local d = m.Position - sm
+            if d.Magnitude > 6 then tpDragged = true end
+            TpStop.Position = UDim2.new(s.X.Scale, s.X.Offset + d.X, s.Y.Scale, s.Y.Offset + d.Y)
+        end)
     end
-end
+end)
+TpStop.Activated:Connect(safe(function()
+    if tpDragged then
+        tpDragged = false
+        return
+    end
+    stopTP("TP detenido, te quedas aquí")
+end, "tpstop"))
 
-do
-    local moved = false
-    TpPill.InputBegan:Connect(function(input)
-        if isPointer(input) then
-            moved = false
-            local startPos, startMouse = TpPill.Position, input.Position
-            beginDrag(input, function(i)
-                local d = i.Position - startMouse
-                if d.Magnitude > 6 then moved = true end
-                if moved then
-                    TpPill.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X,
-                        startPos.Y.Scale, startPos.Y.Offset + d.Y)
-                end
-            end, false, function()
-                if not moved and TP.target then
-                    stopTP("Auto TP apagado")
-                end
-            end)
-        end
-    end)
-end
+print("[DestroyaHub] parte 17 lista")
+--==================================================
+--            DESTROYA HUB  •  PARTE 18 / 18
+--     FPS NEÓN GRANDE, FLY PAD, CIERRE Y LIMPIEZA
+--==================================================
 
---==================================================
--- TEXTO DE FPS (grande, fondo oscuro, color LED que cambia)
---==================================================
+local FpsBox = Instance.new("Frame")
+FpsBox.Name = "FpsBox"
+FpsBox.Size = UDim2.fromOffset(150, 46)
+FpsBox.Position = UDim2.new(0.5, -75, 0, 2)
+FpsBox.BackgroundColor3 = Color3.fromRGB(6, 8, 14)
+FpsBox.BackgroundTransparency = 0.35
+FpsBox.BorderSizePixel = 0
+FpsBox.ZIndex = 10
+FpsBox.Parent = Screen
+corner(FpsBox, 10)
 
 local FpsText = Instance.new("TextButton")
 FpsText.Name = "FpsText"
-FpsText.Size = UDim2.fromOffset(92, 26)
-FpsText.Position = UDim2.new(0.5, -46, 0, 8)
-FpsText.BackgroundColor3 = Color3.fromRGB(6, 6, 10)
-FpsText.BackgroundTransparency = 0.3
+FpsText.Size = UDim2.fromScale(1, 1)
+FpsText.BackgroundTransparency = 1
 FpsText.AutoButtonColor = false
 FpsText.Text = "FPS --"
 FpsText.TextColor3 = Color3.new(1, 1, 1)
-FpsText.TextSize = 15
-FpsText.Font = F.bold
-FpsText.ZIndex = 10
-FpsText.Parent = Screen
-corner(FpsText, 8)
-local fpsStroke = stroke(FpsText, nil, 1.6, 0.2)
+FpsText.TextSize = 32
+FpsText.Font = F.head
+FpsText.ZIndex = 11
+FpsText.Parent = FpsBox
 
-FpsText.InputBegan:Connect(function(input)
+local FpsGlow = Instance.new("UIStroke")
+FpsGlow.Thickness = 4
+FpsGlow.Transparency = 0.6
+FpsGlow.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+FpsGlow.Parent = FpsText
+bind(FpsGlow, "Color", "Acc2")
+
+local FpsGrad = Instance.new("UIGradient")
+FpsGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 40, 90)),
+    ColorSequenceKeypoint.new(0.25, Color3.fromRGB(255, 190, 0)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 120)),
+    ColorSequenceKeypoint.new(0.75, Color3.fromRGB(0, 220, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 80, 255)),
+})
+FpsGrad.Parent = FpsText
+TweenService:Create(FpsGrad, TweenInfo.new(2.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+    { Offset = Vector2.new(0.6, 0) }):Play()
+
+FpsBox.InputBegan:Connect(function(input)
     if isPointer(input) then
-        local startPos, startMouse = FpsText.Position, input.Position
+        local startPos, startMouse = FpsBox.Position, input.Position
         beginDrag(input, function(i)
             local d = i.Position - startMouse
-            FpsText.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X,
+            FpsBox.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X,
                 startPos.Y.Scale, startPos.Y.Offset + d.Y)
         end)
     end
 end)
-
---==================================================
--- BOTONES DEL FLY (solo con Fly activo, arcoíris neón)
---==================================================
 
 UI.padItems = {}
 local heldInputs = {}
@@ -2507,7 +2685,7 @@ do
     handle.Text = "FLY"
     handle.TextSize = 13
     handle.Font = F.head
-    handle.TextColor3 = C.White
+    handle.TextColor3 = WHITE
     handle.ZIndex = 10
     handle.Parent = pad
     corner(handle, 11)
@@ -2541,11 +2719,6 @@ do
         b.Parent = pad
         corner(b, 18)
 
-        local sheen = Instance.new("UIGradient")
-        sheen.Rotation = 90
-        sheen.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(120, 110, 130))
-        sheen.Parent = b
-
         local s = Instance.new("UIStroke")
         s.Thickness = 2.6
         s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
@@ -2554,7 +2727,7 @@ do
         local sc = Instance.new("UIScale")
         sc.Parent = b
 
-        local chev, parts = drawChevron(b, C.White, 2.4)
+        local chev, parts = drawChevron(b, WHITE, 2.4)
         chev.Position = UDim2.fromScale(0.5, 0.5)
         chev.Rotation = pointUp and 180 or 0
         chev.ZIndex = 11
@@ -2599,10 +2772,6 @@ do
     end))
 end
 
---==================================================
--- BUCLE CENTRAL (15 veces por segundo, solo lo necesario)
---==================================================
-
 do
     local clock, acc, frames, fpsAcc = 0, 0, 0, 0
     track(RunService.Heartbeat:Connect(function(dt)
@@ -2618,16 +2787,6 @@ do
         clock += acc
         acc = 0
 
-        -- Color LED del FPS (solo si la animación está activa)
-        if UI.anim then
-            local c = Color3.fromHSV((clock * 0.35) % 1, 1, 1)
-            FpsText.TextColor3 = c
-            fpsStroke.Color = c
-        else
-            FpsText.TextColor3 = C.White
-            fpsStroke.Color = C.Acc
-        end
-
         if UI.flyPad and UI.flyPad.Visible then
             for i, it in ipairs(UI.padItems) do
                 local c = UI.anim and Color3.fromHSV((clock * 0.4 + i * 0.17) % 1, 1, 1) or RED
@@ -2637,10 +2796,6 @@ do
         end
     end))
 end
-
---==================================================
--- DESTRUIR TODO (doble toque para evitar accidentes)
---==================================================
 
 local closing = false
 local function destroyHub()
@@ -2666,7 +2821,7 @@ do
         end
         confirmUntil = now + 2.5
         notify("Toca la X otra vez para destruir todo")
-        tween(DestroyBtn, { BackgroundColor3 = RED }, 0.15)
+        tween(DestroyBtn, { BackgroundColor3 = Color3.fromRGB(255, 30, 55) }, 0.15)
         task.delay(2.5, function()
             if DestroyBtn.Parent then
                 tween(DestroyBtn, { BackgroundColor3 = Color3.fromRGB(120, 12, 28) }, 0.3)
@@ -2675,19 +2830,16 @@ do
     end, "destruir"))
 end
 
---==================================================
--- LIMPIEZA (al destruir el hub)
---==================================================
-
 Screen.Destroying:Connect(function()
     S.esp, S.fly, S.infJump = false, false, false
     S.lockMode, S.target = nil, nil
-    S.noclip, S.tpActive = false, false
-    TP.target = nil
+    S.noclip, S.tpActive, S.walls = false, false, false
     pcall(releaseCamera)
+    pcall(stopTP)
     pcall(setWalkEnabled, false)
     pcall(setNoclip, false)
     pcall(setFpsBoost, false)
+    pcall(setWalls, false)
     pcall(setFullbright, false)
     pcall(stopFly)
     pcall(clearESP)
@@ -2698,6 +2850,5 @@ Screen.Destroying:Connect(function()
     pcall(function() RunService:UnbindFromRenderStep("DestroyaCam") end)
 end)
 
-notify("Destroya Hub v7.0 cargado")
-print("[DestroyaHub] parte 9 lista")
-print("DESTROYA HUB v7.0 CARGADO")
+notify("Destroya Hub v6.1 cargado")
+print("DESTROYA HUB v6.1 CARGADO")
