@@ -332,8 +332,8 @@ end
 print("[DestroyaHub] parte 1 lista")
 --##################################################
 --# ► PARTE 2 — VENTANA, CABECERA Y TÍTULO
---#   Contiene: Main, Header (color según tema),
---#   título simple, DragZone, botones de cabecera.
+--#   Título negro pulido: base carbón, banda de
+--#   brillo deslizante y contorno de luz.
 --##################################################
 
 local BASE_W, BASE_H, HEADER_H = 480, 324, 46
@@ -368,7 +368,6 @@ Header.BorderSizePixel = 0
 Header.Parent = Main
 corner(Header, 12)
 
--- El color del bloque lo manda el tema (rueda de color)
 local hGrad = Instance.new("UIGradient")
 hGrad.Parent = Header
 onTheme(function()
@@ -399,7 +398,7 @@ bg.Transparency = NumberSequence.new({
 bg.Parent = blood
 
 --==================================================
--- TÍTULO (color fijo, no cambia con la rueda)
+-- TÍTULO: NEGRO PULIDO CON BRILLO
 --==================================================
 
 local TITLE_X, TITLE_Y = 40, 4
@@ -407,17 +406,33 @@ local titleW = TextService:GetTextSize("DESTROYA HUB", 26, F.title, Vector2.new(
 
 local TitleShadow = plain(Header, "DESTROYA HUB", 26, F.title, Color3.new(0, 0, 0),
     UDim2.fromOffset(TITLE_X + 2, TITLE_Y + 2), UDim2.fromOffset(titleW + 24, 30))
-TitleShadow.TextTransparency = 0.35
+TitleShadow.TextTransparency = 0.5
 TitleShadow.ZIndex = 2
 
-local Title = plain(Header, 'DESTROYA <font color="#8CE8FF">HUB</font>', 26, F.title, Color3.fromRGB(214, 248, 255),
+local Title = plain(Header, "DESTROYA HUB", 26, F.title, Color3.new(1, 1, 1),
     UDim2.fromOffset(TITLE_X, TITLE_Y), UDim2.fromOffset(titleW + 24, 30))
-Title.RichText = true
 Title.ZIndex = 3
 
+local CARBON = Color3.fromRGB(20, 20, 24)
+local CARBON_D = Color3.fromRGB(9, 9, 11)
+
+local TitleGrad = Instance.new("UIGradient")
+TitleGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, CARBON_D),
+    ColorSequenceKeypoint.new(0.34, CARBON),
+    ColorSequenceKeypoint.new(0.47, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(0.53, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(0.66, CARBON),
+    ColorSequenceKeypoint.new(1, CARBON_D),
+})
+TitleGrad.Offset = Vector2.new(-0.35, 0)
+TitleGrad.Parent = Title
+
+-- Contorno de luz: define el borde negro sobre la cabecera
 local TitleStroke = Instance.new("UIStroke")
-TitleStroke.Color = GLOW
-TitleStroke.Thickness = 1.2
+TitleStroke.Color = Color3.fromRGB(255, 255, 255)
+TitleStroke.Thickness = 1.4
+TitleStroke.Transparency = 0.25
 TitleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
 TitleStroke.Parent = Title
 
@@ -431,6 +446,12 @@ underline.BorderSizePixel = 0
 underline.ZIndex = 3
 underline.Parent = Header
 bind(underline, "BackgroundColor3", "Acc2")
+
+-- El brillo recorre el texto de lado a lado
+local shineTween = TweenService:Create(TitleGrad,
+    TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+    { Offset = Vector2.new(1.35, 0) })
+shineTween:Play()
 
 local function playFx()
     local base = UDim2.fromOffset(TITLE_X, TITLE_Y)
