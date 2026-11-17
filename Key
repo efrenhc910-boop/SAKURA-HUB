@@ -1,0 +1,397 @@
+--==================================================
+--        DESTROYA HUB  •  KEY GATE
+--        Clave: FreeDestroya
+--==================================================
+print("[DestroyaKey] cargando...")
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local TextService = game:GetService("TextService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local function getGuiParent()
+    local ok, ui = pcall(function() return gethui and gethui() end)
+    if ok and ui then return ui end
+    local okCore, core = pcall(function() return game:GetService("CoreGui") end)
+    if okCore and core then
+        local canUse = pcall(function()
+            local f = Instance.new("Folder")
+            f.Parent = core
+            f:Destroy()
+        end)
+        if canUse then return core end
+    end
+    return playerGui
+end
+
+local guiParent = getGuiParent()
+for _, cont in ipairs({ guiParent, playerGui }) do
+    for _, name in ipairs({ "DestroyaKey", "SakuraKeySystem" }) do
+        local old = cont:FindFirstChild(name)
+        if old then old:Destroy() end
+    end
+end
+
+local Screen = Instance.new("ScreenGui")
+Screen.Name = "DestroyaKey"
+Screen.ResetOnSpawn = false
+Screen.IgnoreGuiInset = true
+Screen.DisplayOrder = 10000
+Screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+Screen.Parent = guiParent
+
+local C = {
+    Red = Color3.fromRGB(255, 32, 70),
+    RedD = Color3.fromRGB(140, 10, 34),
+    Blue = Color3.fromRGB(40, 120, 255),
+    BlueD = Color3.fromRGB(10, 40, 110),
+    Dark = Color3.fromRGB(7, 9, 16),
+    Panel = Color3.fromRGB(12, 18, 30),
+    White = Color3.fromRGB(242, 246, 255),
+    Gray = Color3.fromRGB(142, 160, 186),
+    Green = Color3.fromRGB(45, 225, 110),
+}
+
+local CLAVE = "freedestroya"
+
+local function tween(obj, props, time, style)
+    local t = TweenService:Create(obj,
+        TweenInfo.new(time or 0.25, style or Enum.EasingStyle.Quint, Enum.EasingDirection.Out), props)
+    t:Play()
+    return t
+end
+
+local function corner(obj, r)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, r or 8)
+    c.Parent = obj
+    return c
+end
+
+local function label(parent, text, size, font, color, pos, sz, alignX)
+    local l = Instance.new("TextLabel")
+    l.BackgroundTransparency = 1
+    l.Text = text
+    l.TextSize = size
+    l.Font = font
+    l.TextColor3 = color
+    l.TextXAlignment = alignX or Enum.TextXAlignment.Center
+    if pos then l.Position = pos end
+    if sz then l.Size = sz end
+    l.Parent = parent
+    return l
+end
+
+local W, H = 442, 268
+local HOME = UDim2.new(0.5, -W / 2, 0.5, -H / 2)
+
+local Panel = Instance.new("Frame")
+Panel.Name = "Panel"
+Panel.Size = UDim2.fromOffset(W, H)
+Panel.Position = HOME
+Panel.BackgroundColor3 = C.Dark
+Panel.BackgroundTransparency = 0.04
+Panel.BorderSizePixel = 0
+Panel.ClipsDescendants = true
+Panel.Parent = Screen
+corner(Panel, 16)
+
+-- Halo exterior
+local Outer = Instance.new("UIStroke")
+Outer.Thickness = 3
+Outer.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+Outer.Parent = Panel
+local OuterGrad = Instance.new("UIGradient")
+OuterGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, C.Red),
+    ColorSequenceKeypoint.new(0.5, C.Blue),
+    ColorSequenceKeypoint.new(1, C.Red),
+})
+OuterGrad.Parent = Outer
+TweenService:Create(OuterGrad, TweenInfo.new(3, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
+    { Rotation = 360 }):Play()
+
+-- Halo interior tenue
+local Inner = Instance.new("UIStroke")
+Inner.Thickness = 1
+Inner.Transparency = 0.72
+Inner.Color = C.White
+Inner.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+Inner.Parent = Panel
+
+-- Rejilla de fondo
+local Grid = Instance.new("Frame")
+Grid.Size = UDim2.fromScale(1, 1)
+Grid.BackgroundColor3 = C.Panel
+Grid.BackgroundTransparency = 0.55
+Grid.BorderSizePixel = 0
+Grid.Parent = Panel
+local GridGrad = Instance.new("UIGradient")
+GridGrad.Rotation = 90
+GridGrad.Color = ColorSequence.new(Color3.fromRGB(24, 40, 70), Color3.fromRGB(6, 8, 14))
+GridGrad.Parent = Grid
+
+-- Línea de escaneo
+local Scan = Instance.new("Frame")
+Scan.Size = UDim2.fromOffset(90, 2)
+Scan.Position = UDim2.fromOffset(0, 60)
+Scan.BorderSizePixel = 0
+Scan.ZIndex = 4
+Scan.Parent = Panel
+local ScanGrad = Instance.new("UIGradient")
+ScanGrad.Color = ColorSequence.new(C.Blue, C.Red)
+ScanGrad.Transparency = NumberSequence.new({
+    NumberSequenceKeypoint.new(0, 1),
+    NumberSequenceKeypoint.new(0.5, 0),
+    NumberSequenceKeypoint.new(1, 1),
+})
+ScanGrad.Parent = Scan
+
+-- Esquinas
+for _, s in ipairs({ { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } }) do
+    for i = 1, 2 do
+        local f = Instance.new("Frame")
+        f.AnchorPoint = Vector2.new(s[1], s[2])
+        f.Position = UDim2.new(s[1], s[1] == 0 and 10 or -10, s[2], s[2] == 0 and 10 or -10)
+        f.Size = (i == 1) and UDim2.fromOffset(14, 2) or UDim2.fromOffset(2, 14)
+        f.BackgroundColor3 = C.Red
+        f.BackgroundTransparency = 0.25
+        f.BorderSizePixel = 0
+        f.ZIndex = 5
+        f.Parent = Panel
+        corner(f, 1)
+    end
+end
+
+--==================================================
+-- TÍTULO
+--==================================================
+
+local Title = label(Panel, "DESTROYA HUB", 34, Enum.Font.GothamBlack, C.White,
+    UDim2.fromOffset(0, 26), UDim2.new(1, 0, 0, 40))
+Title.ZIndex = 6
+
+local TitleGrad = Instance.new("UIGradient")
+TitleGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(0.35, C.Red),
+    ColorSequenceKeypoint.new(0.62, C.Blue),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255)),
+})
+TitleGrad.Parent = Title
+
+local TitleStroke = Instance.new("UIStroke")
+TitleStroke.Color = Color3.fromRGB(255, 255, 255)
+TitleStroke.Thickness = 1.4
+TitleStroke.Transparency = 0.35
+TitleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+TitleStroke.Parent = Title
+
+local Sub = label(Panel, "A C C E S S   K E Y", 10, Enum.Font.GothamBold,
+    Color3.fromRGB(150, 170, 200), UDim2.fromOffset(0, 66), UDim2.new(1, 0, 0, 14))
+Sub.ZIndex = 6
+
+local Divider = Instance.new("Frame")
+Divider.Position = UDim2.fromOffset(30, 88)
+Divider.Size = UDim2.new(1, -60, 0, 1)
+Divider.BackgroundColor3 = C.White
+Divider.BackgroundTransparency = 0.85
+Divider.BorderSizePixel = 0
+Divider.ZIndex = 5
+Divider.Parent = Panel
+
+--==================================================
+-- CAMPO
+--==================================================
+
+local Input = Instance.new("TextBox")
+Input.Size = UDim2.new(1, -60, 0, 44)
+Input.Position = UDim2.fromOffset(30, 104)
+Input.BackgroundColor3 = Color3.fromRGB(13, 26, 48)
+Input.BackgroundTransparency = 0.15
+Input.PlaceholderText = "Ingresa la clave..."
+Input.PlaceholderColor3 = Color3.fromRGB(105, 128, 158)
+Input.Text = ""
+Input.TextColor3 = C.White
+Input.TextSize = 14
+Input.Font = Enum.Font.GothamBold
+Input.ClearTextOnFocus = false
+Input.BorderSizePixel = 0
+Input.ZIndex = 6
+Input.Parent = Panel
+corner(Input, 10)
+
+local InputPad = Instance.new("UIPadding")
+InputPad.PaddingLeft = UDim.new(0, 14)
+InputPad.Parent = Input
+
+local InputStroke = Instance.new("UIStroke")
+InputStroke.Color = C.Blue
+InputStroke.Thickness = 1.4
+InputStroke.Transparency = 0.3
+InputStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+InputStroke.Parent = Input
+
+Input.Focused:Connect(function()
+    tween(InputStroke, { Transparency = 0, Color = C.Red }, 0.2)
+    tween(Input, { BackgroundColor3 = Color3.fromRGB(22, 34, 58) }, 0.2)
+end)
+Input.FocusLost:Connect(function()
+    tween(InputStroke, { Transparency = 0.3, Color = C.Blue }, 0.2)
+    tween(Input, { BackgroundColor3 = Color3.fromRGB(13, 26, 48) }, 0.2)
+end)
+
+--==================================================
+-- BOTÓN
+--==================================================
+
+local Submit = Instance.new("TextButton")
+Submit.Size = UDim2.new(1, -60, 0, 44)
+Submit.Position = UDim2.fromOffset(30, 160)
+Submit.BackgroundColor3 = Color3.new(1, 1, 1)
+Submit.BackgroundTransparency = 0.05
+Submit.Text = "VERIFICAR LLAVE"
+Submit.TextColor3 = C.White
+Submit.TextSize = 14
+Submit.Font = Enum.Font.GothamBlack
+Submit.AutoButtonColor = false
+Submit.BorderSizePixel = 0
+Submit.ZIndex = 6
+Submit.Parent = Panel
+corner(Submit, 10)
+
+local SubmitGrad = Instance.new("UIGradient")
+SubmitGrad.Color = ColorSequence.new(C.RedD, C.BlueD)
+SubmitGrad.Rotation = 20
+SubmitGrad.Parent = Submit
+
+local SubmitStroke = Instance.new("UIStroke")
+SubmitStroke.Color = C.White
+SubmitStroke.Thickness = 1
+SubmitStroke.Transparency = 0.6
+SubmitStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+SubmitStroke.Parent = Submit
+
+local SubmitScale = Instance.new("UIScale")
+SubmitScale.Parent = Submit
+
+Submit.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.Touch
+        or i.UserInputType == Enum.UserInputType.MouseButton1 then
+        tween(SubmitScale, { Scale = 0.96 }, 0.08)
+        tween(SubmitStroke, { Transparency = 0 }, 0.12)
+    end
+end)
+Submit.InputEnded:Connect(function()
+    tween(SubmitScale, { Scale = 1 }, 0.2, Enum.EasingStyle.Back)
+    tween(SubmitStroke, { Transparency = 0.6 }, 0.2)
+end)
+
+--==================================================
+-- ESTADO
+--==================================================
+
+local Status = label(Panel, "Escribe la clave para continuar", 11, Enum.Font.GothamMedium,
+    C.Gray, UDim2.fromOffset(0, 212), UDim2.new(1, 0, 0, 16))
+Status.ZIndex = 6
+
+local Foot = label(Panel, "by Efrén Hub  ·  v6.2", 9, Enum.Font.Gotham, Color3.fromRGB(96, 114, 140),
+    UDim2.new(0, 0, 1, -22), UDim2.new(1, 0, 0, 12))
+Foot.ZIndex = 6
+
+--==================================================
+-- VALIDACIÓN
+--==================================================
+
+local busy = false
+local intentos = 0
+
+local function entrar()
+    if busy then return end
+
+    local escrito = string.lower(string.gsub(Input.Text or "", "^%s*(.-)%s*$", "%1"))
+
+    if escrito == "" then
+        Status.Text = "El campo está vacío"
+        Status.TextColor3 = C.Gray
+        return
+    end
+
+    if escrito == CLAVE then
+        busy = true
+        Submit.Text = "ACCESO CONCEDIDO"
+        Status.Text = "Clave correcta, cargando el hub..."
+        Status.TextColor3 = C.Green
+        tween(SubmitGrad, { Color = ColorSequence.new(C.Green, Color3.fromRGB(10, 90, 50)) }, 0.25)
+        tween(Outer, { Transparency = 0, Thickness = 4 }, 0.2)
+        tween(InputStroke, { Color = C.Green, Transparency = 0 }, 0.2)
+
+        task.wait(0.55)
+        tween(Panel, { Size = UDim2.fromOffset(W * 0.6, 0), Position = UDim2.new(0.5, -W * 0.3, 0.5, 0), BackgroundTransparency = 1 }, 0.32, Enum.EasingStyle.Back)
+        task.wait(0.34)
+        if Screen.Parent then Screen:Destroy() end
+
+        task.spawn(function()
+            local ok, err = pcall(function()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2"))()
+            end)
+            if not ok then
+                warn("[DestroyaKey] error al cargar el hub: " .. tostring(err))
+            end
+        end)
+        return
+    end
+
+    intentos += 1
+    Status.Text = "Clave incorrecta  ·  intento " .. intentos
+    Status.TextColor3 = C.Red
+
+    -- Vibración de error
+    local base = HOME
+    for _, d in ipairs({ 9, -9, 7, -7, 4, 0 }) do
+        Panel.Position = UDim2.new(base.X.Scale, base.X.Offset + d, base.Y.Scale, base.Y.Offset)
+        task.wait(0.035)
+    end
+    Panel.Position = base
+
+    tween(InputStroke, { Color = C.Red, Transparency = 0 }, 0.1)
+    task.delay(0.4, function()
+        tween(InputStroke, { Color = C.Blue, Transparency = 0.3 }, 0.25)
+    end)
+end
+
+Submit.Activated:Connect(entrar)
+Input.FocusLost:Connect(function(enter)
+    if enter then entrar() end
+end)
+
+--==================================================
+-- ENTRADA
+--==================================================
+
+Panel.Position = UDim2.new(0.5, -W / 2, 0.5, -H / 2 + 26)
+Panel.BackgroundTransparency = 1
+Outer.Transparency = 1
+tween(Panel, { Position = HOME, BackgroundTransparency = 0.04 }, 0.4, Enum.EasingStyle.Back)
+tween(Outer, { Transparency = 0 }, 0.5)
+
+task.spawn(function()
+    local t = 0
+    while Screen.Parent do
+        t += 0.05
+        Scan.Position = UDim2.fromOffset((math.sin(t * 1.4) * 0.5 + 0.5) * (W - 90), 60)
+        TitleGrad.Offset = Vector2.new(math.sin(t * 1.1) * 0.35, 0)
+        task.wait(0.05)
+    end
+end)
+
+if UserInputService.KeyboardEnabled then
+    task.defer(function()
+        pcall(function() Input:CaptureFocus() end)
+    end)
+end
+
+print("[DestroyaKey] listo")
