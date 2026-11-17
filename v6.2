@@ -2165,9 +2165,8 @@ end
 print("[DestroyaHub] parte 10 lista")
 --##################################################
 --# ► PARTE 11 — PESTAÑAS Y PÁGINA FUNCIONES
---#   Contiene: addTab de las 4 páginas, secciones
---#   Jugadores y Movimiento, y la lista de jugadores.
---#   Fullbright ya NO está aquí, va en Configuración.
+--#   La lista lleva un + al final de cada nombre
+--#   que lo manda a Seleccionados. Sin lista doble.
 --##################################################
 
 local FunctionPage = addTab("Funciones")
@@ -2271,6 +2270,7 @@ do
             if plr ~= player and (UI.filter == "" or string.find(string.lower(plr.Name), UI.filter, 1, true)) then
                 n += 1
                 local isTarget = S.target == plr
+                local isSel = Sel.set[plr] == true
 
                 local btn = Instance.new("TextButton")
                 btn.LayoutOrder = n
@@ -2292,16 +2292,32 @@ do
                 accent.Parent = btn
                 corner(accent, 2)
 
-                plain(btn, "@" .. plr.Name, 13, F.head, C.White, UDim2.fromOffset(12, 0), UDim2.new(1, -100, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
+                plain(btn, "@" .. plr.Name, 13, F.head, C.White,
+                    UDim2.fromOffset(12, 0), UDim2.new(1, -66, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
+
                 if isTarget then
-                    plain(btn, "OBJETIVO", 10, F.section, C.Acc2, UDim2.new(1, -86, 0, 0), UDim2.fromOffset(78, 34), Enum.TextXAlignment.Right)
+                    plain(btn, "OBJETIVO", 9, F.section, C.Acc2, UDim2.new(1, -104, 0, 0),
+                        UDim2.fromOffset(46, 34), Enum.TextXAlignment.Right)
                 end
 
+                local plus = createMiniButton(btn, "plus", 24)
+                plus.AnchorPoint = Vector2.new(1, 0.5)
+                plus.Position = UDim2.new(1, -8, 0.5, 0)
+                plus.BackgroundTransparency = isSel and 0.72 or 0.2
+
                 btn.Activated:Connect(safe(function() selectTarget(plr) end, "lista"))
+                plus.Activated:Connect(safe(function()
+                    if selAdd(plr) then
+                        notify("@" .. plr.Name .. " en Seleccionados")
+                    else
+                        notify("Ya está en la lista")
+                    end
+                end, "agregar"))
             end
         end
         if n == 0 then
-            local e = plain(container, "No hay jugadores", 11, F.body, C.Gray, nil, UDim2.new(1, 0, 0, 30), Enum.TextXAlignment.Center)
+            local e = plain(container, "No hay jugadores", 11, F.body, C.Gray,
+                nil, UDim2.new(1, 0, 0, 30), Enum.TextXAlignment.Center)
             e.LayoutOrder = 1
         end
     end
@@ -2310,17 +2326,17 @@ end
 print("[DestroyaHub] parte 11 lista")
 --##################################################
 --# ► PARTE 12 — PÁGINA SELECCIONADOS Y EVENTOS
---#   Contiene: refreshAdd, refreshSel, refresco de
---#   listas y eventos PlayerAdded / PlayerRemoving.
+--#   Solo la lista de seleccionados: nombre con -,
+--#   toque para Cam Lock y botón de TP debajo.
 --##################################################
 
-local refreshAdd, refreshSel
+local refreshSel
 do
-    createSection(SelPage, "Gestionar")
-    local addCol = createCollapsible(SelPage, "Agregar jugadores", 44)
-    local addBody = addCol.body
+    createSection(SelPage, "Seleccionados")
+    local hint = plain(SelPage, "Agrega jugadores con el + de la Lista.", 10, F.body, C.Gray,
+        nil, UDim2.new(1, -4, 0, 22))
+    hint.LayoutOrder = nextOrder()
 
-    createSection(SelPage, "Tu lista")
     local selContainer = Instance.new("Frame")
     selContainer.Size = UDim2.new(1, -4, 0, 0)
     selContainer.BackgroundTransparency = 1
@@ -2331,51 +2347,6 @@ do
     sl.Padding = UDim.new(0, 10)
     sl.SortOrder = Enum.SortOrder.LayoutOrder
     sl.Parent = selContainer
-
-    refreshAdd = function()
-        for _, c in ipairs(addBody:GetChildren()) do
-            if c:IsA("GuiObject") then c:Destroy() end
-        end
-        local n = 0
-        for _, plr in ipairs(Players:GetPlayers()) do
-            if plr ~= player then
-                n += 1
-                local has = Sel.set[plr] ~= nil
-
-                local row = Instance.new("Frame")
-                row.Position = UDim2.fromOffset(8, 2 + (n - 1) * 40)
-                row.Size = UDim2.new(1, -16, 0, 34)
-                row.BackgroundColor3 = C.Panel
-                row.BackgroundTransparency = 0.55
-                row.BorderSizePixel = 0
-                row.Parent = addBody
-                corner(row, 9)
-
-                plain(row, "@" .. plr.Name, 13, F.head, C.White, UDim2.fromOffset(10, 0), UDim2.new(1, -90, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
-
-                local plus = createMiniButton(row, "plus", 26)
-                plus.Position = UDim2.new(1, -62, 0.5, -13)
-                plus.BackgroundTransparency = has and 0.7 or 0.35
-                local minus = createMiniButton(row, "minus", 26)
-                minus.Position = UDim2.new(1, -32, 0.5, -13)
-                minus.BackgroundTransparency = has and 0.35 or 0.7
-
-                plus.Activated:Connect(safe(function()
-                    if selAdd(plr) then notify("@" .. plr.Name .. " agregado") else notify("Ya está en tu lista") end
-                end, "agregar"))
-                minus.Activated:Connect(safe(function()
-                    if selRemove(plr) then notify("@" .. plr.Name .. " quitado") else notify("No estaba en tu lista") end
-                end, "quitar"))
-            end
-        end
-        if n == 0 then
-            plain(addBody, "No hay otros jugadores", 11, F.body, C.Gray,
-                UDim2.fromOffset(8, 2), UDim2.new(1, -16, 0, 34), Enum.TextXAlignment.Center)
-            addCol.setHeight(44)
-        else
-            addCol.setHeight(n * 40 + 6)
-        end
-    end
 
     refreshSel = function()
         for _, c in ipairs(selContainer:GetChildren()) do
@@ -2416,9 +2387,11 @@ do
             accent.Parent = nameBtn
             corner(accent, 2)
 
-            plain(nameBtn, "@" .. plr.Name, 13, F.head, C.White, UDim2.fromOffset(12, 0), UDim2.new(1, -100, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
+            plain(nameBtn, "@" .. plr.Name, 13, F.head, C.White,
+                UDim2.fromOffset(12, 0), UDim2.new(1, -100, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
             if isTarget then
-                plain(nameBtn, "OBJETIVO", 10, F.section, C.Acc2, UDim2.new(1, -86, 0, 0), UDim2.fromOffset(78, 34), Enum.TextXAlignment.Right)
+                plain(nameBtn, "OBJETIVO", 10, F.section, C.Acc2, UDim2.new(1, -86, 0, 0),
+                    UDim2.fromOffset(78, 34), Enum.TextXAlignment.Right)
             end
             nameBtn.Activated:Connect(safe(function() selectTarget(plr) end, "seleccionado"))
 
@@ -2447,7 +2420,6 @@ end
 
 UI.refreshLists = debounced(function()
     if refreshList then refreshList() end
-    if refreshAdd then refreshAdd() end
     if refreshSel then refreshSel() end
 end)
 onThemeSlow(UI.refreshLists)
@@ -2463,7 +2435,7 @@ track(Players.PlayerRemoving:Connect(safe(function(plr)
     if TP.target == plr then stopTP("El jugador salió del juego") end
     if Sel.set[plr] then
         selRemove(plr)
-        notify("@" .. plr.Name .. " salió y se quitó de tu lista")
+        notify("@" .. plr.Name .. " salió y se quitó de la lista")
     end
     if S.target == plr then
         setLockMode(nil)
