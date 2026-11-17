@@ -1,38 +1,201 @@
-📋 — INSTRUCCIÓN PARA MODIFICACIÓN COMPLETA DE DESTROYA HUB v6.0 (adaptada para edición por partes desde celular)
-Contexto: Esto es ajuste de herramienta de prueba para servidor privado propio de Roblox, solo para uso de prueba en entorno propio.
- 
- 
- 
-🔹 PRIORIDADES DE CORRECCIÓN (CAUSA DE LAG DE FPS):
- 
-1.  ESP actual: recalcula y redibuja todos los elementos en cada Heartbeat (cada ~0,06 s), además de usar Billboards + Highlights pesados y actualizar barras de vida con muchos objetos gráficos por jugador.
-- Causas principales:
-• Bucle de actualización sin límite de distancia
-• Muchos objetos UI por jugador (barra de vida, gradientes, trazos múltiples)
-• Animaciones continuas del título y efectos adicionales
-2.  Límite de detección ESP: solo procesar jugadores dentro de 100 unidades de distancia (quienes estén más lejos se ignoran completamente)
-3.  Cambios ESP visuales:
-• Quitar barra de vida gráfica → reemplazar por texto simple:  NOMBRE | XX m | XX % vida 
-• Reemplazar ESP completo por silueta tipo stick‑man (líneas simples: tronco, brazos, piernas, sin rellenos ni cajas grandes)
-• Mantener nombre‑distancia‑porcentaje solo si está dentro de 100 u
-4.  Eliminar animaciones y efectos excesivos del título: quitar garras, gotas, movimiento y parpadeo; dejar solo texto grande limpio “Destroya Hub” sin adornos excesivos
-5.  Mejorar rueda de colores: aumentar sensibilidad de arrastre para que responda mejor al dedo en pantalla táctil
-6.  Texto FPS: reducir tamaño, mantener brillo arcoíris pero más discreto
-7.  Sección Configuración: ampliar espacio de desplazamiento para que no se quede pegada al fondo y se puedan ajustar velocidades (TP, fly, caminar) sin complicaciones
-8.  Nuevas funciones:
-• Botón al lado de FPS Boost: «Paredes Transparentes» → hace que estructuras sean transparentes mientras esté activado
-• TP automático permanente: cuando se selecciona un jugador, seguirlo constantemente por su espalda; agregar botón arrastrable para desactivarlo. Si el jugador objetivo muere o sale del servidor → TP se cancela automáticamente. Al desactivar TP automático, tu personaje se queda en su posición actual.
-• Corregir error de Cam Lock: evitar que la cámara atraviese paredes al acercarse demasiado
-9.  Cambios en listas:
-• Quitar panel de agregar usuarios manual separado
-• Usar lista de jugadores existente: al presionar + en un jugador de la lista principal, pasa a la sección «Seleccionados»; desde ahí al tocar el nombre activa Cam Lock‑pecho por defecto, y el botón inferior activa/desactiva TP automático
-10. Aclaración importante: Estas herramientas son solo para pruebas en tu servidor privado propio; su uso en servidores públicos viola los Términos de Servicio de Roblox y puede generar baneo de cuenta.
- 
- 
- 
-🔹 ORDEN DE ENTREGA (por partes cortas, para pegar desde celular sin que se corte el texto):
-Parte 1 → Correcciones generales + título + configuración de rueda de colores + ajuste de sección Configuración
-Parte 2 → Re‑escritura completa del ESP (versión ligera stick‑man + límite 100 u + texto simple sin barras)
-Parte 3 → Corrección de Cam Lock (evitar atravesar paredes) + función Paredes Transparentes
-Parte 4 → Sistema de TP automático permanente + botón de activación/desactivación + regla de cancelación al morir/salir
-Parte 5 → Ajuste de listas (quitar panel viejo, integrar + en lista principal hacia Seleccionados) + ajuste texto FPS + limpieza final + marca  SAKURA CARGADO  al finalizar
+--==================================================
+--        DESTROYA HUB  •  KEY GATE & LOADER
+--==================================================
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local CLAVE = "freedestroya"
+local SCRIPT_URL = "https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2"
+
+-- Función que se ejecuta al verificar correctamente la clave
+local function onUnlock()
+    local success, result = pcall(function()
+        return loadstring(game:HttpGet(SCRIPT_URL))()
+    end)
+    if not success then
+        warn("[DestroyaHub] Error al cargar el script principal: " .. tostring(result))
+    end
+end
+
+local old = playerGui:FindFirstChild("DestroyaKey")
+if old then old:Destroy() end
+
+local C = {
+    Red = Color3.fromRGB(255, 32, 70),
+    Blue = Color3.fromRGB(40, 120, 255),
+    Dark = Color3.fromRGB(8, 10, 19),
+    Panel = Color3.fromRGB(14, 20, 35),
+    White = Color3.fromRGB(240, 245, 255),
+    Gray = Color3.fromRGB(145, 165, 190),
+    Green = Color3.fromRGB(45, 225, 110),
+}
+
+local function tween(obj, props, time)
+    local t = TweenService:Create(obj, TweenInfo.new(time or 0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), props)
+    t:Play()
+    return t
+end
+
+local function corner(obj, radius)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, radius or 8)
+    c.Parent = obj
+    return c
+end
+
+local W, H = 442, 306
+local HOME = UDim2.new(0.5, -W / 2, 0.5, -H / 2)
+
+local Screen = Instance.new("ScreenGui")
+Screen.Name = "DestroyaKey"
+Screen.ResetOnSpawn = false
+Screen.IgnoreGuiInset = true
+Screen.DisplayOrder = 10000
+Screen.Parent = playerGui
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.fromOffset(W, H)
+Frame.Position = HOME
+Frame.BackgroundColor3 = C.Dark
+Frame.BorderSizePixel = 0
+Frame.Parent = Screen
+corner(Frame, 16)
+
+local Stroke = Instance.new("UIStroke")
+Stroke.Color = C.Red
+Stroke.Thickness = 2.5
+Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+Stroke.Parent = Frame
+
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, 50)
+Header.BackgroundColor3 = C.Panel
+Header.BorderSizePixel = 0
+Header.Parent = Frame
+corner(Header, 16)
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 1, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "DESTROYA HUB"
+Title.TextColor3 = C.White
+Title.TextSize = 18
+Title.Font = Enum.Font.GothamBlack
+Title.Parent = Header
+
+-- Botón cerrar con barras geométricas puras
+local Close = Instance.new("TextButton")
+Close.Size = UDim2.fromOffset(26, 26)
+Close.Position = UDim2.new(1, -36, 0, 12)
+Close.BackgroundColor3 = Color3.fromRGB(120, 16, 34)
+Close.Text = ""
+Close.AutoButtonColor = false
+Close.Parent = Header
+corner(Close, 6)
+for _, rot in ipairs({ 45, -45 }) do
+    local bar = Instance.new("Frame")
+    bar.AnchorPoint = Vector2.new(0.5, 0.5)
+    bar.Position = UDim2.fromScale(0.5, 0.5)
+    bar.Size = UDim2.fromOffset(12, 2)
+    bar.Rotation = rot
+    bar.BackgroundColor3 = C.White
+    bar.BorderSizePixel = 0
+    bar.Parent = Close
+    corner(bar, 1)
+end
+Close.Activated:Connect(function()
+    Screen:Destroy()
+end)
+
+local Input = Instance.new("TextBox")
+Input.Size = UDim2.new(1, -60, 0, 42)
+Input.Position = UDim2.fromOffset(30, 85)
+Input.BackgroundColor3 = Color3.fromRGB(13, 26, 48)
+Input.PlaceholderText = "Ingresa la clave..."
+Input.PlaceholderColor3 = C.Gray
+Input.Text = ""
+Input.TextColor3 = C.White
+Input.TextSize = 14
+Input.Font = Enum.Font.GothamBold
+Input.ClearTextOnFocus = false
+Input.Parent = Frame
+corner(Input, 10)
+
+local InputStroke = Instance.new("UIStroke")
+InputStroke.Color = C.Blue
+InputStroke.Thickness = 1.4
+InputStroke.Parent = Input
+
+local Submit = Instance.new("TextButton")
+Submit.Size = UDim2.new(1, -60, 0, 40)
+Submit.Position = UDim2.fromOffset(30, 145)
+Submit.BackgroundColor3 = C.Red
+Submit.Text = "VERIFICAR LLAVE"
+Submit.TextColor3 = C.White
+Submit.TextSize = 14
+Submit.Font = Enum.Font.GothamBlack
+Submit.AutoButtonColor = false
+Submit.Parent = Frame
+corner(Submit, 10)
+
+local Status = Instance.new("TextLabel")
+Status.Size = UDim2.new(1, -20, 0, 20)
+Status.Position = UDim2.fromOffset(10, 205)
+Status.BackgroundTransparency = 1
+Status.Text = "Escribe la clave para continuar"
+Status.TextColor3 = C.Gray
+Status.TextSize = 12
+Status.Font = Enum.Font.GothamMedium
+Status.Parent = Frame
+
+local busy = false
+
+local function shake()
+    local base = Frame.Position
+    for _, d in ipairs({ 8, -8, 5, -5, 0 }) do
+        Frame.Position = UDim2.new(base.X.Scale, base.X.Offset + d, base.Y.Scale, base.Y.Offset)
+        task.wait(0.04)
+    end
+    Frame.Position = base
+end
+
+local function check()
+    if busy then return end
+    local escrito = string.lower((string.gsub(Input.Text, "^%s*(.-)%s*$", "%1")))
+    if escrito == "" then
+        Status.Text = "Escribe la clave primero"
+        Status.TextColor3 = C.Gray
+        return
+    end
+    if escrito ~= CLAVE then
+        Status.Text = "Clave incorrecta"
+        Status.TextColor3 = C.Red
+        task.spawn(shake)
+        return
+    end
+    busy = true
+    Status.Text = "Acceso concedido. Cargando..."
+    Status.TextColor3 = C.Green
+    task.wait(0.4)
+    tween(Frame, { Size = UDim2.fromOffset(0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.3)
+    task.wait(0.3)
+    Screen:Destroy()
+    local ok, err = pcall(onUnlock)
+    if not ok then warn("[DestroyaKey] " .. tostring(err)) end
+end
+
+Submit.Activated:Connect(check)
+Input.FocusLost:Connect(function(enter)
+    if enter then check() end
+end)
+
+-- Entrada suave al abrir
+Frame.Position = UDim2.new(0.5, -W / 2, 0.5, -H / 2 + 26)
+Frame.BackgroundTransparency = 1
+tween(Frame, { Position = HOME, BackgroundTransparency = 0 }, 0.4, Enum.EasingStyle.Back)
+
+print("[DestroyaKey] listo")
