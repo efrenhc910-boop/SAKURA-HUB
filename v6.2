@@ -1088,6 +1088,158 @@ end
 
 print("[DestroyaHub] parte 5 lista")
 --##################################################
+--# ► PARTE 6 — RUEDA DE COLOR Y ESTADO GLOBAL
+--#   Contiene: createColorPicker y la tabla S.
+--#   La rueda repinta cabecera y botones, no el título.
+--##################################################
+
+local hh, ss, vv = AGUA.Acc:ToHSV()
+local custom = { h = hh, s = ss, v = vv }
+local customBusy = false
+
+local function applyCustom()
+    if customBusy then return end
+    customBusy = true
+    task.delay(0.06, function()
+        customBusy = false
+        applyTheme(makeTheme(custom.h, custom.s, custom.v))
+    end)
+end
+
+local function createColorPicker(page)
+    local R, r0, N = 56, 24, 72
+    local mid = (R + r0) / 2
+    local midRatio = mid / (2 * R)
+    local BODY_H = 4 + 2 * R + 10 + 46 + 6 + 46
+
+    createCollapsible(page, "Color del menú", BODY_H, function(body)
+        local wheel = Instance.new("Frame")
+        wheel.AnchorPoint = Vector2.new(0.5, 0)
+        wheel.Position = UDim2.new(0.5, 0, 0, 4)
+        wheel.Size = UDim2.fromOffset(2 * R, 2 * R)
+        wheel.BackgroundTransparency = 1
+        wheel.Parent = body
+
+        local len = R - r0
+        local thick = math.ceil(2 * math.pi * R / N) + 1
+        for i = 0, N - 1 do
+            local hue = i / N
+            local ang = hue * 2 * math.pi
+            local s = Instance.new("Frame")
+            s.AnchorPoint = Vector2.new(0.5, 0.5)
+            s.Size = UDim2.fromOffset(len, thick)
+            s.Position = UDim2.fromOffset(R + math.cos(ang) * mid, R + math.sin(ang) * mid)
+            s.Rotation = math.deg(ang)
+            s.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
+            s.BorderSizePixel = 0
+            s.Parent = wheel
+        end
+
+        local preview = Instance.new("Frame")
+        preview.AnchorPoint = Vector2.new(0.5, 0.5)
+        preview.Position = UDim2.fromScale(0.5, 0.5)
+        preview.Size = UDim2.fromOffset(2 * (r0 - 4), 2 * (r0 - 4))
+        preview.BorderSizePixel = 0
+        preview.Parent = wheel
+        corner(preview, r0)
+        local function updatePreview()
+            preview.BackgroundColor3 = Color3.fromHSV(custom.h, custom.s, math.max(custom.v, 0.55))
+        end
+        updatePreview()
+
+        local marker = Instance.new("Frame")
+        marker.AnchorPoint = Vector2.new(0.5, 0.5)
+        marker.Size = UDim2.fromOffset(14, 14)
+        marker.BackgroundTransparency = 1
+        marker.ZIndex = 5
+        marker.Parent = wheel
+        corner(marker, 7)
+        local ms = Instance.new("UIStroke")
+        ms.Color = Color3.new(1, 1, 1)
+        ms.Thickness = 2.4
+        ms.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        ms.Parent = marker
+        local a0 = custom.h * 2 * math.pi
+        marker.Position = UDim2.fromScale(0.5 + math.cos(a0) * midRatio, 0.5 + math.sin(a0) * midRatio)
+
+        local hit = Instance.new("TextButton")
+        hit.Position = UDim2.fromOffset(-14, -14)
+        hit.Size = UDim2.new(1, 28, 1, 28)
+        hit.BackgroundTransparency = 1
+        hit.Text = ""
+        hit.AutoButtonColor = false
+        hit.ZIndex = 6
+        hit.Parent = wheel
+
+        local function pick(input)
+            local size = wheel.AbsoluteSize.X
+            if size <= 0 then return end
+            local p = screenPos(input)
+            local dx = p.X - (wheel.AbsolutePosition.X + size / 2)
+            local dy = p.Y - (wheel.AbsolutePosition.Y + size / 2)
+            if dx * dx + dy * dy < 1 then return end
+            local ang = math.atan2(dy, dx)
+            custom.h = (math.deg(ang) % 360) / 360
+            marker.Position = UDim2.fromScale(0.5 + math.cos(ang) * midRatio, 0.5 + math.sin(ang) * midRatio)
+            updatePreview()
+            applyCustom()
+        end
+
+        hit.InputBegan:Connect(function(input)
+            if isPointer(input) then
+                pick(input)
+                beginDrag(input, pick, true)
+            end
+        end)
+
+        local ready = false
+        local r1 = createSlider(body, "Saturación", 0, 1, custom.s,
+            function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
+            function(v)
+                custom.s = v
+                if ready then
+                    updatePreview()
+                    applyCustom()
+                end
+            end)
+        r1.BackgroundTransparency = 1
+        r1.Position = UDim2.fromOffset(2, 4 + 2 * R + 10)
+
+        local r2 = createSlider(body, "Brillo", 0.4, 1, custom.v,
+            function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
+            function(v)
+                custom.v = v
+                if ready then
+                    updatePreview()
+                    applyCustom()
+                end
+            end)
+        r2.BackgroundTransparency = 1
+        r2.Position = UDim2.fromOffset(2, 4 + 2 * R + 10 + 52)
+        ready = true
+    end)
+end
+
+local S = {
+    esp = false, lockMode = nil, target = nil,
+    infJump = false, fly = false, walk = false, noclip = false,
+    boost = false, walls = false, full = false, tpActive = false,
+    flySpeed = 60, walkSpeed = 32, defWalk = 16, tpSpeed = 120,
+}
+local flyInput = { up = false, down = false }
+
+local function getCamera()
+    return Workspace.CurrentCamera
+end
+
+local function getParts()
+    local char = player.Character
+    if not char then return nil end
+    return char:FindFirstChild("HumanoidRootPart"), char:FindFirstChildOfClass("Humanoid"), char
+end
+
+print("[DestroyaHub] parte 6 lista")
+--##################################################
 --# ► PARTE 7 — ESP (LÍMITE 100 METROS)
 --#   Contiene: PAL, applyESP, paintESP, bucle ESP.
 --#   Fuera de CONFIG.ESP_MAX se oculta sin destruir.
