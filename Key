@@ -1,478 +1,201 @@
 --==================================================
---        SAKURA HUB • KEY GATE (PRO EDITION)
---        Clave por defecto: freedestroya
+--        DESTROYA HUB  •  KEY GATE & LOADER
 --==================================================
-print("[SakuraKey] Inicializando sistema de acceso...")
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local function getGuiParent()
-    local ok, ui = pcall(function() return gethui and gethui() end)
-    if ok and ui then return ui end
-    local okCore, core = pcall(function() return game:GetService("CoreGui") end)
-    if okCore and core then
-        local canUse = pcall(function()
-            local f = Instance.new("Folder")
-            f.Parent = core
-            f:Destroy()
-        end)
-        if canUse then return core end
-    end
-    return playerGui
-end
+local CLAVE = "freedestroya"
+local SCRIPT_URL = "https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2"
 
-local guiParent = getGuiParent()
-for _, cont in ipairs({ guiParent, playerGui }) do
-    for _, name in ipairs({ "DestroyaKey", "SakuraKeySystem", "DestroyaKeyError" }) do
-        local old = cont:FindFirstChild(name)
-        if old then old:Destroy() end
+-- Función que se ejecuta al verificar correctamente la clave
+local function onUnlock()
+    local success, result = pcall(function()
+        return loadstring(game:HttpGet(SCRIPT_URL))()
+    end)
+    if not success then
+        warn("[DestroyaHub] Error al cargar el script principal: " .. tostring(result))
     end
 end
 
-local Screen = Instance.new("ScreenGui")
-Screen.Name = "SakuraKeySystem"
-Screen.ResetOnSpawn = false
-Screen.IgnoreGuiInset = true
-Screen.DisplayOrder = 10000
-Screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-Screen.Parent = guiParent
+local old = playerGui:FindFirstChild("DestroyaKey")
+if old then old:Destroy() end
 
 local C = {
-    Primary = Color3.fromRGB(255, 50, 120),   -- Sakura Rosa Neón
-    Secondary = Color3.fromRGB(0, 235, 255),   -- Cyan Neón
+    Red = Color3.fromRGB(255, 32, 70),
     Blue = Color3.fromRGB(40, 120, 255),
-    Dark = Color3.fromRGB(10, 12, 20),
-    Panel = Color3.fromRGB(16, 20, 32),
-    White = Color3.fromRGB(245, 245, 255),
-    Gray = Color3.fromRGB(150, 160, 180),
+    Dark = Color3.fromRGB(8, 10, 19),
+    Panel = Color3.fromRGB(14, 20, 35),
+    White = Color3.fromRGB(240, 245, 255),
+    Gray = Color3.fromRGB(145, 165, 190),
     Green = Color3.fromRGB(45, 225, 110),
 }
 
-local CLAVE = "freedestroya"
-local ENLACE = "https://discord.gg/ykHwgmQnD"
-
--- URLs actualizadas con parámetro anti-cache para evitar bloqueos del ejecutor
-local URLS = {
-    "https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2?t=" .. tostring(os.time()),
-    "https://cdn.jsdelivr.net/gh/efrenhc910-boop/SAKURA-HUB@main/v6.2?t=" .. tostring(os.time()),
-}
-
-local function tween(obj, props, time, style)
-    local t = TweenService:Create(obj,
-        TweenInfo.new(time or 0.25, style or Enum.EasingStyle.Quint, Enum.EasingDirection.Out), props)
+local function tween(obj, props, time)
+    local t = TweenService:Create(obj, TweenInfo.new(time or 0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), props)
     t:Play()
     return t
 end
 
-local function corner(obj, r)
+local function corner(obj, radius)
     local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, r or 8)
+    c.CornerRadius = UDim.new(0, radius or 8)
     c.Parent = obj
     return c
 end
 
-local function label(parent, text, size, font, color, pos, sz, alignX)
-    local l = Instance.new("TextLabel")
-    l.BackgroundTransparency = 1
-    l.Text = text
-    l.TextSize = size
-    l.Font = font
-    l.TextColor3 = color
-    l.TextXAlignment = alignX or Enum.TextXAlignment.Center
-    if pos then l.Position = pos end
-    if sz then l.Size = sz end
-    l.Parent = parent
-    return l
-end
-
-local function boton(parent, texto, y, colorBase, colorGlow)
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.new(1, -60, 0, 42)
-    b.Position = UDim2.fromOffset(30, y)
-    b.BackgroundTransparency = 1
-    b.Text = texto
-    b.TextColor3 = C.White
-    b.TextSize = 13
-    b.Font = Enum.Font.GothamBlack
-    b.AutoButtonColor = false
-    b.BorderSizePixel = 0
-    b.ZIndex = 8
-    b.Parent = parent
-    corner(b, 10)
-
-    local fondo = Instance.new("Frame")
-    fondo.Size = UDim2.fromScale(1, 1)
-    fondo.BackgroundColor3 = colorBase
-    fondo.BorderSizePixel = 0
-    fondo.ZIndex = 7
-    fondo.Parent = b
-    corner(fondo, 10)
-
-    local grad = Instance.new("UIGradient")
-    grad.Color = ColorSequence.new(colorBase, colorGlow)
-    grad.Rotation = 45
-    grad.Parent = fondo
-
-    local borde = Instance.new("UIStroke")
-    borde.Color = C.Secondary
-    borde.Thickness = 1.2
-    borde.Transparency = 0.4
-    borde.Parent = fondo
-
-    local esc = Instance.new("UIScale")
-    esc.Parent = b
-
-    b.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then
-            tween(esc, { Scale = 0.96 }, 0.08)
-            tween(borde, { Transparency = 0 }, 0.12)
-        end
-    end)
-    b.InputEnded:Connect(function()
-        tween(esc, { Scale = 1 }, 0.2, Enum.EasingStyle.Back)
-        tween(borde, { Transparency = 0.4 }, 0.2)
-    end)
-
-    return b, grad, fondo
-end
-
-local W, H = 440, 310
+local W, H = 442, 306
 local HOME = UDim2.new(0.5, -W / 2, 0.5, -H / 2)
 
-local Panel = Instance.new("Frame")
-Panel.Name = "Panel"
-Panel.Size = UDim2.fromOffset(W, H)
-Panel.Position = UDim2.new(0.5, -W / 2, 0.5, -H / 2 - 25) -- Efecto de caída inicial
-Panel.BackgroundColor3 = C.Dark
-Panel.BackgroundTransparency = 0.05
-Panel.BorderSizePixel = 0
-Panel.ClipsDescendants = true
-Panel.Parent = Screen
-corner(Panel, 14)
+local Screen = Instance.new("ScreenGui")
+Screen.Name = "DestroyaKey"
+Screen.ResetOnSpawn = false
+Screen.IgnoreGuiInset = true
+Screen.DisplayOrder = 10000
+Screen.Parent = playerGui
 
-local Outer = Instance.new("UIStroke")
-Outer.Thickness = 2.5
-Outer.Parent = Panel
-local OuterGrad = Instance.new("UIGradient")
-OuterGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, C.Primary),
-    ColorSequenceKeypoint.new(0.5, C.Secondary),
-    ColorSequenceKeypoint.new(1, C.Primary),
-})
-OuterGrad.Parent = Outer
-TweenService:Create(OuterGrad, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), { Rotation = 360 }):Play()
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.fromOffset(W, H)
+Frame.Position = HOME
+Frame.BackgroundColor3 = C.Dark
+Frame.BorderSizePixel = 0
+Frame.Parent = Screen
+corner(Frame, 16)
 
-local Title = label(Panel, "✦ SAKURA HUB ✦", 26, Enum.Font.GothamBlack, C.White, UDim2.fromOffset(0, 22), UDim2.new(1, 0, 0, 35))
-Title.ZIndex = 6
+local Stroke = Instance.new("UIStroke")
+Stroke.Color = C.Red
+Stroke.Thickness = 2.5
+Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+Stroke.Parent = Frame
 
-local TitleGrad = Instance.new("UIGradient")
-TitleGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, C.White),
-    ColorSequenceKeypoint.new(0.5, C.Secondary),
-    ColorSequenceKeypoint.new(1, C.Primary),
-})
-TitleGrad.Parent = Title
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, 50)
+Header.BackgroundColor3 = C.Panel
+Header.BorderSizePixel = 0
+Header.Parent = Frame
+corner(Header, 16)
 
-local Sub = label(Panel, "SECURE ACCESS GATE • V6.2", 10, Enum.Font.GothamBold, C.Gray, UDim2.fromOffset(0, 56), UDim2.new(1, 0, 0, 14))
-Sub.ZIndex = 6
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 1, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "DESTROYA HUB"
+Title.TextColor3 = C.White
+Title.TextSize = 18
+Title.Font = Enum.Font.GothamBlack
+Title.Parent = Header
 
+-- Botón cerrar con barras geométricas puras
 local Close = Instance.new("TextButton")
 Close.Size = UDim2.fromOffset(26, 26)
-Close.Position = UDim2.new(1, -36, 0, 14)
-Close.BackgroundColor3 = Color3.fromRGB(180, 30, 60)
-Close.Text = "×"
-Close.TextColor3 = C.White
-Close.TextSize = 18
-Close.Font = Enum.Font.GothamBold
-Close.ZIndex = 9
-Close.Parent = Panel
-corner(Close, 8)
-
+Close.Position = UDim2.new(1, -36, 0, 12)
+Close.BackgroundColor3 = Color3.fromRGB(120, 16, 34)
+Close.Text = ""
+Close.AutoButtonColor = false
+Close.Parent = Header
+corner(Close, 6)
+for _, rot in ipairs({ 45, -45 }) do
+    local bar = Instance.new("Frame")
+    bar.AnchorPoint = Vector2.new(0.5, 0.5)
+    bar.Position = UDim2.fromScale(0.5, 0.5)
+    bar.Size = UDim2.fromOffset(12, 2)
+    bar.Rotation = rot
+    bar.BackgroundColor3 = C.White
+    bar.BorderSizePixel = 0
+    bar.Parent = Close
+    corner(bar, 1)
+end
 Close.Activated:Connect(function()
-    if Screen.Parent then Screen:Destroy() end
-end)
-
--- Sistema de Arrastre Universal (Móvil y PC)
-local DragZone = Instance.new("Frame")
-DragZone.Size = UDim2.new(1, -50, 0, 80)
-DragZone.BackgroundTransparency = 1
-DragZone.ZIndex = 7
-DragZone.Parent = Panel
-
-local dragging, dragStart, panelStart, dragInput
-DragZone.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragInput = input
-        dragStart = input.Position
-        panelStart = Panel.Position
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local d = input.Position - dragStart
-        Panel.Position = UDim2.new(panelStart.X.Scale, panelStart.X.Offset + d.X, panelStart.Y.Scale, panelStart.Y.Offset + d.Y)
-    end
-end)
-UserInputService.InputEnded:Connect(function(input)
-    if input == dragInput then dragging = false end
+    Screen:Destroy()
 end)
 
 local Input = Instance.new("TextBox")
-Input.Size = UDim2.new(1, -60, 0, 44)
-Input.Position = UDim2.fromOffset(30, 95)
-Input.BackgroundColor3 = Color3.fromRGB(14, 20, 35)
-Input.PlaceholderText = "Ingresa la clave de acceso..."
-Input.PlaceholderColor3 = Color3.fromRGB(100, 115, 140)
+Input.Size = UDim2.new(1, -60, 0, 42)
+Input.Position = UDim2.fromOffset(30, 85)
+Input.BackgroundColor3 = Color3.fromRGB(13, 26, 48)
+Input.PlaceholderText = "Ingresa la clave..."
+Input.PlaceholderColor3 = C.Gray
 Input.Text = ""
 Input.TextColor3 = C.White
-Input.TextSize = 13
+Input.TextSize = 14
 Input.Font = Enum.Font.GothamBold
 Input.ClearTextOnFocus = false
-Input.BorderSizePixel = 0
-Input.ZIndex = 6
-Input.Parent = Panel
+Input.Parent = Frame
 corner(Input, 10)
 
-local InputPad = Instance.new("UIPadding")
-InputPad.PaddingLeft = UDim.new(0, 14)
-InputPad.Parent = Input
-
 local InputStroke = Instance.new("UIStroke")
-InputStroke.Color = C.Secondary
-InputStroke.Thickness = 1.2
-InputStroke.Transparency = 0.4
+InputStroke.Color = C.Blue
+InputStroke.Thickness = 1.4
 InputStroke.Parent = Input
 
-local Submit, SubmitGrad = boton(Panel, "VERIFICAR LLAVE", 152, C.Primary, C.Blue)
-local Copy = boton(Panel, "OBTENER LLAVE (DISCORD)", 202, Color3.fromRGB(25, 45, 80), Color3.fromRGB(12, 22, 45))
+local Submit = Instance.new("TextButton")
+Submit.Size = UDim2.new(1, -60, 0, 40)
+Submit.Position = UDim2.fromOffset(30, 145)
+Submit.BackgroundColor3 = C.Red
+Submit.Text = "VERIFICAR LLAVE"
+Submit.TextColor3 = C.White
+Submit.TextSize = 14
+Submit.Font = Enum.Font.GothamBlack
+Submit.AutoButtonColor = false
+Submit.Parent = Frame
+corner(Submit, 10)
 
-local Status = label(Panel, "Escribe la clave para continuar", 11, Enum.Font.GothamMedium, C.Gray, UDim2.fromOffset(0, 256), UDim2.new(1, 0, 0, 16))
-Status.ZIndex = 6
-
--- Animación inicial de entrada del panel con rebote suave
-tween(Panel, { Position = HOME, BackgroundTransparency = 0.05 }, 0.5, Enum.EasingStyle.Back)
---==================================================
---        SAKURA HUB • RED Y COMPILACIÓN (PARTE 2)
---==================================================
-
-local function matarPanel()
-    if Screen.Parent then Screen:Destroy() end
-end
-
-local function descargar(url)
-    -- 1. Método estándar de Roblox (HttpGet)
-    if type(game.HttpGet) == "function" then
-        local ok, r = pcall(game.HttpGet, game, url)
-        if ok and type(r) == "string" and #r > 150 then return r end
-    end
-    if type(game.HttpGetAsync) == "function" then
-        local ok, r = pcall(game.HttpGetAsync, game, url)
-        if ok and type(r) == "string" and #r > 150 then return r end
-    end
-    
-    -- 2. Métodos de ejecutores avanzados (syn.request, http.request, request)
-    local req = (syn and syn.request) or (http and http.request) or http_request or request
-    if req then
-        local ok, res = pcall(req, { Url = url, Method = "GET" })
-        if ok and type(res) == "table" and type(res.Body) == "string" and #res.Body > 150 then
-            return res.Body
-        end
-    end
-    return nil
-end
-
-local function compilar(src)
-    local ok, fn = pcall(function() return loadstring(src) end)
-    if ok and type(fn) == "function" then return fn end
-    
-    local ok2, fn2 = pcall(function() return loadstring(src, "SakuraHub_Main") end)
-    if ok2 and type(fn2) == "function" then return fn2 end
-    
-    return nil
-end
-
-local function mostrarAviso(mensaje)
-    local g = Instance.new("ScreenGui")
-    g.Name = "SakuraKeyError"
-    g.ResetOnSpawn = false
-    g.DisplayOrder = 10005
-    g.Parent = guiParent
-
-    local box = Instance.new("Frame")
-    box.Size = UDim2.fromOffset(340, 118)
-    box.Position = UDim2.new(0.5, -170, 0.5, -59)
-    box.BackgroundColor3 = C.Dark
-    box.BorderSizePixel = 0
-    box.Parent = g
-    corner(box, 12)
-
-    local s = Instance.new("UIStroke")
-    s.Color = C.Primary
-    s.Thickness = 2
-    s.Parent = box
-
-    label(box, "Error de Carga", 14, Enum.Font.GothamBlack, C.Primary, UDim2.fromOffset(0, 12), UDim2.new(1, 0, 0, 18))
-    label(box, mensaje, 10, Enum.Font.Gotham, C.Gray, UDim2.fromOffset(14, 34), UDim2.new(1, -28, 0, 34))
-    
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.fromOffset(120, 28)
-    b.Position = UDim2.new(0.5, -60, 0, 82)
-    b.BackgroundColor3 = C.Primary
-    b.Text = "CERRAR"
-    b.TextSize = 11
-    b.Font = Enum.Font.GothamBold
-    b.TextColor3 = C.White
-    b.AutoButtonColor = false
-    b.Parent = box
-    corner(b, 8)
-    
-    b.Activated:Connect(function() g:Destroy() end)
-end
-
---==================================================
--- LÓGICA DE VALIDACIÓN Y ACCESO ASÍNCRONO
---==================================================
+local Status = Instance.new("TextLabel")
+Status.Size = UDim2.new(1, -20, 0, 20)
+Status.Position = UDim2.fromOffset(10, 205)
+Status.BackgroundTransparency = 1
+Status.Text = "Escribe la clave para continuar"
+Status.TextColor3 = C.Gray
+Status.TextSize = 12
+Status.Font = Enum.Font.GothamMedium
+Status.Parent = Frame
 
 local busy = false
-local intentos = 0
-local lastTap = 0
 
-local function procesarAcceso()
+local function shake()
+    local base = Frame.Position
+    for _, d in ipairs({ 8, -8, 5, -5, 0 }) do
+        Frame.Position = UDim2.new(base.X.Scale, base.X.Offset + d, base.Y.Scale, base.Y.Offset)
+        task.wait(0.04)
+    end
+    Frame.Position = base
+end
+
+local function check()
     if busy then return end
-    if os.clock() - lastTap < 0.3 then return end
-    lastTap = os.clock()
-
-    local escrito = string.lower(string.gsub(Input.Text or "", "^%s*(.-)%s*$", "%1"))
-
+    local escrito = string.lower((string.gsub(Input.Text, "^%s*(.-)%s*$", "%1")))
     if escrito == "" then
-        Status.Text = "⚠️ El campo de clave está vacío"
+        Status.Text = "Escribe la clave primero"
         Status.TextColor3 = C.Gray
         return
     end
-
     if escrito ~= CLAVE then
-        intentos += 1
-        Status.Text = "❌ Llave incorrecta · Intento " .. intentos
-        Status.TextColor3 = C.Primary
-
-        -- Efecto de vibración elegante al fallar la clave
-        local base = Panel.Position
-        for _, d in ipairs({ 8, -8, 5, -5, 2, 0 }) do
-            Panel.Position = UDim2.new(base.X.Scale, base.X.Offset + d, base.Y.Scale, base.Y.Offset)
-            task.wait(0.03)
-        end
-        Panel.Position = base
-
-        tween(InputStroke, { Color = C.Primary, Transparency = 0 }, 0.1)
-        task.delay(0.4, function()
-            tween(InputStroke, { Color = C.Secondary, Transparency = 0.4 }, 0.25)
-        end)
+        Status.Text = "Clave incorrecta"
+        Status.TextColor3 = C.Red
+        task.spawn(shake)
         return
     end
-
-    -- Acceso Correcto: Bloquear interacciones y ejecutar hilo de red
     busy = true
-    Submit.Text = "VERIFICANDO..."
+    Status.Text = "Acceso concedido. Cargando..."
     Status.TextColor3 = C.Green
-    tween(SubmitGrad, { Color = ColorSequence.new(C.Green, Color3.fromRGB(10, 90, 50)) }, 0.25)
-
-    -- Uso de task.spawn para evitar congelar el juego durante la descarga web
-    task.spawn(function()
-        local src = nil
-        for _, url in ipairs(URLS) do
-            Status.Text = "Conectando al repositorio..."
-            src = descargar(url)
-            if src then
-                print("[SakuraKey] Código descargado con éxito desde: " .. url)
-                break
-            end
-        end
-
-        if not src then
-            busy = false
-            Submit.Text = "VERIFICAR LLAVE"
-            Status.Text = "❌ Error de conexión con el servidor"
-            Status.TextColor3 = C.Primary
-            tween(SubmitGrad, { Color = ColorSequence.new(C.Primary, C.Blue) }, 0.25)
-            mostrarAviso("No se pudo descargar el script principal. Revisa tu conexión o ejecutor.")
-            return
-        end
-
-        Status.Text = "Compilando script..."
-        local fn = compilar(src)
-        if not fn then
-            busy = false
-            Submit.Text = "VERIFICAR LLAVE"
-            Status.Text = "❌ Error de compilación"
-            Status.TextColor3 = C.Primary
-            tween(SubmitGrad, { Color = ColorSequence.new(C.Primary, C.Blue) }, 0.25)
-            mostrarAviso("El código descargado no es compatible con el loadstring de tu ejecutor.")
-            return
-        end
-
-        Submit.Text = "¡ACCESO CONCEDIDO!"
-        Status.Text = "Iniciando Sakura Hub..."
-        Status.TextColor3 = C.Green
-
-        -- Animación de salida del panel
-        tween(Outer, { Thickness = 4 }, 0.2)
-        task.wait(0.3)
-        tween(Panel, { BackgroundTransparency = 1, Size = UDim2.fromOffset(W * 0.6, 0) }, 0.25)
-        task.wait(0.25)
-        matarPanel()
-
-        -- Ejecución protegida del Hub principal
-        local ok, err = pcall(fn)
-        if not ok then
-            warn("[SakuraKey] Fallo al ejecutar el script principal: " .. tostring(err))
-            mostrarAviso("Error interno al arrancar el Hub: " .. tostring(err))
-        else
-            print("[SakuraKey] Sakura Hub ejecutado correctamente.")
-        end
-    end)
+    task.wait(0.4)
+    tween(Frame, { Size = UDim2.fromOffset(0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.3)
+    task.wait(0.3)
+    Screen:Destroy()
+    local ok, err = pcall(onUnlock)
+    if not ok then warn("[DestroyaKey] " .. tostring(err)) end
 end
 
-Submit.Activated:Connect(procesarAcceso)
+Submit.Activated:Connect(check)
 Input.FocusLost:Connect(function(enter)
-    if enter then procesarAcceso() end
+    if enter then check() end
 end)
 
--- Botón para copiar enlace de Discord
-Copy.Activated:Connect(function()
-    local ok = pcall(function() setclipboard(ENLACE) end)
-    if ok then
-        Status.Text = "✓ ¡Enlace copiado al portapapeles!"
-        Status.TextColor3 = C.Green
-        Copy.Text = "¡COPIADO!"
-        task.delay(2.5, function()
-            if Copy.Parent then
-                Copy.Text = "OBTENER LLAVE (DISCORD)"
-                if not busy then
-                    Status.Text = "Escribe la clave para continuar"
-                    Status.TextColor3 = C.Gray
-                end
-            end
-        end)
-    else
-        Status.Text = ENLACE
-        Status.TextColor3 = C.Secondary
-    end
-end)
+-- Entrada suave al abrir
+Frame.Position = UDim2.new(0.5, -W / 2, 0.5, -H / 2 + 26)
+Frame.BackgroundTransparency = 1
+tween(Frame, { Position = HOME, BackgroundTransparency = 0 }, 0.4, Enum.EasingStyle.Back)
 
--- Animación continua del fondo y barras de escaneo del panel
-task.spawn(function()
-    local t = 0
-    while Screen.Parent do
-        t += 0.04
-        TitleGrad.Offset = Vector2.new(math.sin(t) * 0.3, 0)
-        task.wait(0.04)
-    end
-end)
-
-print("[SakuraKey] Sistema listo y operativo.")
+print("[DestroyaKey] listo")
