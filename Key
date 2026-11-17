@@ -7,7 +7,6 @@ print("[DestroyaKey] cargando...")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local TextService = game:GetService("TextService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -56,6 +55,10 @@ local C = {
 }
 
 local CLAVE = "freedestroya"
+local URLS = {
+    "https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2",
+    "https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v.6.0",
+}
 
 local function tween(obj, props, time, style)
     local t = TweenService:Create(obj,
@@ -99,7 +102,6 @@ Panel.ClipsDescendants = true
 Panel.Parent = Screen
 corner(Panel, 16)
 
--- Halo exterior
 local Outer = Instance.new("UIStroke")
 Outer.Thickness = 3
 Outer.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
@@ -114,7 +116,6 @@ OuterGrad.Parent = Outer
 TweenService:Create(OuterGrad, TweenInfo.new(3, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
     { Rotation = 360 }):Play()
 
--- Halo interior tenue
 local Inner = Instance.new("UIStroke")
 Inner.Thickness = 1
 Inner.Transparency = 0.72
@@ -122,7 +123,6 @@ Inner.Color = C.White
 Inner.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 Inner.Parent = Panel
 
--- Rejilla de fondo
 local Grid = Instance.new("Frame")
 Grid.Size = UDim2.fromScale(1, 1)
 Grid.BackgroundColor3 = C.Panel
@@ -134,7 +134,6 @@ GridGrad.Rotation = 90
 GridGrad.Color = ColorSequence.new(Color3.fromRGB(24, 40, 70), Color3.fromRGB(6, 8, 14))
 GridGrad.Parent = Grid
 
--- Línea de escaneo
 local Scan = Instance.new("Frame")
 Scan.Size = UDim2.fromOffset(90, 2)
 Scan.Position = UDim2.fromOffset(0, 60)
@@ -150,7 +149,6 @@ ScanGrad.Transparency = NumberSequence.new({
 })
 ScanGrad.Parent = Scan
 
--- Esquinas
 for _, s in ipairs({ { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } }) do
     for i = 1, 2 do
         local f = Instance.new("Frame")
@@ -204,6 +202,88 @@ Divider.ZIndex = 5
 Divider.Parent = Panel
 
 --==================================================
+-- BOTÓN CERRAR
+--==================================================
+
+local Close = Instance.new("TextButton")
+Close.Size = UDim2.fromOffset(26, 26)
+Close.Position = UDim2.new(1, -36, 0, 12)
+Close.BackgroundColor3 = Color3.fromRGB(120, 16, 34)
+Close.BackgroundTransparency = 0.1
+Close.Text = ""
+Close.AutoButtonColor = false
+Close.ZIndex = 8
+Close.Parent = Panel
+corner(Close, 8)
+
+for _, rot in ipairs({ 45, -45 }) do
+    local f = Instance.new("Frame")
+    f.AnchorPoint = Vector2.new(0.5, 0.5)
+    f.Position = UDim2.fromScale(0.5, 0.5)
+    f.Size = UDim2.fromOffset(12, 2)
+    f.Rotation = rot
+    f.BackgroundColor3 = C.White
+    f.BorderSizePixel = 0
+    f.ZIndex = 9
+    f.Parent = Close
+    corner(f, 1)
+end
+
+Close.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.Touch
+        or i.UserInputType == Enum.UserInputType.MouseButton1 then
+        tween(Close, { BackgroundColor3 = C.Red }, 0.1)
+    end
+end)
+Close.Activated:Connect(function()
+    if Screen.Parent then Screen:Destroy() end
+end)
+
+--==================================================
+-- ARRASTRE
+--==================================================
+
+local DragZone = Instance.new("Frame")
+DragZone.Position = UDim2.fromOffset(0, 0)
+DragZone.Size = UDim2.new(1, -50, 0, 96)
+DragZone.BackgroundTransparency = 1
+DragZone.ZIndex = 7
+DragZone.Parent = Panel
+
+local dragging, dragStart, panelStart, dragInput
+
+DragZone.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch
+        or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragInput = input
+        dragStart = input.Position
+        panelStart = Panel.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+DragZone.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch
+        or input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input == dragInput then
+        local d = input.Position - dragStart
+        Panel.Position = UDim2.new(panelStart.X.Scale, panelStart.X.Offset + d.X,
+            panelStart.Y.Scale, panelStart.Y.Offset + d.Y)
+    end
+end)
+
+--==================================================
 -- CAMPO
 --==================================================
 
@@ -235,15 +315,6 @@ InputStroke.Transparency = 0.3
 InputStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 InputStroke.Parent = Input
 
-Input.Focused:Connect(function()
-    tween(InputStroke, { Transparency = 0, Color = C.Red }, 0.2)
-    tween(Input, { BackgroundColor3 = Color3.fromRGB(22, 34, 58) }, 0.2)
-end)
-Input.FocusLost:Connect(function()
-    tween(InputStroke, { Transparency = 0.3, Color = C.Blue }, 0.2)
-    tween(Input, { BackgroundColor3 = Color3.fromRGB(13, 26, 48) }, 0.2)
-end)
-
 --==================================================
 -- BOTÓN
 --==================================================
@@ -259,7 +330,7 @@ Submit.TextSize = 14
 Submit.Font = Enum.Font.GothamBlack
 Submit.AutoButtonColor = false
 Submit.BorderSizePixel = 0
-Submit.ZIndex = 6
+Submit.ZIndex = 8
 Submit.Parent = Panel
 corner(Submit, 10)
 
@@ -275,25 +346,6 @@ SubmitStroke.Transparency = 0.6
 SubmitStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 SubmitStroke.Parent = Submit
 
-local SubmitScale = Instance.new("UIScale")
-SubmitScale.Parent = Submit
-
-Submit.InputBegan:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.Touch
-        or i.UserInputType == Enum.UserInputType.MouseButton1 then
-        tween(SubmitScale, { Scale = 0.96 }, 0.08)
-        tween(SubmitStroke, { Transparency = 0 }, 0.12)
-    end
-end)
-Submit.InputEnded:Connect(function()
-    tween(SubmitScale, { Scale = 1 }, 0.2, Enum.EasingStyle.Back)
-    tween(SubmitStroke, { Transparency = 0.6 }, 0.2)
-end)
-
---==================================================
--- ESTADO
---==================================================
-
 local Status = label(Panel, "Escribe la clave para continuar", 11, Enum.Font.GothamMedium,
     C.Gray, UDim2.fromOffset(0, 212), UDim2.new(1, 0, 0, 16))
 Status.ZIndex = 6
@@ -303,14 +355,91 @@ local Foot = label(Panel, "by Efrén Hub  ·  v6.2", 9, Enum.Font.Gotham, Color3
 Foot.ZIndex = 6
 
 --==================================================
+-- CARGA DEL HUB
+--==================================================
+
+local function matarPanel()
+    if Screen.Parent then Screen:Destroy() end
+end
+
+local function avisoFallo()
+    local g = Instance.new("ScreenGui")
+    g.Name = "DestroyaKeyError"
+    g.ResetOnSpawn = false
+    g.DisplayOrder = 10000
+    g.Parent = playerGui
+
+    local box = Instance.new("Frame")
+    box.Size = UDim2.fromOffset(300, 96)
+    box.Position = UDim2.new(0.5, -150, 0.5, -48)
+    box.BackgroundColor3 = C.Dark
+    box.BorderSizePixel = 0
+    box.Parent = g
+    corner(box, 12)
+
+    local s = Instance.new("UIStroke")
+    s.Color = C.Red
+    s.Thickness = 2
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    s.Parent = box
+
+    label(box, "No se pudo descargar el hub", 14, Enum.Font.GothamBlack, C.Red,
+        UDim2.fromOffset(0, 12), UDim2.new(1, 0, 0, 18))
+    label(box, "Revisa tu conexión o vuelve a ejecutar el script.", 10, Enum.Font.Gotham,
+        C.Gray, UDim2.fromOffset(0, 34), UDim2.new(1, 0, 0, 14))
+
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.fromOffset(120, 28)
+    b.Position = UDim2.new(0.5, -60, 0, 56)
+    b.BackgroundColor3 = C.RedD
+    b.Text = "CERRAR"
+    b.TextSize = 11
+    b.Font = Enum.Font.GothamBold
+    b.TextColor3 = C.White
+    b.AutoButtonColor = false
+    b.BorderSizePixel = 0
+    b.Parent = box
+    corner(b, 8)
+    b.Activated:Connect(function() g:Destroy() end)
+end
+
+local function cargarHub()
+    for _, url in ipairs(URLS) do
+        local okHttp, src = pcall(function()
+            return game:HttpGet(url, true)
+        end)
+
+        if okHttp and type(src) == "string" and #src > 200 then
+            local fn, errCompile = loadstring(src)
+            if fn then
+                local okRun, errRun = pcall(fn)
+                if okRun then
+                    print("[DestroyaKey] hub cargado desde " .. url)
+                    return true
+                end
+                warn("[DestroyaKey] error al ejecutar: " .. tostring(errRun))
+            else
+                warn("[DestroyaKey] error de compilación: " .. tostring(errCompile))
+            end
+        else
+            warn("[DestroyaKey] no se pudo descargar: " .. url)
+        end
+    end
+    return false
+end
+
+--==================================================
 -- VALIDACIÓN
 --==================================================
 
 local busy = false
 local intentos = 0
+local lastTap = 0
 
 local function entrar()
     if busy then return end
+    if os.clock() - lastTap < 0.25 then return end
+    lastTap = os.clock()
 
     local escrito = string.lower(string.gsub(Input.Text or "", "^%s*(.-)%s*$", "%1"))
 
@@ -320,50 +449,54 @@ local function entrar()
         return
     end
 
-    if escrito == CLAVE then
-        busy = true
-        Submit.Text = "ACCESO CONCEDIDO"
-        Status.Text = "Clave correcta, cargando el hub..."
-        Status.TextColor3 = C.Green
-        tween(SubmitGrad, { Color = ColorSequence.new(C.Green, Color3.fromRGB(10, 90, 50)) }, 0.25)
-        tween(Outer, { Transparency = 0, Thickness = 4 }, 0.2)
-        tween(InputStroke, { Color = C.Green, Transparency = 0 }, 0.2)
+    if escrito ~= CLAVE then
+        intentos += 1
+        Status.Text = "Clave incorrecta  ·  intento " .. intentos
+        Status.TextColor3 = C.Red
 
-        task.wait(0.55)
-        tween(Panel, { Size = UDim2.fromOffset(W * 0.6, 0), Position = UDim2.new(0.5, -W * 0.3, 0.5, 0), BackgroundTransparency = 1 }, 0.32, Enum.EasingStyle.Back)
-        task.wait(0.34)
-        if Screen.Parent then Screen:Destroy() end
+        local base = Panel.Position
+        for _, d in ipairs({ 9, -9, 7, -7, 4, 0 }) do
+            Panel.Position = UDim2.new(base.X.Scale, base.X.Offset + d, base.Y.Scale, base.Y.Offset)
+            task.wait(0.035)
+        end
+        Panel.Position = base
 
-        task.spawn(function()
-            local ok, err = pcall(function()
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2"))()
-            end)
-            if not ok then
-                warn("[DestroyaKey] error al cargar el hub: " .. tostring(err))
-            end
+        tween(InputStroke, { Color = C.Red, Transparency = 0 }, 0.1)
+        task.delay(0.4, function()
+            tween(InputStroke, { Color = C.Blue, Transparency = 0.3 }, 0.25)
         end)
         return
     end
 
-    intentos += 1
-    Status.Text = "Clave incorrecta  ·  intento " .. intentos
-    Status.TextColor3 = C.Red
+    -- Clave correcta
+    busy = true
+    Submit.Text = "ACCESO CONCEDIDO"
+    Status.Text = "Clave correcta, cargando el hub..."
+    Status.TextColor3 = C.Green
+    tween(SubmitGrad, { Color = ColorSequence.new(C.Green, Color3.fromRGB(10, 90, 50)) }, 0.25)
+    tween(Outer, { Thickness = 4 }, 0.2)
 
-    -- Vibración de error
-    local base = HOME
-    for _, d in ipairs({ 9, -9, 7, -7, 4, 0 }) do
-        Panel.Position = UDim2.new(base.X.Scale, base.X.Offset + d, base.Y.Scale, base.Y.Offset)
-        task.wait(0.035)
-    end
-    Panel.Position = base
+    task.wait(0.4)
+    tween(Panel, { BackgroundTransparency = 1, Size = UDim2.fromOffset(W * 0.7, 0) }, 0.3)
+    task.wait(0.32)
 
-    tween(InputStroke, { Color = C.Red, Transparency = 0 }, 0.1)
-    task.delay(0.4, function()
-        tween(InputStroke, { Color = C.Blue, Transparency = 0.3 }, 0.25)
+    -- El panel se elimina por completo antes de cargar
+    matarPanel()
+    task.wait(0.1)
+
+    task.spawn(function()
+        local ok = cargarHub()
+        if not ok then avisoFallo() end
     end)
 end
 
 Submit.Activated:Connect(entrar)
+Submit.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.Touch
+        or i.UserInputType == Enum.UserInputType.MouseButton1 then
+        entrar()
+    end
+end)
 Input.FocusLost:Connect(function(enter)
     if enter then entrar() end
 end)
@@ -387,11 +520,5 @@ task.spawn(function()
         task.wait(0.05)
     end
 end)
-
-if UserInputService.KeyboardEnabled then
-    task.defer(function()
-        pcall(function() Input:CaptureFocus() end)
-    end)
-end
 
 print("[DestroyaKey] listo")
