@@ -1462,9 +1462,9 @@ for _, plr in ipairs(Players:GetPlayers()) do hookPlayer(plr) end
 print("[DestroyaHub] parte 7 lista")
 --##################################################
 --# ► PARTE 8 — TP, SELECCIONADOS Y CAM LOCK
---#   El Cam Lock hace raycast desde el objetivo hacia
---#   la cámara: si hay muro, la cámara se adelanta
---#   hasta delante del muro y el jugador queda visible.
+--#   La cámara orbita alrededor de TU personaje y solo
+--#   cambia de orientación. El TP se queda pegado a la
+--#   espalda sin soltar hasta que lo canceles.
 --##################################################
 
 local TP = { target = nil, missing = 0 }
@@ -1474,6 +1474,7 @@ local function stopTP(msg)
     TP.target = nil
     TP.missing = 0
     S.tpActive = false
+    if UI.showTpStop then UI.showTpStop(false) end
     if msg then notify(msg) end
     if was and UI.refreshLists then UI.refreshLists() end
 end
@@ -1494,7 +1495,8 @@ local function startTP(plr)
     TP.target = plr
     TP.missing = 0
     S.tpActive = true
-    notify("TP hacia @" .. plr.Name)
+    notify("Siguiendo a @" .. plr.Name)
+    if UI.showTpStop then UI.showTpStop(true) end
     if UI.refreshLists then UI.refreshLists() end
 end
 
@@ -1510,6 +1512,11 @@ track(RunService.Heartbeat:Connect(function(dt)
         end
         local tChar = plr.Character
         local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+        local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
+        if tHum and tHum.Health <= 0 then
+            stopTP("El objetivo murió")
+            return
+        end
         if not tRoot then
             TP.missing += dt
             if TP.missing > 3 then stopTP("El jugador no tiene personaje") end
@@ -1526,10 +1533,10 @@ track(RunService.Heartbeat:Connect(function(dt)
         local diff = goal - root.Position
         local dist = diff.Magnitude
 
-        if dist <= 1.5 then
+        if dist <= 1.2 then
+            -- Ya está en la espalda: se queda clavado ahí sin soltar
             root.CFrame = CFrame.lookAt(goal, goal + flat)
             root.AssemblyLinearVelocity = Vector3.zero
-            stopTP("Estás en la espalda de @" .. plr.Name)
             return
         end
 
@@ -1574,6 +1581,10 @@ camParams.FilterType = Enum.RaycastFilterType.Exclude
 camParams.IgnoreWater = true
 camParams.RespectCanCollide = true
 
+local CAM_DIST = 8.5
+local CAM_UP = 3.2
+local PIVOT_UP = 2.2
+
 local function releaseCamera()
     local cam = getCamera()
     local _, hum = getParts()
@@ -1611,7 +1622,7 @@ local function camStep()
     end
 
     local flat = Vector3.new(tRoot.Position.X - root.Position.X, 0, tRoot.Position.Z - root.Position.Z)
-    if flat.Magnitude < 0.6 then return end
+    if flat.Magnitude < 0.4 then return end
     local dir = flat.Unit
 
     if not camHeld then
@@ -1620,27 +1631,30 @@ local function camStep()
     end
     if cam.CameraType ~= Enum.CameraType.Scriptable then cam.CameraType = Enum.CameraType.Scriptable end
 
-    local focus = aimPoint(tChar, S.lockMode, tRoot)
-    local want = root.Position - dir * 9 + Vector3.new(0, 3.5, 0)
+    -- El cuerpo gira hacia el objetivo (la pistola apunta hacia él)
+    if hum and hum.AutoRotate then hum.AutoRotate = false end
+    root.CFrame = CFrame.lookAt(root.Position, root.Position + dir)
 
-    -- Raycast desde el objetivo hacia la cámara: el muro nunca queda en medio
+    -- La cámara se queda orbitando sobre el personaje, detrás de su espalda
+    local focus = aimPoint(tChar, S.lockMode, tRoot)
+    local pivot = root.Position + Vector3.new(0, PIVOT_UP, 0)
+    local want = root.Position - dir * CAM_DIST + Vector3.new(0, CAM_UP, 0)
+
+    -- Rayo corto desde el pivote: solo le importan los muros junto al personaje
     camParams.FilterDescendantsInstances = { player.Character }
-    local delta = want - focus
-    if delta.Magnitude > 0.15 then
-        local hit = Workspace:Raycast(focus, delta, camParams)
+    local delta = want - pivot
+    if delta.Magnitude > 0.2 then
+        local hit = Workspace:Raycast(pivot, delta, camParams)
         if hit then
-            local back = (focus - hit.Position).Unit
-            want = hit.Position + back * 0.45
-            if (want - focus).Magnitude < 1.6 then
-                want = focus + back * 1.6
+            local back = (pivot - hit.Position).Unit
+            want = hit.Position + back * 0.35
+            if (want - pivot).Magnitude < 1.2 then
+                want = pivot + back * 1.2
             end
         end
     end
 
     cam.CFrame = CFrame.lookAt(want, focus)
-
-    if hum and hum.AutoRotate then hum.AutoRotate = false end
-    root.CFrame = CFrame.lookAt(root.Position, root.Position + dir)
 end
 
 local function lockStatus()
@@ -2446,10 +2460,9 @@ end, "PlayerRemoving")))
 
 print("[DestroyaHub] parte 12 lista")
 --##################################################
---# ► PARTE 13 — CONFIGURACIÓN Y BOTÓN DEL MENÚ
---#   Contiene: sliders de estilo/velocidad, rueda,
---#   muestras, FPS Boost, Transparent Walls,
---#   Fullbright, botón del menú y botón X LOCK.
+--# ► PARTE 13 — CONFIGURACIÓN Y BOTONES FLOTANTES
+--#   Incluye el botón X LOCK y el nuevo X TP,
+--#   que aparece debajo y corta el seguimiento.
 --##################################################
 
 do
@@ -2604,62 +2617,83 @@ end
 Toggle.Activated:Connect(function() setOpen(not UI.open) end)
 HideBtn.Activated:Connect(function() setOpen(false) end)
 
-local CamStop = Instance.new("TextButton")
-CamStop.Name = "CamStop"
-CamStop.Size = UDim2.fromOffset(120, 42)
-CamStop.Position = UDim2.new(0, 14, 0.5, 34)
-CamStop.BackgroundColor3 = Color3.new(1, 1, 1)
-CamStop.BackgroundTransparency = 0.45
-CamStop.Text = ""
-CamStop.AutoButtonColor = false
-CamStop.Visible = false
-CamStop.ZIndex = 10
-CamStop.Parent = Screen
-corner(CamStop, 13)
+--==================================================
+-- BOTÓN X LOCK
+--==================================================
 
-local csGrad = Instance.new("UIGradient")
-csGrad.Color = ColorSequence.new(Color3.fromRGB(30, 110, 135), Color3.fromRGB(8, 30, 40))
-csGrad.Rotation = 90
-csGrad.Parent = CamStop
+local function floatButton(y, label, tint1, tint2, lineColor)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.fromOffset(120, 42)
+    b.Position = UDim2.new(0, 14, 0.5, y)
+    b.BackgroundColor3 = Color3.new(1, 1, 1)
+    b.BackgroundTransparency = 0.45
+    b.Text = ""
+    b.AutoButtonColor = false
+    b.Visible = false
+    b.ZIndex = 10
+    b.Parent = Screen
+    corner(b, 13)
 
-local StopScale = Instance.new("UIScale")
-StopScale.Scale = 0
-StopScale.Parent = CamStop
+    local g = Instance.new("UIGradient")
+    g.Color = ColorSequence.new(tint1, tint2)
+    g.Rotation = 90
+    g.Parent = b
 
-local StopStroke = Instance.new("UIStroke")
-StopStroke.Color = GLOW
-StopStroke.Thickness = 2
-StopStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-StopStroke.Parent = CamStop
+    local sc = Instance.new("UIScale")
+    sc.Scale = 0
+    sc.Parent = b
 
-local xBox = Instance.new("Frame")
-xBox.Position = UDim2.fromOffset(8, 9)
-xBox.Size = UDim2.fromOffset(24, 24)
-xBox.BackgroundColor3 = GLOW
-xBox.BackgroundTransparency = 0.25
-xBox.BorderSizePixel = 0
-xBox.ZIndex = 11
-xBox.Parent = CamStop
-corner(xBox, 12)
-for _, rot in ipairs({ 45, -45 }) do
-    local f = Instance.new("Frame")
-    f.AnchorPoint = Vector2.new(0.5, 0.5)
-    f.Position = UDim2.fromScale(0.5, 0.5)
-    f.Size = UDim2.fromOffset(12, 2)
-    f.Rotation = rot
-    f.BackgroundColor3 = Color3.fromRGB(240, 253, 255)
-    f.BorderSizePixel = 0
-    f.ZIndex = 12
-    f.Parent = xBox
-    corner(f, 1)
+    local st = Instance.new("UIStroke")
+    st.Color = lineColor
+    st.Thickness = 2
+    st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    st.Parent = b
+
+    local box = Instance.new("Frame")
+    box.Position = UDim2.fromOffset(8, 9)
+    box.Size = UDim2.fromOffset(24, 24)
+    box.BackgroundColor3 = lineColor
+    box.BackgroundTransparency = 0.25
+    box.BorderSizePixel = 0
+    box.ZIndex = 11
+    box.Parent = b
+    corner(box, 12)
+    for _, rot in ipairs({ 45, -45 }) do
+        local f = Instance.new("Frame")
+        f.AnchorPoint = Vector2.new(0.5, 0.5)
+        f.Position = UDim2.fromScale(0.5, 0.5)
+        f.Size = UDim2.fromOffset(12, 2)
+        f.Rotation = rot
+        f.BackgroundColor3 = Color3.fromRGB(240, 253, 255)
+        f.BorderSizePixel = 0
+        f.ZIndex = 12
+        f.Parent = box
+        corner(f, 1)
+    end
+
+    local l1 = plain(b, "DESACTIVAR", 14, F.head, C.White, UDim2.fromOffset(40, 6), UDim2.fromOffset(76, 17))
+    l1.ZIndex = 11
+    local l2 = plain(b, label, 9, F.section, Color3.fromRGB(200, 245, 255), UDim2.fromOffset(40, 24), UDim2.fromOffset(76, 12))
+    l2.ZIndex = 11
+
+    b.InputBegan:Connect(function(i)
+        if isPointer(i) then tween(sc, { Scale = 0.9 }, 0.08) end
+    end)
+    b.InputEnded:Connect(function(i)
+        if isPointer(i) then tween(sc, { Scale = 1 }, 0.2, Enum.EasingStyle.Back) end
+    end)
+
+    return b, sc, st
 end
 
-local csL1 = plain(CamStop, "DESACTIVAR", 14, F.head, C.White, UDim2.fromOffset(40, 6), UDim2.fromOffset(76, 17))
-csL1.ZIndex = 11
-local csL2 = plain(CamStop, "CAM LOCK", 9, F.section, Color3.fromRGB(200, 245, 255), UDim2.fromOffset(40, 24), UDim2.fromOffset(76, 12))
-csL2.ZIndex = 11
+local CamStop, StopScale, StopStroke = floatButton(34, "CAM LOCK",
+    Color3.fromRGB(30, 110, 135), Color3.fromRGB(8, 30, 40), GLOW)
 
-local stopPulse
+local TpStop, TpScale, TpStroke = floatButton(82, "TP",
+    Color3.fromRGB(24, 70, 120), Color3.fromRGB(6, 18, 38), Color3.fromRGB(90, 190, 255))
+
+local stopPulse, tpPulse
+
 UI.showCamStop = function(v)
     if v then
         CamStop.Visible = true
@@ -2683,40 +2717,60 @@ UI.showCamStop = function(v)
     end
 end
 
-CamStop.InputBegan:Connect(function(i)
-    if isPointer(i) then tween(StopScale, { Scale = 0.9 }, 0.08) end
-end)
-CamStop.InputEnded:Connect(function(i)
-    if isPointer(i) and S.lockMode then tween(StopScale, { Scale = 1 }, 0.2, Enum.EasingStyle.Back) end
-end)
+UI.showTpStop = function(v)
+    if v then
+        TpStop.Visible = true
+        tween(TpScale, { Scale = 1 }, 0.32, Enum.EasingStyle.Back)
+        if not tpPulse then
+            tpPulse = TweenService:Create(TpStroke,
+                TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+                { Transparency = 0.7 })
+            tpPulse:Play()
+        end
+    else
+        if tpPulse then
+            tpPulse:Cancel()
+            tpPulse = nil
+            TpStroke.Transparency = 0
+        end
+        tween(TpScale, { Scale = 0 }, 0.18)
+        task.delay(0.2, function()
+            if not S.tpActive then TpStop.Visible = false end
+        end)
+    end
+end
+
 CamStop.Activated:Connect(safe(function()
     setLockMode(nil)
     notify("Cam Lock desactivado")
 end, "camstop"))
 
+TpStop.Activated:Connect(safe(function()
+    stopTP("TP detenido, te quedas aquí")
+end, "tpstop"))
+
 print("[DestroyaHub] parte 13 lista")
 --##################################################
 --# ► PARTE 14 — FPS, FLY PAD, CIERRE Y LIMPIEZA
---#   Contiene: contador FPS, pad de vuelo,
---#   confirmación de cierre y limpieza total.
+--#   Contador FPS agrandado. El resto sin cambios.
 --##################################################
 
 local FpsText = Instance.new("TextButton")
 FpsText.Name = "FpsText"
-FpsText.Size = UDim2.fromOffset(100, 28)
-FpsText.Position = UDim2.new(0.5, -50, 0, 6)
+FpsText.Size = UDim2.fromOffset(180, 52)
+FpsText.Position = UDim2.new(0.5, -90, 0, 4)
 FpsText.BackgroundTransparency = 1
 FpsText.AutoButtonColor = false
 FpsText.Text = "FPS --"
 FpsText.TextColor3 = Color3.new(1, 1, 1)
-FpsText.TextSize = 19
+FpsText.TextSize = 36
 FpsText.Font = F.head
 FpsText.ZIndex = 10
 FpsText.Parent = Screen
 
 local FpsStroke = Instance.new("UIStroke")
 FpsStroke.Color = Color3.new(0, 0, 0)
-FpsStroke.Thickness = 2
+FpsStroke.Thickness = 2.4
 FpsStroke.Transparency = 0.05
 FpsStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
 FpsStroke.Parent = FpsText
