@@ -1462,8 +1462,9 @@ for _, plr in ipairs(Players:GetPlayers()) do hookPlayer(plr) end
 print("[DestroyaHub] parte 7 lista")
 --##################################################
 --# ► PARTE 8 — TP, SELECCIONADOS Y CAM LOCK
---#   Contiene: startTP, stopTP, selAdd, selRemove,
---#   camStep, setLockMode, selectTarget.
+--#   El Cam Lock hace raycast desde el objetivo hacia
+--#   la cámara: si hay muro, la cámara se adelanta
+--#   hasta delante del muro y el jugador queda visible.
 --##################################################
 
 local TP = { target = nil, missing = 0 }
@@ -1568,6 +1569,10 @@ local function selRemove(plr)
 end
 
 local camHeld, camPrev, camErr = false, nil, 0
+local camParams = RaycastParams.new()
+camParams.FilterType = Enum.RaycastFilterType.Exclude
+camParams.IgnoreWater = true
+camParams.RespectCanCollide = true
 
 local function releaseCamera()
     local cam = getCamera()
@@ -1614,7 +1619,25 @@ local function camStep()
         camPrev = cam.CameraType
     end
     if cam.CameraType ~= Enum.CameraType.Scriptable then cam.CameraType = Enum.CameraType.Scriptable end
-    cam.CFrame = CFrame.lookAt(root.Position - dir * 9 + Vector3.new(0, 3.5, 0), aimPoint(tChar, S.lockMode, tRoot))
+
+    local focus = aimPoint(tChar, S.lockMode, tRoot)
+    local want = root.Position - dir * 9 + Vector3.new(0, 3.5, 0)
+
+    -- Raycast desde el objetivo hacia la cámara: el muro nunca queda en medio
+    camParams.FilterDescendantsInstances = { player.Character }
+    local delta = want - focus
+    if delta.Magnitude > 0.15 then
+        local hit = Workspace:Raycast(focus, delta, camParams)
+        if hit then
+            local back = (focus - hit.Position).Unit
+            want = hit.Position + back * 0.45
+            if (want - focus).Magnitude < 1.6 then
+                want = focus + back * 1.6
+            end
+        end
+    end
+
+    cam.CFrame = CFrame.lookAt(want, focus)
 
     if hum and hum.AutoRotate then hum.AutoRotate = false end
     root.CFrame = CFrame.lookAt(root.Position, root.Position + dir)
