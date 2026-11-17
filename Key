@@ -1,5 +1,5 @@
 --==================================================
---        DESTROYA HUB  •  KEY GATE & LOADER
+--        SAKURA HUB  •  KEY SYSTEM
 --==================================================
 
 local Players = game:GetService("Players")
@@ -9,19 +9,8 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 local CLAVE = "freedestroya"
-local SCRIPT_URL = "https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2"
 
--- Función que se ejecuta al verificar correctamente la clave
-local function onUnlock()
-    local success, result = pcall(function()
-        return loadstring(game:HttpGet(SCRIPT_URL))()
-    end)
-    if not success then
-        warn("[DestroyaHub] Error al cargar el script principal: " .. tostring(result))
-    end
-end
-
-local old = playerGui:FindFirstChild("DestroyaKey")
+local old = playerGui:FindFirstChild("SakuraKey")
 if old then old:Destroy() end
 
 local C = {
@@ -51,7 +40,7 @@ local W, H = 442, 306
 local HOME = UDim2.new(0.5, -W / 2, 0.5, -H / 2)
 
 local Screen = Instance.new("ScreenGui")
-Screen.Name = "DestroyaKey"
+Screen.Name = "SakuraKey"
 Screen.ResetOnSpawn = false
 Screen.IgnoreGuiInset = true
 Screen.DisplayOrder = 10000
@@ -81,13 +70,12 @@ corner(Header, 16)
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 1, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "DESTROYA HUB"
+Title.Text = "SAKURA HUB"
 Title.TextColor3 = C.White
 Title.TextSize = 18
 Title.Font = Enum.Font.GothamBlack
 Title.Parent = Header
 
--- Botón cerrar con barras geométricas puras
 local Close = Instance.new("TextButton")
 Close.Size = UDim2.fromOffset(26, 26)
 Close.Position = UDim2.new(1, -36, 0, 12)
@@ -96,6 +84,7 @@ Close.Text = ""
 Close.AutoButtonColor = false
 Close.Parent = Header
 corner(Close, 6)
+
 for _, rot in ipairs({ 45, -45 }) do
     local bar = Instance.new("Frame")
     bar.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -107,6 +96,7 @@ for _, rot in ipairs({ 45, -45 }) do
     bar.Parent = Close
     corner(bar, 1)
 end
+
 Close.Activated:Connect(function()
     Screen:Destroy()
 end)
@@ -178,14 +168,17 @@ local function check()
         return
     end
     busy = true
-    Status.Text = "Acceso concedido. Cargando..."
+    Status.Text = "Acceso concedido"
     Status.TextColor3 = C.Green
     task.wait(0.4)
     tween(Frame, { Size = UDim2.fromOffset(0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.3)
     task.wait(0.3)
     Screen:Destroy()
-    local ok, err = pcall(onUnlock)
-    if not ok then warn("[DestroyaKey] " .. tostring(err)) end
+
+    --------------------------------------------------
+    ---Aqui pega el resto de tu código----
+    --------------------------------------------------
+
 end
 
 Submit.Activated:Connect(check)
@@ -193,9 +186,8 @@ Input.FocusLost:Connect(function(enter)
     if enter then check() end
 end)
 
--- Entrada suave al abrir
 Frame.Position = UDim2.new(0.5, -W / 2, 0.5, -H / 2 + 26)
 Frame.BackgroundTransparency = 1
 tween(Frame, { Position = HOME, BackgroundTransparency = 0 }, 0.4, Enum.EasingStyle.Back)
 
-print("[DestroyaKey] listo")
+print("[SakuraKey] listo")
