@@ -1,5 +1,5 @@
 --==================================================
---            DESTROYA HUB  •  v6.2
+--            DESTROYA HUB  •  v6.3
 --                 PARTE 1 / 18
 --==================================================
 print("[DestroyaHub] cargando...")
@@ -54,33 +54,20 @@ Screen.DisplayOrder = 9999
 Screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 Screen.Parent = guiParent
 
-local function pickFont(name, fallback)
-    local ok, f = pcall(function() return Enum.Font[name] end)
-    return (ok and f) or fallback
-end
-
-local F = {
-    title = pickFont("LuckiestGuy", pickFont("FredokaOne", Enum.Font.GothamBlack)),
-    head = pickFont("FredokaOne", Enum.Font.GothamBold),
-    section = pickFont("Michroma", Enum.Font.GothamBold),
-    body = Enum.Font.GothamMedium,
-    bold = Enum.Font.GothamBold,
-}
-
-local AZUL = {
-    Acc = Color3.fromRGB(52, 140, 255), Acc2 = Color3.fromRGB(120, 215, 255),
-    Dark = Color3.fromRGB(11, 15, 30), Panel = Color3.fromRGB(16, 25, 46),
-    Row = Color3.fromRGB(23, 44, 84), Off = Color3.fromRGB(42, 58, 88),
-    Tab = Color3.fromRGB(20, 31, 56),
+local CIAN = {
+    Acc = Color3.fromRGB(0, 220, 255), Acc2 = Color3.fromRGB(150, 246, 255),
+    Dark = Color3.fromRGB(5, 14, 24), Panel = Color3.fromRGB(9, 26, 42),
+    Row = Color3.fromRGB(13, 48, 72), Off = Color3.fromRGB(28, 62, 86),
+    Tab = Color3.fromRGB(11, 34, 52),
 }
 
 local C = {
-    White = Color3.fromRGB(242, 247, 255), Gray = Color3.fromRGB(158, 172, 198),
-    Plus = Color3.fromRGB(60, 220, 120), Minus = Color3.fromRGB(255, 60, 80),
+    White = Color3.fromRGB(238, 252, 255), Gray = Color3.fromRGB(140, 190, 212),
+    Plus = Color3.fromRGB(60, 240, 140), Minus = Color3.fromRGB(255, 70, 100),
 }
 
-local UI = { open = true, size = 1, anim = true }
 local binds, painters, slowPainters, conns = {}, {}, {}, {}
+local UI = { led = true, open = true, size = 1, anim = true }
 
 local function track(c)
     conns[#conns + 1] = c
@@ -102,56 +89,47 @@ local function onThemeSlow(fn)
     slowPainters[#slowPainters + 1] = fn
 end
 
-local slowToken = 0
+local slowPending = false
 local function scheduleSlow()
-    slowToken += 1
-    local mine = slowToken
-    task.delay(0.45, function()
-        if mine ~= slowToken then return end
+    if slowPending then return end
+    slowPending = true
+    task.delay(0.35, function()
+        slowPending = false
         for i = 1, #slowPainters do pcall(slowPainters[i]) end
     end)
 end
 
 local function applyTheme(t)
     for k, v in pairs(t) do C[k] = v end
-    C.RowOn = t.Row:Lerp(t.Acc, 0.32)
-    C.Btn = t.Acc:Lerp(t.Dark, 0.55)
-    pcall(function()
-        for i = 1, #binds do
-            local b = binds[i]
-            b[1][b[2]] = C[b[3]]
-        end
-    end)
+    C.RowOn = t.Row:Lerp(t.Acc, 0.35)
+    for i = 1, #binds do
+        local b = binds[i]
+        pcall(function() b[1][b[2]] = C[b[3]] end)
+    end
     for i = 1, #painters do pcall(painters[i]) end
     scheduleSlow()
 end
-applyTheme(AZUL)
+applyTheme(CIAN)
 
 local function makeTheme(h, s, v)
-    local acc = Color3.fromHSV(h, s, math.max(v, 0.55))
+    local acc = Color3.fromHSV(h, s, math.max(v, 0.6))
     return {
-        Acc = acc, Acc2 = acc:Lerp(Color3.new(1, 1, 1), 0.4),
-        Dark = Color3.fromHSV(h, s * 0.7, 0.09), Panel = Color3.fromHSV(h, s * 0.7, 0.14),
-        Row = Color3.fromHSV(h, s * 0.7, 0.22), Off = Color3.fromHSV(h, s * 0.5, 0.30),
-        Tab = Color3.fromHSV(h, s * 0.7, 0.17),
+        Acc = acc, Acc2 = acc:Lerp(Color3.new(1, 1, 1), 0.45),
+        Dark = Color3.fromHSV(h, s * 0.7, 0.09), Panel = Color3.fromHSV(h, s * 0.7, 0.15),
+        Row = Color3.fromHSV(h, s * 0.7, 0.24), Off = Color3.fromHSV(h, s * 0.5, 0.32),
+        Tab = Color3.fromHSV(h, s * 0.7, 0.18),
     }
 end
 
-local function hexOf(c)
-    return string.format("#%02X%02X%02X",
-        math.floor(c.R * 255 + 0.5), math.floor(c.G * 255 + 0.5), math.floor(c.B * 255 + 0.5))
-end
-
-local function tween(obj, props, time, style, dir)
-    local t = TweenService:Create(obj,
-        TweenInfo.new(time or 0.2, style or Enum.EasingStyle.Quint, dir or Enum.EasingDirection.Out), props)
+local function tween(obj, props, time, style)
+    local t = TweenService:Create(obj, TweenInfo.new(time or 0.2, style or Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props)
     t:Play()
     return t
 end
 
 local function corner(obj, r)
     local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, r or 10)
+    c.CornerRadius = UDim.new(0, r or 8)
     c.Parent = obj
     return c
 end
@@ -205,7 +183,7 @@ end
 local function safe(fn, label)
     return function(...)
         local ok, err = pcall(fn, ...)
-        if not ok then warn("[DestroyaHub] error en " .. tostring(label) .. ": " .. tostring(err)) end
+        if not ok then warn("[DestroyaHub] " .. tostring(label) .. ": " .. tostring(err)) end
     end
 end
 
@@ -222,76 +200,56 @@ local function debounced(fn)
     end
 end
 
-local function squish(btn, depth)
+local function squish(btn)
     local sc = Instance.new("UIScale")
     sc.Parent = btn
     btn.InputBegan:Connect(function(i)
-        if isPointer(i) then tween(sc, { Scale = depth or 0.95 }, 0.08, Enum.EasingStyle.Quad) end
+        if isPointer(i) then tween(sc, { Scale = 0.94 }, 0.07) end
     end)
     btn.InputEnded:Connect(function(i)
-        if isPointer(i) then tween(sc, { Scale = 1 }, 0.22, Enum.EasingStyle.Back) end
+        if isPointer(i) then tween(sc, { Scale = 1 }, 0.16, Enum.EasingStyle.Back) end
     end)
-    return sc
 end
 
-local activeDrag, activeInput, activeEnd
-local function endDrag()
-    if not activeDrag then return end
-    local fin = activeEnd
-    activeDrag, activeInput, activeEnd = nil, nil, nil
-    if UI.setScrollLock then UI.setScrollLock(false) end
-    if fin then pcall(fin) end
-end
-local function beginDrag(input, handler, lockScroll, onEnd)
-    endDrag()
-    activeDrag, activeInput, activeEnd = handler, input, onEnd
-    if lockScroll and UI.setScrollLock then UI.setScrollLock(true) end
+local activeDrag, activeInput
+local function beginDrag(input, handler)
+    activeDrag, activeInput = handler, input
 end
 track(UserInputService.InputChanged:Connect(function(input)
     if activeDrag and (input == activeInput or input.UserInputType == Enum.UserInputType.MouseMovement) then
         local ok, err = pcall(activeDrag, input)
         if not ok then
-            endDrag()
+            activeDrag, activeInput = nil, nil
             warn("[DestroyaHub] arrastre: " .. tostring(err))
         end
     end
 end))
 track(UserInputService.InputEnded:Connect(function(input)
     if activeDrag and (input == activeInput or input.UserInputType == Enum.UserInputType.MouseButton1) then
-        endDrag()
+        activeDrag, activeInput = nil, nil
     end
 end))
 
-local lastToast
 local function notify(text)
-    if lastToast and lastToast.Parent then lastToast:Destroy() end
-    local toast = Instance.new("Frame")
-    lastToast = toast
+    local toast = Instance.new("TextLabel")
     toast.AnchorPoint = Vector2.new(0.5, 1)
-    toast.Size = UDim2.fromOffset(300, 34)
-    toast.Position = UDim2.new(0.5, 0, 1, 14)
-    toast.BackgroundColor3 = Color3.fromRGB(14, 10, 16)
-    toast.BackgroundTransparency = 0.05
-    toast.BorderSizePixel = 0
-    toast.ZIndex = 30
+    toast.Size = UDim2.fromOffset(230, 28)
+    toast.Position = UDim2.new(0.5, 0, 1, 10)
+    toast.BackgroundTransparency = 0.1
+    toast.Text = text
+    toast.TextSize = 12
+    toast.Font = Enum.Font.GothamBold
+    toast.ZIndex = 20
     toast.Parent = Screen
-    corner(toast, 12)
-    stroke(toast, "Acc", 1.4, 0.35)
-    local bar = Instance.new("Frame")
-    bar.Position = UDim2.fromOffset(0, 8)
-    bar.Size = UDim2.fromOffset(4, 18)
-    bar.BackgroundColor3 = C.Acc
-    bar.BorderSizePixel = 0
-    bar.ZIndex = 31
-    bar.Parent = toast
-    corner(bar, 2)
-    local l = plain(toast, text, 13, F.head, C.White, UDim2.fromOffset(14, 0), UDim2.new(1, -22, 1, 0))
-    l.ZIndex = 31
-    tween(toast, { Position = UDim2.new(0.5, 0, 1, -18) }, 0.35, Enum.EasingStyle.Back)
-    task.delay(2.2, function()
+    bind(toast, "BackgroundColor3", "Dark")
+    bind(toast, "TextColor3", "White")
+    corner(toast, 9)
+    stroke(toast, "Acc", 1.5)
+    tween(toast, { Position = UDim2.new(0.5, 0, 1, -18) }, 0.3, Enum.EasingStyle.Back)
+    task.delay(2, function()
         if toast.Parent then
-            tween(toast, { Position = UDim2.new(0.5, 0, 1, 48) }, 0.25)
-            task.delay(0.28, function() toast:Destroy() end)
+            tween(toast, { Position = UDim2.new(0.5, 0, 1, 40) }, 0.25)
+            task.delay(0.3, function() toast:Destroy() end)
         end
     end)
 end
@@ -299,14 +257,13 @@ end
 print("[DestroyaHub] parte 1 lista")
 --==================================================
 --            DESTROYA HUB  •  PARTE 2 / 18
---           VENTANA ANCHA Y CABECERA
+--           VENTANA COMPACTA Y CABECERA
 --==================================================
 
-local BASE_W, BASE_H, HEADER_H = 640, 580, 78
+local BASE_W, BASE_H, HEADER_H = 478, 322, 42
 local HOME = UDim2.fromScale(0.5, 0.5)
-local MENU_T = 0.32
-local RED = Color3.fromRGB(255, 30, 55)
-local WHITE = Color3.fromRGB(245, 245, 250)
+local MENU_T = 0.35
+local RED = Color3.fromRGB(255, 40, 70)
 
 local Main = Instance.new("Frame")
 Main.Name = "Main"
@@ -317,129 +274,100 @@ Main.BackgroundTransparency = MENU_T
 Main.BorderSizePixel = 0
 Main.Parent = Screen
 bind(Main, "BackgroundColor3", "Dark")
-corner(Main, 20)
-stroke(Main, "Acc", 1.8, 0.3)
-
-local outer = Instance.new("UIStroke")
-outer.Thickness = 7
-outer.Transparency = 0.86
-outer.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-outer.Parent = Main
-bind(outer, "Color", "Acc2")
+corner(Main, 12)
 
 local MenuScale = Instance.new("UIScale")
-MenuScale.Scale = 0.85
+MenuScale.Scale = 0.8
 MenuScale.Parent = Main
-tween(MenuScale, { Scale = 1 }, 0.34, Enum.EasingStyle.Quad)
+tween(MenuScale, { Scale = 1 }, 0.32, Enum.EasingStyle.Back)
 
--- Cabecera: 25% menos transparente que el resto
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Thickness = 2
+MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+MainStroke.Parent = Main
+local MainGrad = Instance.new("UIGradient")
+MainGrad.Parent = MainStroke
+onTheme(function()
+    MainGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, C.Acc),
+        ColorSequenceKeypoint.new(0.5, C.Acc2),
+        ColorSequenceKeypoint.new(1, C.Acc),
+    })
+    if not UI.led then MainStroke.Color = C.Acc end
+end)
+
 local Header = Instance.new("Frame")
-Header.Name = "Header"
 Header.Size = UDim2.new(1, 0, 0, HEADER_H)
-Header.BackgroundColor3 = Color3.fromRGB(13, 16, 26)
-Header.BackgroundTransparency = MENU_T * 0.75
+Header.BackgroundColor3 = Color3.new(1, 1, 1)
+Header.BackgroundTransparency = 0.15
 Header.BorderSizePixel = 0
 Header.Parent = Main
-corner(Header, 20)
+corner(Header, 12)
+local HeaderGrad = Instance.new("UIGradient")
+HeaderGrad.Parent = Header
+onTheme(function() HeaderGrad.Color = ColorSequence.new(C.Acc, C.Acc2) end)
 
-local hGrad = Instance.new("UIGradient")
-hGrad.Rotation = 90
-hGrad.Color = ColorSequence.new(Color3.fromRGB(30, 40, 66), Color3.fromRGB(9, 11, 18))
-hGrad.Parent = Header
+local INK_A = Color3.fromRGB(2, 10, 18)
+local INK_B = Color3.fromRGB(0, 92, 130)
 
-local hLine = Instance.new("Frame")
-hLine.AnchorPoint = Vector2.new(0.5, 1)
-hLine.Position = UDim2.new(0.5, 0, 1, 0)
-hLine.Size = UDim2.new(1, -40, 0, 2)
-hLine.BorderSizePixel = 0
-hLine.ZIndex = 2
-hLine.Parent = Header
-bind(hLine, "BackgroundColor3", "Acc")
-corner(hLine, 1)
-local hLineG = Instance.new("UIGradient")
-hLineG.Transparency = NumberSequence.new({
-    NumberSequenceKeypoint.new(0, 1),
-    NumberSequenceKeypoint.new(0.5, 0.1),
-    NumberSequenceKeypoint.new(1, 1),
-})
-hLineG.Parent = hLine
-
---==================================================
--- TÍTULO
---==================================================
-
-local Title = plain(Header, "", 46, F.title, WHITE,
-    UDim2.fromOffset(56, 8), UDim2.new(1, -190, 0, 46))
-Title.RichText = true
+local Title = Instance.new("TextLabel")
+Title.BackgroundTransparency = 1
+Title.Position = UDim2.fromOffset(13, 3)
+Title.Size = UDim2.fromOffset(280, 26)
+Title.Font = Enum.Font.GothamBlack
+Title.TextSize = 21
 Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.ZIndex = 3
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.Text = "D E S T R O Y A   H U B"
+Title.Parent = Header
 
-local tShadow = Title:Clone()
-tShadow.Parent = Header
-tShadow.Text = "Destroya Hub"
-tShadow.RichText = false
-tShadow.Position = UDim2.fromOffset(59, 11)
-tShadow.TextColor3 = Color3.new(0, 0, 0)
-tShadow.TextTransparency = 0.45
-tShadow.ZIndex = 2
+local TitleGrad = Instance.new("UIGradient")
+TitleGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, INK_A),
+    ColorSequenceKeypoint.new(0.3, INK_B),
+    ColorSequenceKeypoint.new(0.5, INK_A),
+    ColorSequenceKeypoint.new(0.8, INK_B),
+    ColorSequenceKeypoint.new(1, INK_A),
+})
+TitleGrad.Parent = Title
 
-local tStroke = Instance.new("UIStroke")
-tStroke.Thickness = 2.4
-tStroke.Transparency = 0.25
-tStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
-tStroke.Parent = Title
-bind(tStroke, "Color", "Acc")
+local Sub = Instance.new("TextLabel")
+Sub.BackgroundTransparency = 1
+Sub.Position = UDim2.fromOffset(14, 29)
+Sub.Size = UDim2.fromOffset(250, 10)
+Sub.Font = Enum.Font.GothamBold
+Sub.TextSize = 8
+Sub.TextXAlignment = Enum.TextXAlignment.Left
+Sub.TextColor3 = Color3.fromRGB(4, 40, 58)
+Sub.Text = "N E O N   S Y S T E M   •   V 6 . 3"
+Sub.Parent = Header
 
-local function paintTitle()
-    Title.Text = 'Destroya <font color="' .. hexOf(C.Acc2) .. '">Hub</font>'
-end
-onTheme(paintTitle)
-
-local Sub = plain(Header, "v6.2  ·  panel", 12, F.body, Color3.fromRGB(126, 140, 168),
-    UDim2.fromOffset(58, 52), UDim2.fromOffset(180, 16))
-Sub.TextTransparency = 0.25
-
-local function iconButton(kind, pos, bgColor)
+local function headerButton(text, xOff, color)
     local b = Instance.new("TextButton")
-    b.Size = UDim2.fromOffset(32, 32)
-    b.Position = pos
-    b.BackgroundColor3 = bgColor
-    b.BackgroundTransparency = 0.08
-    b.Text = ""
+    b.Size = UDim2.fromOffset(22, 22)
+    b.Position = UDim2.new(1, xOff, 0, 9)
+    b.BackgroundColor3 = color
+    b.BackgroundTransparency = 0.05
+    b.Text = text
+    b.TextColor3 = C.White
+    b.TextSize = 15
+    b.Font = Enum.Font.GothamBold
     b.AutoButtonColor = false
-    b.ZIndex = 5
+    b.ZIndex = 4
     b.Parent = Header
-    corner(b, 11)
-    squish(b, 0.88)
-    local function glyph(w, rot)
-        local f = Instance.new("Frame")
-        f.AnchorPoint = Vector2.new(0.5, 0.5)
-        f.Position = UDim2.fromScale(0.5, 0.5)
-        f.Size = UDim2.fromOffset(w, 2)
-        f.Rotation = rot
-        f.BackgroundColor3 = WHITE
-        f.BorderSizePixel = 0
-        f.ZIndex = 6
-        f.Parent = b
-        corner(f, 1)
-    end
-    if kind == "x" then
-        glyph(15, 45)
-        glyph(15, -45)
-    else
-        glyph(14, 0)
-    end
+    corner(b, 6)
+    squish(b)
     return b
 end
 
-local DestroyBtn = iconButton("x", UDim2.fromOffset(10, 22), Color3.fromRGB(140, 16, 34))
-local HideBtn = iconButton("minus", UDim2.new(1, -42, 0, 22), Color3.fromRGB(44, 32, 46))
+local HideBtn = headerButton("-", -58, Color3.fromRGB(6, 34, 50))
+local DestroyBtn = headerButton("×", -30, Color3.fromRGB(150, 18, 38))
 
 local DragZone = Instance.new("Frame")
-DragZone.Position = UDim2.fromOffset(48, 0)
-DragZone.Size = UDim2.new(1, -100, 1, 0)
+DragZone.Position = UDim2.fromOffset(30, 0)
+DragZone.Size = UDim2.new(1, -90, 1, 0)
 DragZone.BackgroundTransparency = 1
-DragZone.ZIndex = 4
+DragZone.ZIndex = 3
 DragZone.Parent = Header
 DragZone.InputBegan:Connect(function(input)
     if isPointer(input) then
@@ -459,14 +387,13 @@ print("[DestroyaHub] parte 2 lista")
 --==================================================
 
 local TabBar = Instance.new("Frame")
-TabBar.Position = UDim2.fromOffset(12, HEADER_H + 10)
-TabBar.Size = UDim2.new(1, -24, 0, 36)
-TabBar.BackgroundTransparency = 0.35
+TabBar.Position = UDim2.fromOffset(8, HEADER_H + 5)
+TabBar.Size = UDim2.new(1, -16, 0, 24)
+TabBar.BackgroundTransparency = 0.3
 TabBar.BorderSizePixel = 0
 TabBar.Parent = Main
 bind(TabBar, "BackgroundColor3", "Tab")
-corner(TabBar, 13)
-stroke(TabBar, "Acc", 1, 0.75)
+corner(TabBar, 8)
 
 local TabScroll = Instance.new("ScrollingFrame")
 TabScroll.Size = UDim2.fromScale(1, 1)
@@ -478,51 +405,34 @@ TabScroll.CanvasSize = UDim2.new()
 TabScroll.Parent = TabBar
 
 local TabIndicator = Instance.new("Frame")
-TabIndicator.Size = UDim2.fromOffset(0, 30)
-TabIndicator.Position = UDim2.fromOffset(3, 3)
+TabIndicator.Size = UDim2.fromOffset(0, 20)
+TabIndicator.Position = UDim2.fromOffset(3, 2)
 TabIndicator.BorderSizePixel = 0
 TabIndicator.ZIndex = 1
 TabIndicator.Parent = TabScroll
 bind(TabIndicator, "BackgroundColor3", "Acc")
-corner(TabIndicator, 10)
+corner(TabIndicator, 7)
 
-local indG = Instance.new("UIGradient")
-indG.Rotation = 90
-indG.Parent = TabIndicator
-onTheme(function()
-    indG.Color = ColorSequence.new(C.Acc, C.Acc:Lerp(C.Dark, 0.55))
-end)
+local indGrad = Instance.new("UIGradient")
+indGrad.Rotation = 90
+indGrad.Parent = TabIndicator
+onTheme(function() indGrad.Color = ColorSequence.new(C.Acc2, C.Acc) end)
 
 local Content = Instance.new("Frame")
-Content.Position = UDim2.fromOffset(12, HEADER_H + 54)
-Content.Size = UDim2.new(1, -24, 1, -(HEADER_H + 54 + 34))
+Content.Position = UDim2.fromOffset(8, HEADER_H + 34)
+Content.Size = UDim2.new(1, -16, 1, -(HEADER_H + 34 + 24))
 Content.BackgroundTransparency = 0.5
 Content.BorderSizePixel = 0
 Content.Parent = Main
 bind(Content, "BackgroundColor3", "Panel")
-corner(Content, 16)
-stroke(Content, "Acc", 1, 0.8)
+corner(Content, 9)
 
-local dot = Instance.new("Frame")
-dot.Position = UDim2.fromOffset(16, 0)
-dot.AnchorPoint = Vector2.new(0, 0.5)
-dot.Size = UDim2.fromOffset(6, 6)
-dot.BorderSizePixel = 0
-dot.ZIndex = 2
-dot.Parent = Main
-corner(dot, 3)
-bind(dot, "BackgroundColor3", "Acc2")
-
-local Status = plain(Main, "Listo.", 11, F.body, C.Gray,
-    UDim2.new(0, 16, 1, -25), UDim2.fromOffset(420, 14))
+local Status = mkLabel(Main, "Listo.", 9, Enum.Font.Gotham, "Gray",
+    UDim2.new(0, 12, 1, -19), UDim2.fromOffset(320, 13))
 UI.setStatus = function(t) Status.Text = t end
-onTheme(function()
-    dot.Position = UDim2.new(0, 16, 1, -18)
-    Status.Position = UDim2.new(0, 28, 1, -25)
-end)
 
-local Author = plain(Main, "by Efrén Hub", 10, F.body, C.Gray,
-    UDim2.new(1, -14, 1, -16), UDim2.fromOffset(100, 10), Enum.TextXAlignment.Right)
+local Author = mkLabel(Main, "by Efrén Hub", 8, Enum.Font.Gotham, "Gray",
+    UDim2.new(1, -10, 1, -13), UDim2.fromOffset(90, 8), Enum.TextXAlignment.Right)
 Author.AnchorPoint = Vector2.new(1, 0)
 Author.TextTransparency = 0.45
 
@@ -543,7 +453,7 @@ end
 local function paintTabs(animated)
     for name, b in pairs(TabButtons) do
         local col = (name == CurrentPage) and C.Dark or C.Gray
-        if animated then tween(b, { TextColor3 = col }, 0.22) else b.TextColor3 = col end
+        if animated then tween(b, { TextColor3 = col }, 0.2) else b.TextColor3 = col end
     end
     moveIndicator(animated)
 end
@@ -552,12 +462,13 @@ onTheme(function() paintTabs(false) end)
 local function layoutTabs()
     local n = #tabOrder
     if n == 0 then return end
-    local gap = 4
-    local w = math.max(110, (BASE_W - 24 - 6 - gap * (n - 1)) / n)
+    local gap = 3
+    local w = (BASE_W - 16 - 6 - gap * (n - 1)) / n
+    if w < 86 then w = 86 end
     for i, name in ipairs(tabOrder) do
         local b = TabButtons[name]
-        b.Size = UDim2.fromOffset(w, 30)
-        b.Position = UDim2.fromOffset(3 + (i - 1) * (w + gap), 3)
+        b.Size = UDim2.fromOffset(w, 20)
+        b.Position = UDim2.fromOffset(3 + (i - 1) * (w + gap), 2)
     end
     TabScroll.CanvasSize = UDim2.fromOffset(6 + n * (w + gap), 0)
     moveIndicator(false)
@@ -575,15 +486,15 @@ end
 local function addTab(name)
     local b = Instance.new("TextButton")
     b.Name = name
-    b.Text = string.upper(name)
-    b.TextSize = 14
-    b.Font = F.head
+    b.Text = name
+    b.TextSize = 11
+    b.Font = Enum.Font.GothamBold
     b.BackgroundTransparency = 1
     b.AutoButtonColor = false
     b.BorderSizePixel = 0
     b.ZIndex = 2
     b.Parent = TabScroll
-    squish(b, 0.94)
+    squish(b)
     TabButtons[name] = b
     tabOrder[#tabOrder + 1] = name
 
@@ -592,23 +503,22 @@ local function addTab(name)
     page.Size = UDim2.fromScale(1, 1)
     page.BackgroundTransparency = 1
     page.BorderSizePixel = 0
-    page.ScrollBarThickness = 5
+    page.ScrollBarThickness = 3
     page.CanvasSize = UDim2.new()
     page.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    page.ScrollingDirection = Enum.ScrollingDirection.Y
     page.Visible = false
     page.Parent = Content
     bind(page, "ScrollBarImageColor3", "Acc")
 
     local pad = Instance.new("UIPadding")
-    pad.PaddingTop = UDim.new(0, 12)
-    pad.PaddingBottom = UDim.new(0, 18)
-    pad.PaddingLeft = UDim.new(0, 14)
-    pad.PaddingRight = UDim.new(0, 14)
+    pad.PaddingTop = UDim.new(0, 6)
+    pad.PaddingBottom = UDim.new(0, 8)
+    pad.PaddingLeft = UDim.new(0, 6)
+    pad.PaddingRight = UDim.new(0, 6)
     pad.Parent = page
 
     local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 12)
+    layout.Padding = UDim.new(0, 6)
     layout.SortOrder = Enum.SortOrder.LayoutOrder
     layout.Parent = page
 
@@ -625,45 +535,41 @@ end
 
 local function setMenuTransparency(v)
     Main.BackgroundTransparency = v
-    Header.BackgroundTransparency = v * 0.75
-    Content.BackgroundTransparency = math.min(0.96, v + 0.18)
-    TabBar.BackgroundTransparency = math.min(0.96, v + 0.05)
+    Content.BackgroundTransparency = math.min(0.95, v + 0.15)
+    TabBar.BackgroundTransparency = math.min(0.95, v)
+    Header.BackgroundTransparency = math.min(0.9, 0.1 + v * 0.5)
 end
 
 print("[DestroyaHub] parte 3 lista")
 --==================================================
 --            DESTROYA HUB  •  PARTE 4 / 18
---          SECCIONES Y MINI BOTONES
+--          SECCIONES E INTERRUPTORES
 --==================================================
 
 local function createSection(page, text)
     local h = Instance.new("Frame")
-    h.Size = UDim2.new(1, -4, 0, 30)
+    h.Size = UDim2.new(1, -4, 0, 16)
     h.BackgroundTransparency = 1
     h.LayoutOrder = nextOrder()
     h.Parent = page
 
-    local dia = Instance.new("Frame")
-    dia.AnchorPoint = Vector2.new(0.5, 0.5)
-    dia.Position = UDim2.fromOffset(8, 15)
-    dia.Size = UDim2.fromOffset(7, 7)
-    dia.Rotation = 45
-    dia.BorderSizePixel = 0
-    dia.Parent = h
-    bind(dia, "BackgroundColor3", "Acc2")
+    local bar = Instance.new("Frame")
+    bar.Size = UDim2.fromOffset(3, 11)
+    bar.Position = UDim2.fromOffset(2, 2)
+    bar.BorderSizePixel = 0
+    bar.Parent = h
+    bind(bar, "BackgroundColor3", "Acc")
+    corner(bar, 2)
 
-    local up = string.upper(text)
-    mkLabel(h, up, 10, F.section, "Acc2", UDim2.fromOffset(20, 11), UDim2.fromOffset(340, 16))
-    local w = TextService:GetTextSize(up, 10, F.section, Vector2.new(600, 20)).X
+    mkLabel(h, text, 10, Enum.Font.GothamBold, "Acc2", UDim2.fromOffset(11, 0), UDim2.fromOffset(300, 15))
+    local w = TextService:GetTextSize(text, 10, Enum.Font.GothamBold, Vector2.new(400, 20)).X
     local line = Instance.new("Frame")
-    line.Position = UDim2.fromOffset(20 + w + 12, 19)
-    line.Size = UDim2.new(1, -(20 + w + 12) - 8, 0, 1)
+    line.Position = UDim2.fromOffset(11 + w + 8, 7)
+    line.Size = UDim2.new(1, -(11 + w + 8) - 4, 0, 1)
+    line.BackgroundTransparency = 0.7
     line.BorderSizePixel = 0
     line.Parent = h
     bind(line, "BackgroundColor3", "Acc")
-    local lg = Instance.new("UIGradient")
-    lg.Transparency = NumberSequence.new(0.15, 1)
-    lg.Parent = line
     return h
 end
 
@@ -676,34 +582,212 @@ local function createGrid(page)
     grid.Parent = page
 
     local layout = Instance.new("UIGridLayout")
-    layout.CellSize = UDim2.new(0.5, -5, 0, 46)
-    layout.CellPadding = UDim2.fromOffset(10, 10)
+    layout.CellSize = UDim2.new(0.5, -3, 0, 34)
+    layout.CellPadding = UDim2.fromOffset(6, 6)
     layout.SortOrder = Enum.SortOrder.LayoutOrder
     layout.Parent = grid
     return grid
 end
 
-local function drawChevron(parent, color, k)
-    k = k or 1
-    local box = Instance.new("Frame")
-    box.AnchorPoint = Vector2.new(0.5, 0.5)
-    box.Size = UDim2.fromOffset(14 * k, 12 * k)
-    box.BackgroundTransparency = 1
-    box.Parent = parent
-    local parts = {}
-    for i, s in ipairs({ { 4, 6, 45 }, { 10, 6, -45 } }) do
-        local p = Instance.new("Frame")
-        p.AnchorPoint = Vector2.new(0.5, 0.5)
-        p.Size = UDim2.fromOffset(9 * k, 2 * k)
-        p.Position = UDim2.fromOffset(s[1] * k, s[2] * k)
-        p.Rotation = s[3]
-        p.BorderSizePixel = 0
-        p.Parent = box
-        corner(p, 1)
-        if typeof(color) == "string" then bind(p, "BackgroundColor3", color) else p.BackgroundColor3 = color end
-        parts[i] = p
+local function createButton(parent, name, description, callback)
+    local cb = callback and safe(callback, name)
+
+    local row = Instance.new("TextButton")
+    row.Size = UDim2.new(1, -4, 0, 34)
+    row.BackgroundTransparency = 0.08
+    row.Text = ""
+    row.AutoButtonColor = false
+    row.LayoutOrder = nextOrder()
+    row.Parent = parent
+    bind(row, "BackgroundColor3", "Row")
+    corner(row, 8)
+    squish(row)
+
+    local accent = Instance.new("Frame")
+    accent.AnchorPoint = Vector2.new(0, 0.5)
+    accent.Position = UDim2.new(0, 0, 0.5, 0)
+    accent.Size = UDim2.fromOffset(3, 0)
+    accent.BorderSizePixel = 0
+    accent.Parent = row
+    bind(accent, "BackgroundColor3", "Acc2")
+    corner(accent, 2)
+
+    mkLabel(row, name, 11, Enum.Font.GothamBold, "White", UDim2.fromOffset(11, 3), UDim2.new(1, -58, 0, 15))
+    local desc = mkLabel(row, description, 8, Enum.Font.Gotham, "Gray", UDim2.fromOffset(11, 18), UDim2.new(1, -58, 0, 11))
+    desc.TextTruncate = Enum.TextTruncate.AtEnd
+
+    local pill = Instance.new("Frame")
+    pill.Size = UDim2.fromOffset(32, 16)
+    pill.Position = UDim2.new(1, -42, 0.5, -8)
+    pill.BorderSizePixel = 0
+    pill.Parent = row
+    bind(pill, "BackgroundColor3", "Off")
+    corner(pill, 8)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.fromOffset(12, 12)
+    knob.BackgroundColor3 = Color3.new(1, 1, 1)
+    knob.BorderSizePixel = 0
+    knob.Parent = pill
+    corner(knob, 6)
+
+    local enabled = false
+    local function paint(animated)
+        local set = {
+            { row, { BackgroundColor3 = enabled and C.RowOn or C.Row } },
+            { accent, { Size = UDim2.fromOffset(3, enabled and 20 or 0), BackgroundColor3 = C.Acc2 } },
+            { pill, { BackgroundColor3 = enabled and C.Acc or C.Off } },
+            { knob, { Position = enabled and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6) } },
+        }
+        for _, t in ipairs(set) do
+            if animated then
+                tween(t[1], t[2], 0.18)
+            else
+                for k, v in pairs(t[2]) do t[1][k] = v end
+            end
+        end
     end
-    return box, parts
+    onTheme(function() paint(false) end)
+
+    local api = {}
+    function api.Set(v, silent)
+        if v == enabled then return end
+        enabled = v
+        paint(true)
+        if cb and not silent then cb(enabled) end
+    end
+    function api.Get() return enabled end
+
+    row.Activated:Connect(function() api.Set(not enabled) end)
+    return api
+end
+
+print("[DestroyaHub] parte 4 lista")
+--==================================================
+--            DESTROYA HUB  •  PARTE 5 / 18
+--        DESLIZADOR, DESPLEGABLE Y MINI
+--==================================================
+
+local function createSlider(page, name, min, max, default, fmt, callback)
+    local cb = callback and safe(callback, name)
+
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, -4, 0, 38)
+    row.BackgroundTransparency = 0.08
+    row.LayoutOrder = nextOrder()
+    row.Parent = page
+    bind(row, "BackgroundColor3", "Row")
+    corner(row, 8)
+
+    mkLabel(row, name, 11, Enum.Font.GothamBold, "White", UDim2.fromOffset(10, 2), UDim2.new(0.6, 0, 0, 15))
+    local valueL = mkLabel(row, "", 10, Enum.Font.GothamBold, "Acc2",
+        UDim2.new(0.6, 0, 0, 2), UDim2.new(0.4, -10, 0, 15), Enum.TextXAlignment.Right)
+
+    local hit = Instance.new("Frame")
+    hit.Size = UDim2.new(1, -20, 0, 18)
+    hit.Position = UDim2.fromOffset(10, 17)
+    hit.BackgroundTransparency = 1
+    hit.Parent = row
+
+    local bar = Instance.new("Frame")
+    bar.AnchorPoint = Vector2.new(0, 0.5)
+    bar.Size = UDim2.new(1, 0, 0, 5)
+    bar.Position = UDim2.fromScale(0, 0.5)
+    bar.BorderSizePixel = 0
+    bar.Parent = hit
+    bind(bar, "BackgroundColor3", "Off")
+    corner(bar, 3)
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.fromScale(0, 1)
+    fill.BorderSizePixel = 0
+    fill.Parent = bar
+    bind(fill, "BackgroundColor3", "Acc")
+    corner(fill, 3)
+    local fg = Instance.new("UIGradient")
+    fg.Parent = fill
+    onTheme(function() fg.Color = ColorSequence.new(C.Acc, C.Acc2) end)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.fromOffset(13, 13)
+    knob.AnchorPoint = Vector2.new(0.5, 0.5)
+    knob.BorderSizePixel = 0
+    knob.Parent = bar
+    bind(knob, "BackgroundColor3", "White")
+    corner(knob, 7)
+
+    local function setRatio(r)
+        r = math.clamp(r, 0, 1)
+        fill.Size = UDim2.fromScale(r, 1)
+        knob.Position = UDim2.fromScale(r, 0.5)
+        local value = min + (max - min) * r
+        valueL.Text = fmt(value)
+        if cb then cb(value) end
+    end
+
+    local function fromInput(input)
+        local w = bar.AbsoluteSize.X
+        if w > 0 then setRatio((input.Position.X - bar.AbsolutePosition.X) / w) end
+    end
+
+    hit.InputBegan:Connect(function(input)
+        if isPointer(input) then
+            fromInput(input)
+            beginDrag(input, fromInput)
+        end
+    end)
+
+    setRatio((default - min) / (max - min))
+    return row
+end
+
+local function createCollapsible(page, title, bodyH, onFirstOpen)
+    local holder = Instance.new("Frame")
+    holder.Size = UDim2.new(1, -4, 0, 34)
+    holder.BackgroundTransparency = 0.08
+    holder.ClipsDescendants = true
+    holder.LayoutOrder = nextOrder()
+    holder.Parent = page
+    bind(holder, "BackgroundColor3", "Row")
+    corner(holder, 8)
+
+    local head = Instance.new("TextButton")
+    head.Size = UDim2.new(1, 0, 0, 34)
+    head.BackgroundTransparency = 1
+    head.Text = ""
+    head.AutoButtonColor = false
+    head.Parent = holder
+    squish(head)
+
+    local sw = Instance.new("Frame")
+    sw.Size = UDim2.fromOffset(12, 12)
+    sw.Position = UDim2.fromOffset(10, 11)
+    sw.BorderSizePixel = 0
+    sw.Parent = head
+    bind(sw, "BackgroundColor3", "Acc")
+    corner(sw, 6)
+
+    mkLabel(head, title, 11, Enum.Font.GothamBold, "White", UDim2.fromOffset(30, 0), UDim2.new(1, -62, 1, 0))
+    local sign = mkLabel(head, "+", 15, Enum.Font.GothamBold, "Acc2",
+        UDim2.new(1, -28, 0, 0), UDim2.fromOffset(20, 34), Enum.TextXAlignment.Center)
+
+    local body = Instance.new("Frame")
+    body.Position = UDim2.fromOffset(0, 34)
+    body.Size = UDim2.new(1, 0, 0, bodyH)
+    body.BackgroundTransparency = 1
+    body.Parent = holder
+
+    local open, built = false, false
+    head.Activated:Connect(safe(function()
+        open = not open
+        if open and not built then
+            built = true
+            if onFirstOpen then onFirstOpen(body) end
+        end
+        sign.Text = open and "-" or "+"
+        tween(holder, { Size = UDim2.new(1, -4, 0, open and (34 + bodyH + 6) or 34) }, 0.26)
+    end, title))
+    return body
 end
 
 local miniSets = {
@@ -712,16 +796,16 @@ local miniSets = {
 }
 
 local function createMiniButton(parent, kind, size)
-    size = size or 30
+    size = size or 28
     local b = Instance.new("TextButton")
     b.Size = UDim2.fromOffset(size, size)
     b.BackgroundColor3 = (kind == "plus") and C.Plus or C.Minus
     b.Text = ""
     b.AutoButtonColor = false
     b.Parent = parent
-    corner(b, math.floor(size * 0.34))
-    squish(b, 0.86)
-    local len = math.floor(size * 0.46)
+    corner(b, math.floor(size * 0.32))
+    squish(b)
+    local len = math.floor(size * 0.44)
     local h = Instance.new("Frame")
     h.AnchorPoint = Vector2.new(0.5, 0.5)
     h.Position = UDim2.fromScale(0.5, 0.5)
@@ -746,342 +830,40 @@ local function recolorMini(kind)
     end
 end
 
-print("[DestroyaHub] parte 4 lista")
---==================================================
---            DESTROYA HUB  •  PARTE 5 / 18
---          INTERRUPTOR Y DESLIZADOR
---==================================================
-
-local function createButton(parent, name, desc, callback)
-    local cb = callback and safe(callback, name)
-
-    local row = Instance.new("TextButton")
-    row.Size = UDim2.new(1, -4, 0, 46)
-    row.BackgroundTransparency = 0.04
-    row.Text = ""
-    row.AutoButtonColor = false
-    row.LayoutOrder = nextOrder()
-    row.Parent = parent
-    corner(row, 13)
-    squish(row, 0.96)
-
-    local sheen = Instance.new("UIGradient")
-    sheen.Rotation = 90
-    sheen.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(150, 158, 176))
-    sheen.Parent = row
-
-    local accent = Instance.new("Frame")
-    accent.AnchorPoint = Vector2.new(0, 0.5)
-    accent.Position = UDim2.fromScale(0, 0.5)
-    accent.Size = UDim2.fromOffset(4, 0)
-    accent.BorderSizePixel = 0
-    accent.Parent = row
-    corner(accent, 2)
-
-    local nameL = plain(row, string.upper(name), 14, F.head, C.White,
-        UDim2.fromOffset(16, 5), UDim2.new(1, -76, 0, 20))
-    local descL = plain(row, desc, 9, F.body, C.Gray,
-        UDim2.fromOffset(16, 26), UDim2.new(1, -76, 0, 13))
-    descL.TextTruncate = Enum.TextTruncate.AtEnd
-
-    local pill = Instance.new("Frame")
-    pill.AnchorPoint = Vector2.new(1, 0.5)
-    pill.Position = UDim2.new(1, -14, 0.5, 0)
-    pill.Size = UDim2.fromOffset(42, 22)
-    pill.BorderSizePixel = 0
-    pill.Parent = row
-    corner(pill, 11)
-
-    local knob = Instance.new("Frame")
-    knob.AnchorPoint = Vector2.new(0, 0.5)
-    knob.Size = UDim2.fromOffset(16, 16)
-    knob.Position = UDim2.new(0, 3, 0.5, 0)
-    knob.BackgroundColor3 = Color3.new(1, 1, 1)
-    knob.BorderSizePixel = 0
-    knob.Parent = pill
-    corner(knob, 8)
-
-    local knobGlow = Instance.new("UIStroke")
-    knobGlow.Thickness = 2
-    knobGlow.Transparency = 1
-    knobGlow.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    knobGlow.Parent = knob
-    bind(knobGlow, "Color", "Acc2")
-
-    local enabled = false
-    local function paint(animated)
-        local on = enabled
-        local set = {
-            { row, { BackgroundColor3 = on and C.RowOn or C.Row }, 0.25, Enum.EasingStyle.Quint },
-            { accent, { Size = UDim2.fromOffset(4, on and 26 or 0), BackgroundColor3 = C.Acc2 }, 0.3, Enum.EasingStyle.Back },
-            { pill, { BackgroundColor3 = on and C.Acc or C.Off }, 0.22, Enum.EasingStyle.Quint },
-            { knob, { Position = on and UDim2.new(1, -19, 0.5, 0) or UDim2.new(0, 3, 0.5, 0) }, 0.28, Enum.EasingStyle.Back },
-            { knobGlow, { Transparency = on and 0.15 or 1 }, 0.25, Enum.EasingStyle.Quad },
-        }
-        for _, s in ipairs(set) do
-            if animated then
-                tween(s[1], s[2], s[3], s[4])
-            else
-                for k, v in pairs(s[2]) do s[1][k] = v end
-            end
-        end
-    end
-    onTheme(function() paint(false) end)
-
-    local api = {}
-    function api.Set(v, silent)
-        if v == enabled then return end
-        enabled = v
-        paint(true)
-        if cb and not silent then cb(enabled) end
-    end
-    function api.Get() return enabled end
-
-    row.Activated:Connect(function() api.Set(not enabled) end)
-    return api
-end
-
-local function createSlider(page, name, min, max, default, fmt, callback)
-    local cb = callback and safe(callback, name)
-
-    local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, -4, 0, 64)
-    row.BackgroundTransparency = 0.04
-    row.LayoutOrder = nextOrder()
-    row.Parent = page
-    bind(row, "BackgroundColor3", "Row")
-    corner(row, 13)
-
-    local sheen = Instance.new("UIGradient")
-    sheen.Rotation = 90
-    sheen.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(150, 158, 176))
-    sheen.Parent = row
-
-    mkLabel(row, string.upper(name), 13, F.head, "White", UDim2.fromOffset(16, 9), UDim2.new(0.6, 0, 0, 18))
-    local valueL = mkLabel(row, "", 13, F.head, "Acc2", UDim2.new(0.6, 0, 0, 9),
-        UDim2.new(0.4, -16, 0, 18), Enum.TextXAlignment.Right)
-
-    local hit = Instance.new("Frame")
-    hit.Size = UDim2.new(1, -32, 0, 28)
-    hit.Position = UDim2.fromOffset(16, 33)
-    hit.BackgroundTransparency = 1
-    hit.Parent = row
-
-    local barF = Instance.new("Frame")
-    barF.AnchorPoint = Vector2.new(0, 0.5)
-    barF.Position = UDim2.fromScale(0, 0.5)
-    barF.Size = UDim2.new(1, 0, 0, 8)
-    barF.BorderSizePixel = 0
-    barF.Parent = hit
-    bind(barF, "BackgroundColor3", "Off")
-    corner(barF, 4)
-
-    local fill = Instance.new("Frame")
-    fill.Size = UDim2.fromScale(0, 1)
-    fill.BorderSizePixel = 0
-    fill.Parent = barF
-    bind(fill, "BackgroundColor3", "Acc")
-    corner(fill, 4)
-    local fg = Instance.new("UIGradient")
-    fg.Parent = fill
-    onTheme(function()
-        fg.Color = ColorSequence.new(C.Acc, C.Acc2)
-    end)
-
-    local knob = Instance.new("Frame")
-    knob.AnchorPoint = Vector2.new(0.5, 0.5)
-    knob.Size = UDim2.fromOffset(18, 18)
-    knob.BorderSizePixel = 0
-    knob.Parent = barF
-    bind(knob, "BackgroundColor3", "White")
-    corner(knob, 9)
-
-    local kg = Instance.new("UIStroke")
-    kg.Thickness = 2.4
-    kg.Transparency = 0.2
-    kg.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    kg.Parent = knob
-    bind(kg, "Color", "Acc2")
-
-    local function setRatio(r)
-        r = math.clamp(r, 0, 1)
-        fill.Size = UDim2.fromScale(r, 1)
-        knob.Position = UDim2.fromScale(r, 0.5)
-        local value = min + (max - min) * r
-        valueL.Text = fmt(value)
-        if cb then cb(value) end
-    end
-
-    local function fromInput(input)
-        local w = barF.AbsoluteSize.X
-        if w > 0 then setRatio((input.Position.X - barF.AbsolutePosition.X) / w) end
-    end
-
-    hit.InputBegan:Connect(function(input)
-        if isPointer(input) then
-            fromInput(input)
-            tween(knob, { Size = UDim2.fromOffset(24, 24) }, 0.12, Enum.EasingStyle.Back)
-            beginDrag(input, fromInput, true, function()
-                tween(knob, { Size = UDim2.fromOffset(18, 18) }, 0.16)
-            end)
-        end
-    end)
-
-    setRatio((default - min) / (max - min))
-    return row
-end
-
 print("[DestroyaHub] parte 5 lista")
 --==================================================
 --            DESTROYA HUB  •  PARTE 6 / 18
---          DESPLEGABLES Y MUESTRAS
---==================================================
-
-local function createCollapsible(page, title, height, onFirstOpen)
-    local HEAD = 44
-    local contentH = height or 0
-    local open, built = false, false
-
-    local holder = Instance.new("Frame")
-    holder.Size = UDim2.new(1, -4, 0, HEAD)
-    holder.BackgroundTransparency = 0.04
-    holder.ClipsDescendants = true
-    holder.LayoutOrder = nextOrder()
-    holder.Parent = page
-    bind(holder, "BackgroundColor3", "Row")
-    corner(holder, 13)
-
-    local head = Instance.new("TextButton")
-    head.Size = UDim2.new(1, 0, 0, HEAD)
-    head.BackgroundTransparency = 1
-    head.Text = ""
-    head.AutoButtonColor = false
-    head.Parent = holder
-    squish(head, 0.98)
-
-    local dia = Instance.new("Frame")
-    dia.AnchorPoint = Vector2.new(0.5, 0.5)
-    dia.Position = UDim2.fromOffset(20, HEAD / 2)
-    dia.Size = UDim2.fromOffset(10, 10)
-    dia.Rotation = 45
-    dia.BorderSizePixel = 0
-    dia.Parent = head
-    bind(dia, "BackgroundColor3", "Acc2")
-
-    mkLabel(head, string.upper(title), 14, F.head, "White", UDim2.fromOffset(38, 0), UDim2.new(1, -80, 1, 0))
-    local chev = drawChevron(head, "Acc2", 1.1)
-    chev.Position = UDim2.new(1, -24, 0.5, 0)
-
-    local body = Instance.new("Frame")
-    body.Position = UDim2.fromOffset(0, HEAD)
-    body.Size = UDim2.new(1, 0, 0, contentH)
-    body.BackgroundTransparency = 1
-    body.Parent = holder
-
-    local api = { body = body, holder = holder }
-    local function target() return open and (HEAD + contentH + 12) or HEAD end
-
-    function api.setHeight(h)
-        contentH = h
-        body.Size = UDim2.new(1, 0, 0, h)
-        if open then tween(holder, { Size = UDim2.new(1, -4, 0, target()) }, 0.22) end
-    end
-
-    head.Activated:Connect(safe(function()
-        open = not open
-        if open and not built then
-            built = true
-            if onFirstOpen then onFirstOpen(body) end
-        end
-        tween(chev, { Rotation = open and 180 or 0 }, 0.3, Enum.EasingStyle.Back)
-        tween(holder, { Size = UDim2.new(1, -4, 0, target()) }, 0.3, Enum.EasingStyle.Quint)
-    end, title))
-
-    return api
-end
-
-local function createSwatches(page, title, colors, defaultIdx, kind, onPick)
-    local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, -4, 0, 66)
-    row.BackgroundTransparency = 0.04
-    row.LayoutOrder = nextOrder()
-    row.Parent = page
-    bind(row, "BackgroundColor3", "Row")
-    corner(row, 13)
-
-    mkLabel(row, string.upper(title), 13, F.head, "White", UDim2.fromOffset(16, 8), UDim2.new(1, -70, 0, 18))
-
-    local rings = {}
-    local function mark(idx)
-        for i, s in pairs(rings) do
-            tween(s, { Transparency = (i == idx) and 0 or 1 }, 0.18)
-        end
-    end
-
-    for i, c in ipairs(colors) do
-        local b = Instance.new("TextButton")
-        b.Size = UDim2.fromOffset(28, 28)
-        b.Position = UDim2.fromOffset(16 + (i - 1) * 36, 32)
-        b.BackgroundColor3 = c[2]
-        b.Text = ""
-        b.AutoButtonColor = false
-        b.Parent = row
-        corner(b, 14)
-        squish(b, 0.85)
-        local s = Instance.new("UIStroke")
-        s.Color = Color3.new(1, 1, 1)
-        s.Thickness = 2.4
-        s.Transparency = (i == defaultIdx) and 0 or 1
-        s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-        s.Parent = b
-        rings[i] = s
-        b.Activated:Connect(safe(function()
-            mark(i)
-            onPick(c[2])
-        end, "color"))
-    end
-
-    local prev = createMiniButton(row, kind, 34)
-    prev.AnchorPoint = Vector2.new(1, 0)
-    prev.Position = UDim2.new(1, -16, 0, 8)
-    return row
-end
-
-print("[DestroyaHub] parte 6 lista")
---==================================================
---            DESTROYA HUB  •  PARTE 7 / 18
 --          RUEDA DE COLOR Y ESTADO
 --==================================================
 
-local hh, ss, vv = AZUL.Acc:ToHSV()
+local hh, ss, vv = CIAN.Acc:ToHSV()
 local custom = { h = hh, s = ss, v = vv }
 local customBusy = false
 
 local function applyCustom()
     if customBusy then return end
     customBusy = true
-    task.delay(0.03, function()
+    task.delay(0.08, function()
         customBusy = false
         applyTheme(makeTheme(custom.h, custom.s, custom.v))
     end)
 end
 
 local function createColorPicker(page)
-    local R, r0, N = 86, 42, 86
+    local R, r0, N = 50, 26, 64
     local mid = (R + r0) / 2
     local midRatio = mid / (2 * R)
-    local BODY_H = 10 + 2 * R + 14 + 64 + 14 + 64
 
-    createCollapsible(page, "Color del menú", BODY_H, function(body)
+    createCollapsible(page, "Color del menú", 2 * R + 96, function(body)
         local wheel = Instance.new("Frame")
         wheel.AnchorPoint = Vector2.new(0.5, 0)
-        wheel.Position = UDim2.new(0.5, 0, 0, 10)
+        wheel.Position = UDim2.new(0.5, 0, 0, 6)
         wheel.Size = UDim2.fromOffset(2 * R, 2 * R)
         wheel.BackgroundTransparency = 1
         wheel.Parent = body
 
         local len = R - r0
-        local thick = math.ceil(2 * math.pi * R / N) + 2
+        local thick = math.ceil(2 * math.pi * R / N) + 1
         for i = 0, N - 1 do
             local hue = i / N
             local ang = hue * 2 * math.pi
@@ -1098,34 +880,33 @@ local function createColorPicker(page)
         local preview = Instance.new("Frame")
         preview.AnchorPoint = Vector2.new(0.5, 0.5)
         preview.Position = UDim2.fromScale(0.5, 0.5)
-        preview.Size = UDim2.fromOffset(2 * (r0 - 6), 2 * (r0 - 6))
+        preview.Size = UDim2.fromOffset(2 * (r0 - 4), 2 * (r0 - 4))
         preview.BorderSizePixel = 0
         preview.Parent = wheel
         corner(preview, r0)
-        stroke(preview, "White", 1.6, 0.7)
         local function updatePreview()
-            preview.BackgroundColor3 = Color3.fromHSV(custom.h, custom.s, math.max(custom.v, 0.55))
+            preview.BackgroundColor3 = Color3.fromHSV(custom.h, custom.s, math.max(custom.v, 0.6))
         end
         updatePreview()
 
         local marker = Instance.new("Frame")
         marker.AnchorPoint = Vector2.new(0.5, 0.5)
-        marker.Size = UDim2.fromOffset(22, 22)
+        marker.Size = UDim2.fromOffset(14, 14)
         marker.BackgroundTransparency = 1
         marker.ZIndex = 5
         marker.Parent = wheel
-        corner(marker, 11)
+        corner(marker, 7)
         local ms = Instance.new("UIStroke")
         ms.Color = Color3.new(1, 1, 1)
-        ms.Thickness = 3.2
+        ms.Thickness = 2.2
         ms.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
         ms.Parent = marker
         local a0 = custom.h * 2 * math.pi
         marker.Position = UDim2.fromScale(0.5 + math.cos(a0) * midRatio, 0.5 + math.sin(a0) * midRatio)
 
         local hit = Instance.new("TextButton")
-        hit.Position = UDim2.fromOffset(-32, -32)
-        hit.Size = UDim2.new(1, 64, 1, 64)
+        hit.Position = UDim2.fromOffset(-20, -20)
+        hit.Size = UDim2.new(1, 40, 1, 40)
         hit.BackgroundTransparency = 1
         hit.Text = ""
         hit.AutoButtonColor = false
@@ -1135,11 +916,11 @@ local function createColorPicker(page)
         local function pick(input)
             local size = wheel.AbsoluteSize.X
             if size <= 0 then return end
+            local rad = size / 2
             local p = screenPos(input)
-            local dx = p.X - (wheel.AbsolutePosition.X + size / 2)
-            local dy = p.Y - (wheel.AbsolutePosition.Y + size / 2)
-            local dead = size * 0.08
-            if dx * dx + dy * dy < dead * dead then return end
+            local dx = p.X - (wheel.AbsolutePosition.X + rad)
+            local dy = p.Y - (wheel.AbsolutePosition.Y + rad)
+            if math.sqrt(dx * dx + dy * dy) < 3 then return end
             local ang = math.atan2(dy, dx)
             custom.h = (math.deg(ang) % 360) / 360
             marker.Position = UDim2.fromScale(0.5 + math.cos(ang) * midRatio, 0.5 + math.sin(ang) * midRatio)
@@ -1150,7 +931,7 @@ local function createColorPicker(page)
         hit.InputBegan:Connect(function(input)
             if isPointer(input) then
                 pick(input)
-                beginDrag(input, pick, true)
+                beginDrag(input, pick)
             end
         end)
 
@@ -1165,7 +946,7 @@ local function createColorPicker(page)
                 end
             end)
         r1.BackgroundTransparency = 1
-        r1.Position = UDim2.fromOffset(2, 10 + 2 * R + 14)
+        r1.Position = UDim2.fromOffset(2, 2 * R + 8)
 
         local r2 = createSlider(body, "Brillo", 0.4, 1, custom.v,
             function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
@@ -1177,13 +958,13 @@ local function createColorPicker(page)
                 end
             end)
         r2.BackgroundTransparency = 1
-        r2.Position = UDim2.fromOffset(2, 10 + 2 * R + 14 + 64)
+        r2.Position = UDim2.fromOffset(2, 2 * R + 50)
         ready = true
     end)
 end
 
 local S = {
-    esp = false, lockMode = nil, target = nil,
+    esp = false, lockMode = nil, target = nil, lastMode = "chest",
     infJump = false, fly = false, walk = false, noclip = false,
     boost = false, walls = false, full = false, tpActive = false,
     flySpeed = 60, walkSpeed = 32, defWalk = 16, tpSpeed = 120,
@@ -1200,30 +981,21 @@ local function getParts()
     return char:FindFirstChild("HumanoidRootPart"), char:FindFirstChildOfClass("Humanoid"), char
 end
 
-print("[DestroyaHub] parte 7 lista")
+print("[DestroyaHub] parte 6 lista")
 --==================================================
---            DESTROYA HUB  •  PARTE 8 / 18
---      ESP CON ESQUELETO Y TEXTO LEGIBLE
+--            DESTROYA HUB  •  PARTE 7 / 18
+--       ESP: NOMBRE | HP | STUDS + BARRA NEÓN
 --==================================================
 
 local HAS_DRAWING = (type(Drawing) == "table" or type(Drawing) == "userdata")
 
 local ESP_MAX = 100
 local ESP_TICK = 0.06
+local NEON = Color3.fromRGB(57, 255, 90)
+local NEON_DIM = Color3.fromRGB(120, 255, 150)
 
-local PAL = {
-    enemy = Color3.fromRGB(255, 55, 65),
-    ally = Color3.fromRGB(70, 155, 255),
-}
 local espData = {}
 local espAcc = 0
-
-local function isAlly(plr)
-    if player.Team ~= nil and plr.Team ~= nil then return plr.Team == player.Team end
-    local a, b = player:GetAttribute("Team"), plr:GetAttribute("Team")
-    if a ~= nil and b ~= nil then return a == b end
-    return false
-end
 
 local function findPart(char, ...)
     for i = 1, select("#", ...) do
@@ -1271,13 +1043,11 @@ local function removeESP(plr)
         l.Visible = false
         pcall(function() l:Remove() end)
     end
-    if d.text then
-        d.text.Visible = false
-        pcall(function() d.text:Remove() end)
-    end
-    if d.shadow then
-        d.shadow.Visible = false
-        pcall(function() d.shadow:Remove() end)
+    for _, t in ipairs({ d.text, d.shadow, d.bar }) do
+        if t then
+            t.Visible = false
+            pcall(function() t:Remove() end)
+        end
     end
     if d.bb then d.bb:Destroy() end
 end
@@ -1286,33 +1056,44 @@ local function clearESP()
     for plr in pairs(espData) do removeESP(plr) end
 end
 
-local function txtSet(d, s, col, show)
+local function setVisible(d, on)
+    for _, l in ipairs(d.lines) do l.Visible = on end
+    if d.text then
+        d.text.Visible = on
+        d.shadow.Visible = on
+        d.bar.Visible = on
+    end
+    if d.bb then d.bb.Enabled = on end
+end
+
+local function txtSet(d, s, show)
     if HAS_DRAWING then
         d.text.Text = s
         d.shadow.Text = s
-        d.text.Color = col
         d.text.Visible = show
         d.shadow.Visible = show
+        d.bar.Visible = show
     else
         d.label.Text = s
-        d.label.TextColor3 = col
         d.bb.Enabled = show
     end
 end
 
 local function newData(char)
-    local d = { char = char, bones = buildBones(char), lines = {}, ally = nil, txt = "", dist = -1 }
+    local d = { char = char, bones = buildBones(char), lines = {}, txt = "", dist = -1, hp = -1 }
 
     if HAS_DRAWING then
         for _ = 1, #d.bones do
             local l = Drawing.new("Line")
-            l.Thickness = 2
+            l.Thickness = 2.6
+            l.Color = NEON
             l.Transparency = 1
             l.Visible = false
             d.lines[#d.lines + 1] = l
         end
+
         local sh = Drawing.new("Text")
-        sh.Size = 21
+        sh.Size = 17
         sh.Center = true
         sh.Outline = true
         sh.OutlineColor = Color3.new(0, 0, 0)
@@ -1321,21 +1102,28 @@ local function newData(char)
         d.shadow = sh
 
         local t = Drawing.new("Text")
-        t.Size = 20
+        t.Size = 16
         t.Center = true
         t.Outline = true
         t.OutlineColor = Color3.new(0, 0, 0)
+        t.Color = NEON
         t.Visible = false
         d.text = t
+
+        local bar = Drawing.new("Line")
+        bar.Thickness = 2.6
+        bar.Color = NEON
+        bar.Visible = false
+        d.bar = bar
     else
         local bb = Instance.new("BillboardGui")
-        bb.Size = UDim2.fromOffset(220, 26)
-        bb.StudsOffset = Vector3.new(0, 2.6, 0)
+        bb.Size = UDim2.fromOffset(230, 30)
+        bb.StudsOffset = Vector3.new(0, 2.7, 0)
         bb.Adornee = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
         bb.Parent = Workspace
-        local l = plain(bb, "", 16, F.head, Color3.new(1, 1, 1),
+        local l = plain(bb, "", 15, Enum.Font.GothamBlack, NEON,
             UDim2.fromOffset(0, 0), UDim2.fromScale(1, 1), Enum.TextXAlignment.Center)
-        l.TextStrokeTransparency = 0.15
+        l.TextStrokeTransparency = 0.1
         l.TextStrokeColor3 = Color3.new(0, 0, 0)
         d.bb = bb
         d.label = l
@@ -1374,42 +1162,34 @@ local function stepESP()
                 if dist > ESP_MAX then
                     if d.txt ~= "" then
                         d.txt = ""
-                        for _, l in ipairs(d.lines) do l.Visible = false end
-                        txtSet(d, "", PAL.enemy, false)
+                        setVisible(d, false)
                     end
                 else
-                    local ally = isAlly(plr)
-                    local col = ally and PAL.ally or PAL.enemy
-                    if d.ally ~= ally then
-                        d.ally = ally
-                        for _, l in ipairs(d.lines) do l.Color = col end
-                    end
-
                     local hum = char:FindFirstChildOfClass("Humanoid")
-                    local pct = 0
-                    if hum and hum.MaxHealth > 0 then
-                        pct = math.floor(math.max(0, hum.Health) / hum.MaxHealth * 100 + 0.5)
+                    local hp, mx = 0, 100
+                    if hum then
+                        hp = math.max(0, math.floor(hum.Health + 0.5))
+                        mx = math.max(1, math.floor(hum.MaxHealth + 0.5))
                     end
-                    local s = plr.Name .. "  |  " .. dist .. " m  |  " .. pct .. "%"
+                    local s = plr.Name .. "  |  " .. hp .. " HP  |  " .. dist .. " studs"
                     if d.txt ~= s then
                         d.txt = s
-                        txtSet(d, s, col, true)
+                        txtSet(d, s, true)
                     elseif d.text and not d.text.Visible then
-                        d.text.Visible = true
-                        d.shadow.Visible = true
-                    elseif d.label and not d.bb.Enabled then
-                        d.bb.Enabled = true
+                        setVisible(d, true)
                     end
 
                     local head = char:FindFirstChild("Head") or root
                     if HAS_DRAWING then
-                        local hp = project(cam, head.Position + Vector3.new(0, 1.15, 0))
-                        if hp then
-                            d.text.Position = hp
-                            d.shadow.Position = hp + Vector2.new(1.5, 1.5)
+                        local tp = project(cam, head.Position + Vector3.new(0, 1.25, 0))
+                        if tp then
+                            d.text.Position = tp
+                            d.shadow.Position = tp + Vector2.new(1.5, 1.5)
+                            local w = math.clamp(#s * 5.4, 110, 320)
+                            d.bar.From = Vector2.new(tp.X - w / 2, tp.Y + 12)
+                            d.bar.To = Vector2.new(tp.X + w / 2, tp.Y + 12)
                         else
-                            d.text.Visible = false
-                            d.shadow.Visible = false
+                            setVisible(d, false)
                         end
                         for i, bone in ipairs(d.bones) do
                             local l = d.lines[i]
@@ -1456,9 +1236,9 @@ end))
 
 for _, plr in ipairs(Players:GetPlayers()) do hookPlayer(plr) end
 
-print("[DestroyaHub] parte 8 lista")
+print("[DestroyaHub] parte 7 lista")
 --==================================================
---            DESTROYA HUB  •  PARTE 9 / 18
+--            DESTROYA HUB  •  PARTE 8 / 18
 --         TP AUTOMÁTICO Y LISTA DE MEJORES
 --==================================================
 
@@ -1555,9 +1335,7 @@ track(RunService.Heartbeat:Connect(function(dt)
 
         local dir = diff.Unit
         local newPos = root.Position + dir * math.min(dist, S.tpSpeed * dt)
-        local face = Vector3.new(dir.X, 0, dir.Z)
-        if face.Magnitude < 0.05 then face = flat end
-        root.CFrame = CFrame.lookAt(newPos, newPos + face)
+        root.CFrame = CFrame.lookAt(newPos, newPos + Vector3.new(dir.X, 0, dir.Z))
         root.AssemblyLinearVelocity = Vector3.zero
         root.AssemblyAngularVelocity = Vector3.zero
     end)
@@ -1588,13 +1366,14 @@ local function selRemove(plr)
     return true
 end
 
-print("[DestroyaHub] parte 9 lista")
+print("[DestroyaHub] parte 8 lista")
 --==================================================
---            DESTROYA HUB  •  PARTE 10 / 18
---              CAM LOCK SIN PAREDES
+--            DESTROYA HUB  •  PARTE 9 / 18
+--      CAM LOCK: CÁMARA FIJA + CUERPO GIrado
 --==================================================
 
 local camHeld, camPrev, camErr = false, nil, 0
+local camOff = nil
 local camParams = RaycastParams.new()
 camParams.FilterType = Enum.RaycastFilterType.Exclude
 camParams.IgnoreWater = true
@@ -1607,6 +1386,7 @@ local function releaseCamera()
         if hum then cam.CameraSubject = hum end
     end
     camHeld = false
+    camOff = nil
     if hum then hum.AutoRotate = true end
 end
 
@@ -1617,6 +1397,21 @@ local function aimPoint(char, mode, rootPart)
     end
     local t = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
     return t and t.Position or (rootPart.Position + Vector3.new(0, 0.5, 0))
+end
+
+local function captureOffset()
+    local cam = getCamera()
+    local root = getParts()
+    if not cam or not root then
+        camOff = Vector3.new(0, 3.5, 9)
+        return
+    end
+    local off = cam.CFrame.Position - root.Position
+    if off.Magnitude < 5 or off.Magnitude > 16 then
+        local look = root.CFrame.LookVector
+        off = Vector3.new(-look.X, 0, -look.Z).Unit * 9 + Vector3.new(0, 3.5, 0)
+    end
+    camOff = off
 end
 
 local function camStep()
@@ -1635,35 +1430,35 @@ local function camStep()
         return
     end
 
-    local flat = Vector3.new(tRoot.Position.X - root.Position.X, 0, tRoot.Position.Z - root.Position.Z)
-    if flat.Magnitude < 0.6 then return end
-    local dir = flat.Unit
-
     if not camHeld then
         camHeld = true
         camPrev = cam.CameraType
+        captureOffset()
     end
     if cam.CameraType ~= Enum.CameraType.Scriptable then cam.CameraType = Enum.CameraType.Scriptable end
+    if not camOff then captureOffset() end
 
     local focus = aimPoint(tChar, S.lockMode, tRoot)
-    local want = root.Position - dir * 8.5 + Vector3.new(0, 3.2, 0)
+    local want = root.Position + camOff
 
     camParams.FilterDescendantsInstances = { player.Character }
     local delta = want - focus
     if delta.Magnitude > 0.1 then
         local hit = Workspace:Raycast(focus, delta, camParams)
         if hit then
-            want = hit.Position + (focus - hit.Position).Unit * 0.5
-            if (want - focus).Magnitude < 1.4 then
-                want = focus + (want - focus).Unit * 1.4
-            end
+            want = hit.Position + (focus - hit.Position).Unit * 0.6
         end
     end
 
     cam.CFrame = CFrame.lookAt(want, focus)
 
     if hum and hum.AutoRotate then hum.AutoRotate = false end
-    root.CFrame = CFrame.lookAt(root.Position, root.Position + dir)
+    if not S.tpActive then
+        local flat = Vector3.new(tRoot.Position.X - root.Position.X, 0, tRoot.Position.Z - root.Position.Z)
+        if flat.Magnitude > 0.35 then
+            root.CFrame = CFrame.lookAt(root.Position, root.Position + flat.Unit)
+        end
+    end
 end
 
 local function lockStatus()
@@ -1683,7 +1478,9 @@ end
 
 local function setLockMode(mode)
     S.lockMode = mode
+    if mode then S.lastMode = mode end
     if not mode then S.target = nil end
+    camOff = nil
     syncLock()
     if not mode then pcall(releaseCamera) end
 end
@@ -1694,11 +1491,10 @@ local function selectTarget(plr)
         return
     end
     S.target = plr
-    if S.lockMode ~= "head" then S.lockMode = "chest" end
-    syncLock()
+    setLockMode(S.lockMode or "chest")
 end
 
-RunService:BindToRenderStep("DestroyaCam", Enum.RenderPriority.Last.Value, function()
+RunService:BindToRenderStep("DestroyaCam", Enum.RenderPriority.Camera.Value + 1, function()
     local ok, err = pcall(camStep)
     if ok then
         camErr = 0
@@ -1714,9 +1510,9 @@ RunService:BindToRenderStep("DestroyaCam", Enum.RenderPriority.Last.Value, funct
     end
 end)
 
-print("[DestroyaHub] parte 10 lista")
+print("[DestroyaHub] parte 9 lista")
 --==================================================
---            DESTROYA HUB  •  PARTE 11 / 18
+--            DESTROYA HUB  •  PARTE 10 / 18
 --      FLY, NOCLIP, VELOCIDAD, SALTO Y LUZ
 --==================================================
 
@@ -1911,9 +1707,9 @@ task.spawn(function()
     end
 end)
 
-print("[DestroyaHub] parte 11 lista")
+print("[DestroyaHub] parte 10 lista")
 --==================================================
---            DESTROYA HUB  •  PARTE 12 / 18
+--            DESTROYA HUB  •  PARTE 11 / 18
 --          FPS BOOST Y TRANSPARENT WALLS
 --==================================================
 
@@ -2140,22 +1936,22 @@ do
     end
 end
 
-print("[DestroyaHub] parte 12 lista")
+print("[DestroyaHub] parte 11 lista")
 --==================================================
---            DESTROYA HUB  •  PARTE 13 / 18
+--            DESTROYA HUB  •  PARTE 12 / 18
 --              PESTAÑAS Y FUNCIONES
 --==================================================
 
 local FunctionPage = addTab("Funciones")
 local ListPage = addTab("Lista")
 local BestPage = addTab("Mejores")
-local SettingsPage = addTab("Configuración")
+local SettingsPage = addTab("Config")
 
-createSection(FunctionPage, "Funciones principales")
 do
+    createSection(FunctionPage, "FUNCIONES PRINCIPALES")
     local grid = createGrid(FunctionPage)
 
-    createButton(grid, "ESP Player", "Esqueleto hasta 100 m", function(v)
+    createButton(grid, "ESP Player", "Esqueleto + barra 100 m", function(v)
         S.esp = v
         if not v then clearESP() end
         espAcc = ESP_TICK
@@ -2169,11 +1965,11 @@ do
         setLockMode(v and "chest" or nil)
     end)
 
-    createButton(grid, "Fly", "Vuela con botones", function(v)
+    createButton(grid, "Fly", "Vuela + botones", function(v)
         S.fly = v
-        if UI.flyPad then UI.flyPad.Visible = v end
+        UI.flyPad.Visible = v
         if not v then
-            if UI.resetFlyInput then UI.resetFlyInput() end
+            UI.resetFlyInput()
             stopFly()
         end
     end)
@@ -2195,35 +1991,31 @@ do
     end)
 end
 
-print("[DestroyaHub] parte 13 lista")
+print("[DestroyaHub] parte 12 lista")
 --==================================================
---            DESTROYA HUB  •  PARTE 14 / 18
+--            DESTROYA HUB  •  PARTE 13 / 18
 --      LISTA DE JUGADORES (con + para mejores)
 --==================================================
 
 local refreshList
 do
-    createSection(ListPage, "Buscar jugador")
+    createSection(ListPage, "BUSCAR JUGADOR")
 
     local search = Instance.new("TextBox")
-    search.Size = UDim2.new(1, -4, 0, 40)
-    search.BackgroundTransparency = 0.04
+    search.Size = UDim2.new(1, -4, 0, 30)
+    search.BackgroundTransparency = 0.08
     search.PlaceholderText = "Escribe un nombre..."
     search.Text = ""
-    search.TextSize = 13
-    search.Font = F.bold
+    search.TextSize = 11
+    search.Font = Enum.Font.GothamBold
     search.ClearTextOnFocus = false
     search.LayoutOrder = nextOrder()
     search.Parent = ListPage
     bind(search, "BackgroundColor3", "Row")
     bind(search, "TextColor3", "White")
     bind(search, "PlaceholderColor3", "Gray")
-    corner(search, 13)
-    stroke(search, "Acc", 1.4, 0.4)
-
-    local sp = Instance.new("UIPadding")
-    sp.PaddingLeft = UDim.new(0, 14)
-    sp.Parent = search
+    corner(search, 8)
+    stroke(search, "Acc", 1, 0.5)
 
     UI.filter = ""
     search:GetPropertyChangedSignal("Text"):Connect(function()
@@ -2231,7 +2023,7 @@ do
         if UI.refreshLists then UI.refreshLists() end
     end)
 
-    createSection(ListPage, "Jugadores conectados")
+    createSection(ListPage, "JUGADORES CONECTADOS")
 
     local container = Instance.new("Frame")
     container.Size = UDim2.new(1, -4, 0, 0)
@@ -2240,7 +2032,7 @@ do
     container.LayoutOrder = nextOrder()
     container.Parent = ListPage
     local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 9)
+    layout.Padding = UDim.new(0, 5)
     layout.SortOrder = Enum.SortOrder.LayoutOrder
     layout.Parent = container
 
@@ -2257,70 +2049,62 @@ do
 
                 local btn = Instance.new("TextButton")
                 btn.LayoutOrder = n
-                btn.Size = UDim2.new(1, 0, 0, 46)
+                btn.Size = UDim2.new(1, 0, 0, 30)
                 btn.BackgroundColor3 = isTarget and C.RowOn or C.Row
-                btn.BackgroundTransparency = 0.04
+                btn.BackgroundTransparency = 0.08
                 btn.Text = ""
                 btn.AutoButtonColor = false
                 btn.Parent = container
-                corner(btn, 13)
-                squish(btn, 0.97)
+                corner(btn, 8)
+                squish(btn)
 
-                local sheen = Instance.new("UIGradient")
-                sheen.Rotation = 90
-                sheen.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(150, 158, 176))
-                sheen.Parent = btn
+                local bar = Instance.new("Frame")
+                bar.AnchorPoint = Vector2.new(0, 0.5)
+                bar.Position = UDim2.new(0, 0, 0.5, 0)
+                bar.Size = UDim2.fromOffset(3, isTarget and 18 or 0)
+                bar.BackgroundColor3 = C.Acc2
+                bar.BorderSizePixel = 0
+                bar.Parent = btn
+                corner(bar, 2)
 
-                local accent = Instance.new("Frame")
-                accent.AnchorPoint = Vector2.new(0, 0.5)
-                accent.Position = UDim2.fromScale(0, 0.5)
-                accent.Size = UDim2.fromOffset(4, isTarget and 28 or 0)
-                accent.BackgroundColor3 = C.Acc2
-                accent.BorderSizePixel = 0
-                accent.Parent = btn
-                corner(accent, 2)
-
-                plain(btn, "@" .. plr.Name, 15, F.head, C.White,
-                    UDim2.fromOffset(16, 0), UDim2.new(1, -70, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
+                plain(btn, "@" .. plr.Name, 12, Enum.Font.GothamBold, C.White,
+                    UDim2.fromOffset(11, 0), UDim2.new(1, -62, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
 
                 if isSel then
-                    plain(btn, "EN LISTA", 10, F.section, C.Acc2, UDim2.new(1, -118, 0, 0),
-                        UDim2.fromOffset(58, 46), Enum.TextXAlignment.Right)
+                    plain(btn, "LISTA", 9, Enum.Font.GothamBlack, C.Acc2, UDim2.new(1, -110, 0, 0),
+                        UDim2.fromOffset(44, 30), Enum.TextXAlignment.Right)
                 end
 
-                local plus = createMiniButton(btn, "plus", 32)
+                local plus = createMiniButton(btn, "plus", 22)
                 plus.AnchorPoint = Vector2.new(1, 0.5)
-                plus.Position = UDim2.new(1, -12, 0.5, 0)
+                plus.Position = UDim2.new(1, -6, 0.5, 0)
                 plus.BackgroundTransparency = isSel and 0.65 or 0
 
-                btn.Activated:Connect(safe(function()
-                    selectTarget(plr)
-                end, "lista"))
-
+                btn.Activated:Connect(safe(function() selectTarget(plr) end, "lista"))
                 plus.Activated:Connect(safe(function()
                     if selAdd(plr) then notify("@" .. plr.Name .. " en Mejores") else notify("Ya está en la lista") end
                 end, "agregar"))
             end
         end
         if n == 0 then
-            local e = plain(container, "No hay jugadores", 12, F.body, C.Gray,
-                nil, UDim2.new(1, 0, 0, 34), Enum.TextXAlignment.Center)
+            local e = plain(container, "No hay jugadores", 11, Enum.Font.Gotham, C.Gray,
+                nil, UDim2.new(1, 0, 0, 28), Enum.TextXAlignment.Center)
             e.LayoutOrder = 1
         end
     end
 end
 
-print("[DestroyaHub] parte 14 lista")
+print("[DestroyaHub] parte 13 lista")
 --==================================================
---            DESTROYA HUB  •  PARTE 15 / 18
+--            DESTROYA HUB  •  PARTE 14 / 18
 --          MEJORES USUARIOS Y EVENTOS
 --==================================================
 
 local refreshBest
 do
-    createSection(BestPage, "Mejores usuarios")
-    local hint = plain(BestPage, "Toca un nombre para Cam Lock al pecho. El + está en Lista.",
-        11, F.body, C.Gray, nil, UDim2.new(1, -4, 0, 26))
+    createSection(BestPage, "MEJORES USUARIOS")
+    local hint = plain(BestPage, "Toca un nombre para Cam Lock al pecho.", 10, Enum.Font.Gotham, C.Gray,
+        nil, UDim2.new(1, -4, 0, 20))
     hint.LayoutOrder = nextOrder()
 
     local bestContainer = Instance.new("Frame")
@@ -2330,7 +2114,7 @@ do
     bestContainer.LayoutOrder = nextOrder()
     bestContainer.Parent = BestPage
     local bl = Instance.new("UIListLayout")
-    bl.Padding = UDim.new(0, 11)
+    bl.Padding = UDim.new(0, 8)
     bl.SortOrder = Enum.SortOrder.LayoutOrder
     bl.Parent = bestContainer
 
@@ -2339,8 +2123,8 @@ do
             if c:IsA("GuiObject") then c:Destroy() end
         end
         if #Sel.list == 0 then
-            local e = plain(bestContainer, "Aún no hay usuarios en Mejores", 12, F.body, C.Gray,
-                nil, UDim2.new(1, 0, 0, 34), Enum.TextXAlignment.Center)
+            local e = plain(bestContainer, "Aún no hay usuarios en Mejores", 11, Enum.Font.Gotham, C.Gray,
+                nil, UDim2.new(1, 0, 0, 28), Enum.TextXAlignment.Center)
             e.LayoutOrder = 1
             return
         end
@@ -2350,61 +2134,55 @@ do
 
             local entry = Instance.new("Frame")
             entry.LayoutOrder = i
-            entry.Size = UDim2.new(1, 0, 0, 86)
+            entry.Size = UDim2.new(1, 0, 0, 68)
             entry.BackgroundTransparency = 1
             entry.Parent = bestContainer
 
             local nameBtn = Instance.new("TextButton")
-            nameBtn.Size = UDim2.new(1, -42, 0, 40)
+            nameBtn.Size = UDim2.new(1, -34, 0, 30)
             nameBtn.BackgroundColor3 = isTarget and C.RowOn or C.Row
-            nameBtn.BackgroundTransparency = 0.04
+            nameBtn.BackgroundTransparency = 0.08
             nameBtn.Text = ""
             nameBtn.AutoButtonColor = false
             nameBtn.Parent = entry
-            corner(nameBtn, 13)
-            squish(nameBtn, 0.97)
+            corner(nameBtn, 8)
+            squish(nameBtn)
 
-            local sheen = Instance.new("UIGradient")
-            sheen.Rotation = 90
-            sheen.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(150, 158, 176))
-            sheen.Parent = nameBtn
+            local bar = Instance.new("Frame")
+            bar.AnchorPoint = Vector2.new(0, 0.5)
+            bar.Position = UDim2.new(0, 0, 0.5, 0)
+            bar.Size = UDim2.fromOffset(3, isTarget and 18 or 0)
+            bar.BackgroundColor3 = C.Acc2
+            bar.BorderSizePixel = 0
+            bar.Parent = nameBtn
+            corner(bar, 2)
 
-            local accent = Instance.new("Frame")
-            accent.AnchorPoint = Vector2.new(0, 0.5)
-            accent.Position = UDim2.fromScale(0, 0.5)
-            accent.Size = UDim2.fromOffset(4, isTarget and 26 or 0)
-            accent.BackgroundColor3 = C.Acc2
-            accent.BorderSizePixel = 0
-            accent.Parent = nameBtn
-            corner(accent, 2)
-
-            plain(nameBtn, "@" .. plr.Name, 15, F.head, C.White,
-                UDim2.fromOffset(16, 0), UDim2.new(1, -110, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
+            plain(nameBtn, "@" .. plr.Name, 12, Enum.Font.GothamBold, C.White,
+                UDim2.fromOffset(11, 0), UDim2.new(1, -100, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
             if isTarget then
-                plain(nameBtn, "OBJETIVO", 10, F.section, C.Acc2, UDim2.new(1, -100, 0, 0),
-                    UDim2.fromOffset(88, 40), Enum.TextXAlignment.Right)
+                plain(nameBtn, "OBJETIVO", 9, Enum.Font.GothamBlack, C.Acc2, UDim2.new(1, -84, 0, 0),
+                    UDim2.fromOffset(74, 30), Enum.TextXAlignment.Right)
             end
             nameBtn.Activated:Connect(safe(function() selectTarget(plr) end, "mejor"))
 
-            local minus = createMiniButton(entry, "minus", 34)
+            local minus = createMiniButton(entry, "minus", 26)
             minus.AnchorPoint = Vector2.new(1, 0)
-            minus.Position = UDim2.new(1, -34, 0, 3)
+            minus.Position = UDim2.new(1, -26, 0, 2)
             minus.Activated:Connect(safe(function()
                 if selRemove(plr) then notify("@" .. plr.Name .. " quitado") end
             end, "quitar"))
 
             local tpBtn = Instance.new("TextButton")
-            tpBtn.Position = UDim2.fromOffset(0, 46)
-            tpBtn.Size = UDim2.new(1, 0, 0, 36)
-            tpBtn.BackgroundColor3 = tping and Color3.fromRGB(180, 28, 48) or C.Btn
-            tpBtn.BackgroundTransparency = 0.04
+            tpBtn.Position = UDim2.fromOffset(0, 34)
+            tpBtn.Size = UDim2.new(1, 0, 0, 28)
+            tpBtn.BackgroundColor3 = tping and Color3.fromRGB(180, 30, 55) or C.Row
+            tpBtn.BackgroundTransparency = 0.08
             tpBtn.Text = ""
             tpBtn.AutoButtonColor = false
             tpBtn.Parent = entry
-            corner(tpBtn, 13)
-            squish(tpBtn, 0.97)
-            if tping then stroke(tpBtn, "Acc2", 1.4, 0.2) end
-            plain(tpBtn, tping and "CANCELAR TP" or "TP AUTOMÁTICO", 14, F.head, C.White,
+            corner(tpBtn, 8)
+            squish(tpBtn)
+            plain(tpBtn, tping and "CANCELAR TP" or "TP AUTOMÁTICO", 11, Enum.Font.GothamBlack, C.White,
                 nil, UDim2.fromScale(1, 1), Enum.TextXAlignment.Center)
             tpBtn.Activated:Connect(safe(function() startTP(plr) end, "tp"))
         end
@@ -2428,7 +2206,7 @@ track(Players.PlayerRemoving:Connect(safe(function(plr)
     if TP.target == plr then stopTP("El jugador salió del juego") end
     if Sel.set[plr] then
         selRemove(plr)
-        notify("@" .. plr.Name .. " salió y se quitó de Mejores")
+        notify("@" .. plr.Name .. " salió")
     end
     if S.target == plr then
         setLockMode(nil)
@@ -2437,102 +2215,75 @@ track(Players.PlayerRemoving:Connect(safe(function(plr)
     task.delay(0.25, UI.refreshLists)
 end, "PlayerRemoving")))
 
-print("[DestroyaHub] parte 15 lista")
+print("[DestroyaHub] parte 14 lista")
 --==================================================
---            DESTROYA HUB  •  PARTE 16 / 18
+--            DESTROYA HUB  •  PARTE 15 / 18
 --              CONFIGURACIÓN
 --==================================================
 
 do
     local sLayout = SettingsPage:FindFirstChildOfClass("UIListLayout")
-    if sLayout then sLayout.Padding = UDim.new(0, 15) end
-    local sPad = SettingsPage:FindFirstChildOfClass("UIPadding")
-    if sPad then
-        sPad.PaddingTop = UDim.new(0, 14)
-        sPad.PaddingBottom = UDim.new(0, 30)
-    end
+    if sLayout then sLayout.Padding = UDim.new(0, 8) end
 
-    local function group(page, title, count, builder)
-        local h = count * 78 + 14
-        createCollapsible(page, title, h, function(body)
-            local lay = Instance.new("UIListLayout")
-            lay.Padding = UDim.new(0, 14)
-            lay.SortOrder = Enum.SortOrder.LayoutOrder
-            lay.Parent = body
-            local p = Instance.new("UIPadding")
-            p.PaddingLeft = UDim.new(0, 4)
-            p.PaddingRight = UDim.new(0, 4)
-            p.PaddingTop = UDim.new(0, 3)
-            p.Parent = body
-            builder(body)
+    createSection(SettingsPage, "ESTILO")
+
+    createSlider(SettingsPage, "Tamaño del menú", 0.6, 1.2, 1,
+        function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
+        function(v)
+            UI.size = v
+            if UI.open then MenuScale.Scale = v end
         end)
-    end
 
-    createSection(SettingsPage, "Estilo")
-
-    group(SettingsPage, "Apariencia", 2, function(body)
-        createSlider(body, "Tamaño del menú", 0.6, 1.2, 1,
-            function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
-            function(v)
-                UI.size = v
-                if UI.open then MenuScale.Scale = v end
-            end)
-
-        createSlider(body, "Transparencia", 0, 0.85, MENU_T,
-            function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
-            setMenuTransparency)
-    end)
+    createSlider(SettingsPage, "Transparencia", 0, 0.85, MENU_T,
+        function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
+        setMenuTransparency)
 
     createColorPicker(SettingsPage)
 
-    createSection(SettingsPage, "Botones + y -")
+    createSection(SettingsPage, "BOTONES + Y -")
 
     createSwatches(SettingsPage, "Color del botón +", {
-        { "Verde", Color3.fromRGB(60, 220, 120) }, { "Cian", Color3.fromRGB(0, 220, 255) },
+        { "Verde", Color3.fromRGB(60, 240, 140) }, { "Cian", Color3.fromRGB(0, 220, 255) },
         { "Amarillo", Color3.fromRGB(255, 210, 40) }, { "Rosa", Color3.fromRGB(255, 90, 170) },
-        { "Morado", Color3.fromRGB(160, 90, 255) }, { "Blanco", Color3.fromRGB(225, 232, 245) },
+        { "Morado", Color3.fromRGB(160, 90, 255) }, { "Blanco", Color3.fromRGB(225, 245, 255) },
     }, 1, "plus", function(col)
         C.Plus = col
         recolorMini("plus")
     end)
 
     createSwatches(SettingsPage, "Color del botón -", {
-        { "Rojo", Color3.fromRGB(255, 60, 80) }, { "Naranja", Color3.fromRGB(255, 140, 30) },
+        { "Rojo", Color3.fromRGB(255, 70, 100) }, { "Naranja", Color3.fromRGB(255, 140, 30) },
         { "Rosa", Color3.fromRGB(255, 90, 170) }, { "Morado", Color3.fromRGB(160, 90, 255) },
-        { "Gris", Color3.fromRGB(130, 140, 160) }, { "Blanco", Color3.fromRGB(225, 232, 245) },
+        { "Gris", Color3.fromRGB(130, 160, 180) }, { "Blanco", Color3.fromRGB(225, 245, 255) },
     }, 1, "minus", function(col)
         C.Minus = col
         recolorMini("minus")
     end)
 
-    createSection(SettingsPage, "Velocidades")
+    createSection(SettingsPage, "VELOCIDADES Y VISTA")
 
-    group(SettingsPage, "Movimiento", 3, function(body)
-        createSlider(body, "Velocidad de Fly", 20, 150, 60,
-            function(v) return tostring(math.floor(v + 0.5)) end,
-            function(v) S.flySpeed = v end)
+    createSlider(SettingsPage, "Velocidad de Fly", 20, 150, 60,
+        function(v) return tostring(math.floor(v + 0.5)) end,
+        function(v) S.flySpeed = v end)
 
-        createSlider(body, "Velocidad de caminar", 16, 200, 32,
-            function(v) return tostring(math.floor(v + 0.5)) end,
-            function(v) S.walkSpeed = v end)
+    createSlider(SettingsPage, "Velocidad de caminar", 16, 200, 32,
+        function(v) return tostring(math.floor(v + 0.5)) end,
+        function(v) S.walkSpeed = v end)
 
-        createSlider(body, "Velocidad del TP", 40, 400, 120,
-            function(v) return tostring(math.floor(v + 0.5)) end,
-            function(v) S.tpSpeed = v end)
-    end)
-
-    createSection(SettingsPage, "Vista")
+    createSlider(SettingsPage, "Velocidad del TP", 40, 400, 120,
+        function(v) return tostring(math.floor(v + 0.5)) end,
+        function(v) S.tpSpeed = v end)
 
     local cam0 = getCamera()
     local fov0 = math.clamp(cam0 and cam0.FieldOfView or 70, 40, 120)
-    createSlider(SettingsPage, "Campo de visión", 40, 120, fov0,
+    createSlider(SettingsPage, "Campo de visión (FOV)", 40, 120, fov0,
         function(v) return tostring(math.floor(v + 0.5)) end,
         function(v)
             local c = getCamera()
             if c then c.FieldOfView = v end
         end)
 
-    createSection(SettingsPage, "Opciones")
+    createSection(SettingsPage, "OPCIONES")
     local grid = createGrid(SettingsPage)
 
     createButton(grid, "FPS Boost", "Quita lag y detalles", function(v)
@@ -2545,6 +2296,12 @@ do
         notify(v and "Paredes transparentes" or "Paredes normales")
     end)
 
+    createButton(grid, "Efectos LED", "Borde animado", function(v)
+        UI.led = v
+        MainGrad.Enabled = v
+        MainStroke.Color = v and Color3.new(1, 1, 1) or C.Acc
+    end).Set(true, true)
+
     createButton(grid, "Animaciones", "Apágalas si hay lag", function(v)
         UI.anim = v
     end).Set(true, true)
@@ -2552,191 +2309,170 @@ end
 
 showPage("Funciones")
 
-print("[DestroyaHub] parte 16 lista")
+print("[DestroyaHub] parte 15 lista")
 --==================================================
---            DESTROYA HUB  •  PARTE 17 / 18
+--            DESTROYA HUB  •  PARTE 16 / 18
 --        BOTÓN DEL MENÚ Y BOTONES DE CORTE
 --==================================================
 
 local Toggle = Instance.new("TextButton")
 Toggle.Name = "MenuButton"
-Toggle.Size = UDim2.fromOffset(56, 56)
-Toggle.Position = UDim2.new(0, 16, 0.5, -28)
-Toggle.BackgroundColor3 = Color3.fromRGB(16, 12, 22)
-Toggle.BackgroundTransparency = 0.02
+Toggle.Size = UDim2.fromOffset(44, 44)
+Toggle.Position = UDim2.new(0, 16, 0.5, -22)
+Toggle.BackgroundTransparency = 0.12
 Toggle.Text = ""
 Toggle.AutoButtonColor = false
 Toggle.ZIndex = 10
 Toggle.Parent = Screen
-corner(Toggle, 18)
-squish(Toggle, 0.9)
-
-local tg = Instance.new("UIGradient")
-tg.Rotation = 90
-tg.Parent = Toggle
-onTheme(function()
-    tg.Color = ColorSequence.new(C.Acc:Lerp(C.Dark, 0.45), C.Dark)
-end)
+bind(Toggle, "BackgroundColor3", "Dark")
+corner(Toggle, 14)
+squish(Toggle)
 
 local ring = Instance.new("UIStroke")
-ring.Thickness = 2.2
+ring.Thickness = 2.5
 ring.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 ring.Parent = Toggle
-bind(ring, "Color", "Acc")
+local ringGrad = Instance.new("UIGradient")
+ringGrad.Parent = ring
+onTheme(function()
+    ringGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, C.Acc),
+        ColorSequenceKeypoint.new(0.5, C.Acc2),
+        ColorSequenceKeypoint.new(1, C.Acc),
+    })
+end)
 
-for i = -1, 1 do
-    local f = Instance.new("Frame")
-    f.AnchorPoint = Vector2.new(0.5, 0.5)
-    f.Position = UDim2.fromScale(0.5, 0.5 + i * 0.21)
-    f.Size = UDim2.fromOffset(24, 3)
-    f.BackgroundColor3 = WHITE
-    f.BorderSizePixel = 0
-    f.ZIndex = 11
-    f.Parent = Toggle
-    corner(f, 2)
-end
+local icon = Instance.new("TextLabel")
+icon.Size = UDim2.fromScale(1, 1)
+icon.BackgroundTransparency = 1
+icon.Text = "◈"
+icon.TextSize = 24
+icon.TextColor3 = Color3.new(1, 1, 1)
+icon.Font = Enum.Font.GothamBold
+icon.ZIndex = 11
+icon.Parent = Toggle
+
+local spinUntil = 0
 
 local function setOpen(v)
     if v == UI.open then return end
     UI.open = v
+    spinUntil = os.clock() + 0.6
+    icon.Rotation = 0
+    tween(icon, { Rotation = 360 }, 0.5, Enum.EasingStyle.Back)
     if v then
         Main.Position = HOME
-        MenuScale.Scale = UI.size * 0.85
+        MenuScale.Scale = UI.size * 0.8
         Main.Visible = true
-        tween(MenuScale, { Scale = UI.size }, 0.28, Enum.EasingStyle.Quad)
+        tween(MenuScale, { Scale = UI.size }, 0.3, Enum.EasingStyle.Back)
     else
-        tween(MenuScale, { Scale = UI.size * 0.85 }, 0.16)
-        task.delay(0.18, function()
+        tween(MenuScale, { Scale = UI.size * 0.8 }, 0.15)
+        task.delay(0.17, function()
             if not UI.open then Main.Visible = false end
         end)
     end
 end
 
-Toggle.Activated:Connect(function() setOpen(not UI.open) end)
-HideBtn.Activated:Connect(function() setOpen(false) end)
-
-local function pillButton(pos, label1, label2, tint1, tint2, lineColor)
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.fromOffset(140, 50)
-    b.Position = pos
-    b.BackgroundColor3 = Color3.new(1, 1, 1)
-    b.Text = ""
-    b.AutoButtonColor = false
-    b.Visible = false
-    b.ZIndex = 10
-    b.Parent = Screen
-    corner(b, 16)
-
-    local g = Instance.new("UIGradient")
-    g.Color = ColorSequence.new(tint1, tint2)
-    g.Rotation = 90
-    g.Parent = b
-
-    local sc = Instance.new("UIScale")
-    sc.Scale = 0
-    sc.Parent = b
-
-    local st = Instance.new("UIStroke")
-    st.Color = lineColor
-    st.Thickness = 2.2
-    st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    st.Parent = b
-
-    local box = Instance.new("Frame")
-    box.Position = UDim2.fromOffset(10, 13)
-    box.Size = UDim2.fromOffset(26, 26)
-    box.BackgroundColor3 = lineColor
-    box.BorderSizePixel = 0
-    box.ZIndex = 11
-    box.Parent = b
-    corner(box, 13)
-    for _, rot in ipairs({ 45, -45 }) do
-        local f = Instance.new("Frame")
-        f.AnchorPoint = Vector2.new(0.5, 0.5)
-        f.Position = UDim2.fromScale(0.5, 0.5)
-        f.Size = UDim2.fromOffset(13, 2.4)
-        f.Rotation = rot
-        f.BackgroundColor3 = WHITE
-        f.BorderSizePixel = 0
-        f.ZIndex = 12
-        f.Parent = box
-        corner(f, 1)
-    end
-
-    local l1 = plain(b, label1, 15, F.head, C.White, UDim2.fromOffset(46, 8), UDim2.fromOffset(88, 19))
-    l1.ZIndex = 11
-    local l2 = plain(b, label2, 10, F.section, Color3.fromRGB(232, 238, 248), UDim2.fromOffset(46, 28), UDim2.fromOffset(88, 14))
-    l2.ZIndex = 11
-    l2.TextTransparency = 0.15
-
-    b.InputBegan:Connect(function(i)
-        if isPointer(i) then tween(sc, { Scale = 0.92 }, 0.08) end
+local closing = false
+local function destroyHub()
+    if closing then return end
+    closing = true
+    UI.open = false
+    tween(MenuScale, { Scale = 0.6 }, 0.15)
+    tween(Main, { BackgroundTransparency = 1 }, 0.15)
+    task.delay(0.17, function()
+        if Screen.Parent then Screen:Destroy() end
     end)
-    b.InputEnded:Connect(function(i)
-        if isPointer(i) then tween(sc, { Scale = 1 }, 0.2, Enum.EasingStyle.Back) end
-    end)
-
-    return b, sc, st
 end
 
-local CamStop, StopScale, StopStroke = pillButton(UDim2.new(0, 16, 0.5, 38), "DESACTIVAR", "CAM LOCK",
-    Color3.fromRGB(130, 12, 30), Color3.fromRGB(34, 5, 12), RED)
+Toggle.Activated:Connect(function() setOpen(not UI.open) end)
+HideBtn.Activated:Connect(function() setOpen(false) end)
+DestroyBtn.Activated:Connect(destroyHub)
 
-local TpStop, TpScale, TpStroke = pillButton(UDim2.new(0, 16, 0.5, 94), "DESACTIVAR", "TP",
-    Color3.fromRGB(22, 64, 138), Color3.fromRGB(7, 14, 38), Color3.fromRGB(80, 160, 255))
+local CamStop = Instance.new("TextButton")
+CamStop.Size = UDim2.fromOffset(44, 22)
+CamStop.Position = UDim2.new(0, 16, 0.5, 30)
+CamStop.BackgroundColor3 = Color3.fromRGB(80, 8, 20)
+CamStop.BackgroundTransparency = 0.1
+CamStop.Text = "X LOCK"
+CamStop.TextColor3 = Color3.new(1, 1, 1)
+CamStop.TextSize = 9
+CamStop.Font = Enum.Font.GothamBlack
+CamStop.AutoButtonColor = false
+CamStop.Visible = false
+CamStop.ZIndex = 10
+CamStop.Parent = Screen
+corner(CamStop, 8)
 
-local camPulse, tpPulse
+local StopScale = Instance.new("UIScale")
+StopScale.Scale = 0
+StopScale.Parent = CamStop
+
+local StopStroke = Instance.new("UIStroke")
+StopStroke.Color = Color3.fromRGB(255, 60, 85)
+StopStroke.Thickness = 2
+StopStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+StopStroke.Parent = CamStop
 
 UI.showCamStop = function(v)
     if v then
         CamStop.Visible = true
-        tween(StopScale, { Scale = 1 }, 0.28, Enum.EasingStyle.Back)
-        if not camPulse then
-            camPulse = TweenService:Create(StopStroke,
-                TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-                { Transparency = 0.7 })
-            camPulse:Play()
-        end
+        tween(StopScale, { Scale = 1 }, 0.25, Enum.EasingStyle.Back)
     else
-        if camPulse then
-            camPulse:Cancel()
-            camPulse = nil
-            StopStroke.Transparency = 0
-        end
-        tween(StopScale, { Scale = 0 }, 0.16)
-        task.delay(0.2, function()
+        tween(StopScale, { Scale = 0 }, 0.15)
+        task.delay(0.17, function()
             if not S.lockMode then CamStop.Visible = false end
         end)
     end
 end
 
-UI.showTpStop = function(v)
-    if v then
-        TpStop.Visible = true
-        tween(TpScale, { Scale = 1 }, 0.28, Enum.EasingStyle.Back)
-        if not tpPulse then
-            tpPulse = TweenService:Create(TpStroke,
-                TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-                { Transparency = 0.7 })
-            tpPulse:Play()
-        end
-    else
-        if tpPulse then
-            tpPulse:Cancel()
-            tpPulse = nil
-            TpStroke.Transparency = 0
-        end
-        tween(TpScale, { Scale = 0 }, 0.16)
-        task.delay(0.2, function()
-            if not S.tpActive then TpStop.Visible = false end
-        end)
-    end
-end
-
+CamStop.InputBegan:Connect(function(i)
+    if isPointer(i) then tween(StopScale, { Scale = 0.88 }, 0.07) end
+end)
+CamStop.InputEnded:Connect(function(i)
+    if isPointer(i) then tween(StopScale, { Scale = 1 }, 0.14, Enum.EasingStyle.Back) end
+end)
 CamStop.Activated:Connect(safe(function()
     setLockMode(nil)
     notify("Cam Lock desactivado")
 end, "camstop"))
+
+local TpStop = Instance.new("TextButton")
+TpStop.Size = UDim2.fromOffset(44, 22)
+TpStop.Position = UDim2.new(0, 16, 0.5, 56)
+TpStop.BackgroundColor3 = Color3.fromRGB(10, 56, 84)
+TpStop.BackgroundTransparency = 0.1
+TpStop.Text = "X TP"
+TpStop.TextColor3 = Color3.new(1, 1, 1)
+TpStop.TextSize = 9
+TpStop.Font = Enum.Font.GothamBlack
+TpStop.AutoButtonColor = false
+TpStop.Visible = false
+TpStop.ZIndex = 10
+TpStop.Parent = Screen
+corner(TpStop, 8)
+
+local TpScale = Instance.new("UIScale")
+TpScale.Scale = 0
+TpScale.Parent = TpStop
+
+local TpStroke = Instance.new("UIStroke")
+TpStroke.Color = Color3.fromRGB(90, 200, 255)
+TpStroke.Thickness = 2
+TpStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+TpStroke.Parent = TpStop
+
+UI.showTpStop = function(v)
+    if v then
+        TpStop.Visible = true
+        tween(TpScale, { Scale = 1 }, 0.25, Enum.EasingStyle.Back)
+    else
+        tween(TpScale, { Scale = 0 }, 0.15)
+        task.delay(0.17, function()
+            if not S.tpActive then TpStop.Visible = false end
+        end)
+    end
+end
 
 local tpDragged = false
 TpStop.InputBegan:Connect(function(i)
@@ -2759,56 +2495,42 @@ TpStop.Activated:Connect(safe(function()
     stopTP("TP detenido, te quedas aquí")
 end, "tpstop"))
 
-print("[DestroyaHub] parte 17 lista")
+print("[DestroyaHub] parte 16 lista")
 --==================================================
---            DESTROYA HUB  •  PARTE 18 / 18
---     FPS NEÓN, FLY PAD, CIERRE Y LIMPIEZA
+--            DESTROYA HUB  •  PARTE 17 / 18
+--             FPS NEÓN Y FLY PAD
 --==================================================
 
 local FpsText = Instance.new("TextButton")
 FpsText.Name = "FpsText"
-FpsText.Size = UDim2.fromOffset(230, 62)
-FpsText.Position = UDim2.new(0.5, -115, 0, 6)
+FpsText.Size = UDim2.fromOffset(110, 30)
+FpsText.Position = UDim2.new(0.5, -55, 0, 4)
 FpsText.BackgroundTransparency = 1
 FpsText.AutoButtonColor = false
 FpsText.Text = "FPS --"
 FpsText.TextColor3 = Color3.new(1, 1, 1)
-FpsText.TextSize = 46
-FpsText.Font = F.head
+FpsText.TextSize = 20
+FpsText.Font = Enum.Font.GothamBold
 FpsText.ZIndex = 10
 FpsText.Parent = Screen
 
-local FpsGlow = Instance.new("UIStroke")
-FpsGlow.Thickness = 6
-FpsGlow.Transparency = 0.45
-FpsGlow.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
-FpsGlow.Parent = FpsText
-bind(FpsGlow, "Color", "Acc2")
-
-local FpsEdge = Instance.new("UIStroke")
-FpsEdge.Thickness = 2
-FpsEdge.Transparency = 0.15
-FpsEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
-FpsEdge.Parent = FpsText
+local FpsStroke = Instance.new("UIStroke")
+FpsStroke.Color = Color3.new(0, 0, 0)
+FpsStroke.Thickness = 2
+FpsStroke.Transparency = 0.05
+FpsStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+FpsStroke.Parent = FpsText
 
 local FpsGrad = Instance.new("UIGradient")
 FpsGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 30, 90)),
-    ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 170, 0)),
-    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(60, 255, 120)),
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 60)),
+    ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 200, 0)),
+    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(0, 255, 90)),
     ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0, 230, 255)),
-    ColorSequenceKeypoint.new(0.8, Color3.fromRGB(150, 80, 255)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 30, 90)),
+    ColorSequenceKeypoint.new(0.8, Color3.fromRGB(120, 60, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 200)),
 })
 FpsGrad.Parent = FpsText
-TweenService:Create(FpsGrad, TweenInfo.new(0.9, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
-    { Offset = Vector2.new(1, 0) }):Play()
-
-local edgeGrad = Instance.new("UIGradient")
-edgeGrad.Color = FpsGrad.Color
-edgeGrad.Parent = FpsEdge
-TweenService:Create(edgeGrad, TweenInfo.new(0.9, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
-    { Offset = Vector2.new(1, 0) }):Play()
 
 FpsText.InputBegan:Connect(function(input)
     if isPointer(input) then
@@ -2825,40 +2547,39 @@ UI.padItems = {}
 local heldInputs = {}
 
 do
-    local PAD_BG = Color3.fromRGB(14, 8, 18)
-    local PAD_ON = Color3.fromRGB(80, 22, 48)
+    local PAD_BG = Color3.fromRGB(7, 20, 32)
+    local PAD_ON = Color3.fromRGB(22, 74, 104)
 
     local pad = Instance.new("Frame")
     pad.Name = "FlyPad"
-    pad.Size = UDim2.fromOffset(70, 176)
-    pad.Position = UDim2.new(1, -100, 0.5, -88)
+    pad.Size = UDim2.fromOffset(54, 138)
+    pad.Position = UDim2.new(1, -76, 0.5, -69)
     pad.BackgroundTransparency = 1
     pad.Visible = false
     pad.ZIndex = 10
     pad.Parent = Screen
     UI.flyPad = pad
 
-    local function addItem(strokeObj, parts)
-        UI.padItems[#UI.padItems + 1] = { stroke = strokeObj, parts = parts or {} }
+    local function styleItem(btn, thickness)
+        local s = Instance.new("UIStroke")
+        s.Thickness = thickness
+        s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        s.Parent = btn
+        UI.padItems[#UI.padItems + 1] = { btn = btn, stroke = s }
     end
 
     local handle = Instance.new("TextButton")
-    handle.Size = UDim2.fromOffset(70, 26)
+    handle.Size = UDim2.fromOffset(54, 16)
     handle.BackgroundColor3 = PAD_BG
-    handle.BackgroundTransparency = 0.08
+    handle.BackgroundTransparency = 0.15
     handle.AutoButtonColor = false
     handle.Text = "FLY"
-    handle.TextSize = 15
-    handle.Font = F.head
-    handle.TextColor3 = WHITE
+    handle.TextSize = 9
+    handle.Font = Enum.Font.GothamBlack
     handle.ZIndex = 10
     handle.Parent = pad
-    corner(handle, 13)
-    local hs = Instance.new("UIStroke")
-    hs.Thickness = 1.8
-    hs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    hs.Parent = handle
-    addItem(hs)
+    corner(handle, 8)
+    styleItem(handle, 1.4)
 
     handle.InputBegan:Connect(function(input)
         if isPointer(input) then
@@ -2872,33 +2593,20 @@ do
     end)
 
     local padBtns = {}
-    local function makePadButton(key, y, pointUp)
+    local function makePadButton(text, y, key)
         local b = Instance.new("TextButton")
-        b.Size = UDim2.fromOffset(70, 70)
+        b.Size = UDim2.fromOffset(54, 54)
         b.Position = UDim2.fromOffset(0, y)
         b.BackgroundColor3 = PAD_BG
-        b.BackgroundTransparency = 0.1
+        b.BackgroundTransparency = 0.2
         b.AutoButtonColor = false
-        b.Text = ""
+        b.Text = text
+        b.TextSize = 20
+        b.Font = Enum.Font.GothamBlack
         b.ZIndex = 10
         b.Parent = pad
-        corner(b, 20)
-
-        local s = Instance.new("UIStroke")
-        s.Thickness = 2.8
-        s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-        s.Parent = b
-
-        local sc = Instance.new("UIScale")
-        sc.Parent = b
-
-        local chev, parts = drawChevron(b, WHITE, 2.6)
-        chev.Position = UDim2.fromScale(0.5, 0.5)
-        chev.Rotation = pointUp and 180 or 0
-        chev.ZIndex = 11
-        for _, p in ipairs(parts) do p.ZIndex = 11 end
-
-        addItem(s, parts)
+        corner(b, 14)
+        styleItem(b, 2)
         padBtns[key] = b
 
         b.InputBegan:Connect(function(input)
@@ -2906,39 +2614,40 @@ do
                 flyInput[key] = true
                 heldInputs[key] = input
                 b.BackgroundColor3 = PAD_ON
-                tween(sc, { Scale = 0.9 }, 0.08)
             end
         end)
     end
-    makePadButton("up", 30, true)
-    makePadButton("down", 104, false)
-
-    local function releaseKey(key)
-        heldInputs[key] = nil
-        flyInput[key] = false
-        local b = padBtns[key]
-        if b then
-            b.BackgroundColor3 = PAD_BG
-            local sc = b:FindFirstChildOfClass("UIScale")
-            if sc then tween(sc, { Scale = 1 }, 0.2, Enum.EasingStyle.Back) end
-        end
-    end
+    makePadButton("▲", 20, "up")
+    makePadButton("▼", 80, "down")
 
     UI.resetFlyInput = function()
-        for key in pairs(flyInput) do releaseKey(key) end
+        for key in pairs(flyInput) do
+            flyInput[key] = false
+            heldInputs[key] = nil
+            if padBtns[key] then padBtns[key].BackgroundColor3 = PAD_BG end
+        end
     end
 
     track(UserInputService.InputEnded:Connect(function(input)
         for key, held in pairs(heldInputs) do
             if held == input or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                releaseKey(key)
+                heldInputs[key] = nil
+                flyInput[key] = false
+                if padBtns[key] then padBtns[key].BackgroundColor3 = PAD_BG end
             end
         end
     end))
 end
 
+print("[DestroyaHub] parte 17 lista")
+--==================================================
+--            DESTROYA HUB  •  PARTE 18 / 18
+--        BUCLE CENTRAL, CIERRE Y LIMPIEZA
+--==================================================
+
 do
     local clock, acc, frames, fpsAcc = 0, 0, 0, 0
+
     track(RunService.Heartbeat:Connect(function(dt)
         frames += 1
         fpsAcc += dt
@@ -2952,53 +2661,41 @@ do
         clock += acc
         acc = 0
 
-        if UI.flyPad and UI.flyPad.Visible then
+        FpsGrad.Offset = Vector2.new(math.sin(clock * 1.8) * 0.5, 0)
+
+        if CamStop.Visible then
+            StopStroke.Transparency = 0.35 + 0.3 * math.sin(clock * 5)
+        end
+        if TpStop.Visible then
+            TpStroke.Transparency = 0.35 + 0.3 * math.sin(clock * 5)
+        end
+
+        if UI.flyPad.Visible then
             for i, it in ipairs(UI.padItems) do
-                local c = UI.anim and Color3.fromHSV((clock * 0.4 + i * 0.17) % 1, 1, 1) or RED
+                local c = Color3.fromHSV((clock * 0.4 + i * 0.17) % 1, 1, 1)
                 it.stroke.Color = c
-                for _, p in ipairs(it.parts) do p.BackgroundColor3 = c end
+                it.btn.TextColor3 = c
             end
+        end
+
+        if not UI.anim or S.boost then return end
+
+        ringGrad.Rotation = (clock * 80) % 360
+        if os.clock() > spinUntil then
+            icon.Rotation = math.sin(clock * 2.2) * 8
+        end
+
+        if not UI.open then return end
+        TitleGrad.Offset = Vector2.new(math.sin(clock * 1.4) * 0.5, 0)
+        if UI.led then
+            MainGrad.Rotation = (clock * 50) % 360
         end
     end))
 end
 
-local closing = false
-local function destroyHub()
-    if closing then return end
-    closing = true
-    UI.open = false
-    pcall(function()
-        tween(MenuScale, { Scale = 0.5 }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In)
-        tween(Main, { BackgroundTransparency = 1 }, 0.2)
-    end)
-    task.delay(0.22, function()
-        if Screen.Parent then Screen:Destroy() end
-    end)
-end
-
-do
-    local confirmUntil = 0
-    DestroyBtn.Activated:Connect(safe(function()
-        local now = os.clock()
-        if now < confirmUntil then
-            destroyHub()
-            return
-        end
-        confirmUntil = now + 2.5
-        notify("Toca la X otra vez para destruir todo")
-        tween(DestroyBtn, { BackgroundColor3 = Color3.fromRGB(255, 30, 55) }, 0.15)
-        task.delay(2.5, function()
-            if DestroyBtn.Parent then
-                tween(DestroyBtn, { BackgroundColor3 = Color3.fromRGB(140, 16, 34) }, 0.3)
-            end
-        end)
-    end, "destruir"))
-end
-
 Screen.Destroying:Connect(function()
-    S.esp, S.fly, S.infJump = false, false, false
-    S.lockMode, S.target = nil, nil
-    S.noclip, S.tpActive, S.walls = false, false, false
+    S.camLock, S.fly, S.esp, S.infJump = false, false, false, false
+    S.lockMode, S.target, S.tpActive, S.walls = nil, nil, false, false
     pcall(releaseCamera)
     pcall(stopTP)
     pcall(setWalkEnabled, false)
@@ -3015,5 +2712,5 @@ Screen.Destroying:Connect(function()
     pcall(function() RunService:UnbindFromRenderStep("DestroyaCam") end)
 end)
 
-notify("Destroya Hub v6.2 cargado")
-print("DESTROYA HUB v6.2 CARGADO")
+notify("Destroya Hub v6.3 cargado")
+print("DESTROYA HUB v6.3 CARGADO")
