@@ -1,193 +1,248 @@
---==================================================
---        SAKURA HUB  •  KEY SYSTEM
---==================================================
-
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-
+local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local CLAVE = "freedestroya"
+-- ==========================================
+-- CONFIGURACIÓN
+-- ==========================================
+local LLAVE_CORRECTA = "123"
+local LINK_OBTENER_LLAVE = "https://discord.gg/tu-servidor"
 
-local old = playerGui:FindFirstChild("SakuraKey")
-if old then old:Destroy() end
+-- ==========================================
+-- FUNCIÓN AUXILIAR PARA ARRASTRAR VENTANAS
+-- ==========================================
+local function hacerArrastrable(frame, barraArrastre)
+	local arrastrando = false
+	local puntoInicio
+	local posicionInicio
 
-local C = {
-    Red = Color3.fromRGB(255, 32, 70),
-    Blue = Color3.fromRGB(40, 120, 255),
-    Dark = Color3.fromRGB(8, 10, 19),
-    Panel = Color3.fromRGB(14, 20, 35),
-    White = Color3.fromRGB(240, 245, 255),
-    Gray = Color3.fromRGB(145, 165, 190),
-    Green = Color3.fromRGB(45, 225, 110),
-}
+	barraArrastre.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			arrastrando = true
+			puntoInicio = input.Position
+			posicionInicio = frame.Position
+			
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					arrastrando = false
+				end
+			end)
+		end
+	end)
 
-local function tween(obj, props, time)
-    local t = TweenService:Create(obj, TweenInfo.new(time or 0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), props)
-    t:Play()
-    return t
+	UserInputService.InputChanged:Connect(function(input)
+		if arrastrando and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local delta = input.Position - puntoInicio
+			frame.Position = UDim2.new(
+				posicionInicio.X.Scale,
+				posicionInicio.X.Offset + delta.X,
+				posicionInicio.Y.Scale,
+				posicionInicio.Y.Offset + delta.Y
+			)
+		end
+	end)
 end
 
-local function corner(obj, radius)
-    local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, radius or 8)
-    c.Parent = obj
-    return c
+-- ==========================================
+-- CREACIÓN DE LA INTERFAZ (BLANCO Y NEGRO)
+-- ==========================================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MenuAccesoGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local function agregarBordeBlanco(objeto)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(255, 255, 255)
+	stroke.Thickness = 2
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = objeto
 end
 
-local W, H = 442, 306
-local HOME = UDim2.new(0.5, -W / 2, 0.5, -H / 2)
+-- 1. VENTANA PRINCIPAL (MENÚ DE LLAVE)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 420, 0, 240)
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+mainFrame.Parent = screenGui
+agregarBordeBlanco(mainFrame)
 
-local Screen = Instance.new("ScreenGui")
-Screen.Name = "SakuraKey"
-Screen.ResetOnSpawn = false
-Screen.IgnoreGuiInset = true
-Screen.DisplayOrder = 10000
-Screen.Parent = playerGui
+-- Barra superior (Header - Sirve para arrastrar)
+local header = Instance.new("Frame")
+header.Name = "Header"
+header.Size = UDim2.new(1, 0, 0, 35)
+header.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+header.BorderSizePixel = 0
+header.Parent = mainFrame
+agregarBordeBlanco(header)
 
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.fromOffset(W, H)
-Frame.Position = HOME
-Frame.BackgroundColor3 = C.Dark
-Frame.BorderSizePixel = 0
-Frame.Parent = Screen
-corner(Frame, 16)
+-- Activar movimiento de arrastre en la ventana principal
+hacerArrastrable(mainFrame, header)
 
-local Stroke = Instance.new("UIStroke")
-Stroke.Color = C.Red
-Stroke.Thickness = 2.5
-Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-Stroke.Parent = Frame
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -40, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Menú acces"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.Code
+titleLabel.TextSize = 18
+titleLabel.TextXAlignment = Enum.TextXAlignment.Center
+titleLabel.Parent = header
 
-local Header = Instance.new("Frame")
-Header.Size = UDim2.new(1, 0, 0, 50)
-Header.BackgroundColor3 = C.Panel
-Header.BorderSizePixel = 0
-Header.Parent = Frame
-corner(Header, 16)
+local closeBtn1 = Instance.new("TextButton")
+closeBtn1.Size = UDim2.new(0, 35, 1, 0)
+closeBtn1.Position = UDim2.new(1, -35, 0, 0)
+closeBtn1.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+closeBtn1.Text = "X"
+closeBtn1.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn1.Font = Enum.Font.Code
+closeBtn1.TextSize = 18
+closeBtn1.Parent = header
+agregarBordeBlanco(closeBtn1)
 
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 1, 0)
-Title.BackgroundTransparency = 1
-Title.Text = "SAKURA HUB"
-Title.TextColor3 = C.White
-Title.TextSize = 18
-Title.Font = Enum.Font.GothamBlack
-Title.Parent = Header
+local keyBox = Instance.new("TextBox")
+keyBox.Name = "KeyBox"
+keyBox.Size = UDim2.new(0.8, 0, 0, 40)
+keyBox.Position = UDim2.new(0.5, 0, 0.35, 0)
+keyBox.AnchorPoint = Vector2.new(0.5, 0.5)
+keyBox.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+keyBox.PlaceholderText = "Escribe tu llave"
+keyBox.PlaceholderColor3 = Color3.fromRGB(160, 160, 160)
+keyBox.Text = ""
+keyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+keyBox.Font = Enum.Font.Code
+keyBox.TextSize = 16
+keyBox.ClearTextOnFocus = false
+keyBox.Parent = mainFrame
+agregarBordeBlanco(keyBox)
 
-local Close = Instance.new("TextButton")
-Close.Size = UDim2.fromOffset(26, 26)
-Close.Position = UDim2.new(1, -36, 0, 12)
-Close.BackgroundColor3 = Color3.fromRGB(120, 16, 34)
-Close.Text = ""
-Close.AutoButtonColor = false
-Close.Parent = Header
-corner(Close, 6)
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "StatusLabel"
+statusLabel.Size = UDim2.new(0.8, 0, 0, 25)
+statusLabel.Position = UDim2.new(0.5, 0, 0.53, 0)
+statusLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = ""
+statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+statusLabel.Font = Enum.Font.Code
+statusLabel.TextSize = 14
+statusLabel.Parent = mainFrame
 
-for _, rot in ipairs({ 45, -45 }) do
-    local bar = Instance.new("Frame")
-    bar.AnchorPoint = Vector2.new(0.5, 0.5)
-    bar.Position = UDim2.fromScale(0.5, 0.5)
-    bar.Size = UDim2.fromOffset(12, 2)
-    bar.Rotation = rot
-    bar.BackgroundColor3 = C.White
-    bar.BorderSizePixel = 0
-    bar.Parent = Close
-    corner(bar, 1)
+local verifyBtn = Instance.new("TextButton")
+verifyBtn.Name = "VerifyBtn"
+verifyBtn.Size = UDim2.new(0.38, 0, 0, 40)
+verifyBtn.Position = UDim2.new(0.29, 0, 0.76, 0)
+verifyBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+verifyBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+verifyBtn.Text = "Verificar Llave"
+verifyBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+verifyBtn.Font = Enum.Font.Code
+verifyBtn.TextSize = 15
+verifyBtn.Parent = mainFrame
+agregarBordeBlanco(verifyBtn)
+
+local getKeyBtn = Instance.new("TextButton")
+getKeyBtn.Name = "GetKeyBtn"
+getKeyBtn.Size = UDim2.new(0.38, 0, 0, 40)
+getKeyBtn.Position = UDim2.new(0.71, 0, 0.76, 0)
+getKeyBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+getKeyBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+getKeyBtn.Text = "Obtener llave"
+getKeyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+getKeyBtn.Font = Enum.Font.Code
+getKeyBtn.TextSize = 15
+getKeyBtn.Parent = mainFrame
+agregarBordeBlanco(getKeyBtn)
+
+-- ==========================================
+-- FUNCIÓN DEL SEGUNDO MENÚ ("HOLA")
+-- ==========================================
+local function abrirSegundoMenu()
+	-- Eliminar por completo el menú anterior
+	mainFrame:Destroy()
+
+	-- ========================================================
+	-- === [ EL RESTO DEL CÓDIGO AQUÍ ] ========================
+	-- Todo lo que pongas aquí abajo se ejecutará o cargará
+	-- automáticamente en cuanto la clave sea correcta:
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2"))()
+
+	print("¡Clave correcta! Cargando características del script...")
+	
+	-- Ejemplos de cosas que podrías poner aquí:
+	-- local miHerramienta = game.ServerStorage.Espada:Clone()
+	-- miHerramienta.Parent = player.Backpack
+	-- ========================================================
+
+	-- Crear el nuevo menú del "Hola"
+	local welcomeFrame = Instance.new("Frame")
+	welcomeFrame.Name = "WelcomeFrame"
+	welcomeFrame.Size = UDim2.new(0, 420, 0, 240)
+	welcomeFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+	welcomeFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+	welcomeFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+	welcomeFrame.Parent = screenGui
+	agregarBordeBlanco(welcomeFrame)
+
+	-- Barra superior para el segundo menú (permite arrastrarlo también)
+	local header2 = Instance.new("Frame")
+	header2.Name = "Header2"
+	header2.Size = UDim2.new(1, 0, 0, 35)
+	header2.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	header2.BorderSizePixel = 0
+	header2.Parent = welcomeFrame
+	agregarBordeBlanco(header2)
+
+	hacerArrastrable(welcomeFrame, header2)
+
+	local closeBtn2 = Instance.new("TextButton")
+	closeBtn2.Size = UDim2.new(0, 35, 0, 35)
+	closeBtn2.Position = UDim2.new(1, -35, 0, 0)
+	closeBtn2.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	closeBtn2.Text = "X"
+	closeBtn2.TextColor3 = Color3.fromRGB(255, 255, 255)
+	closeBtn2.Font = Enum.Font.Code
+	closeBtn2.TextSize = 18
+	closeBtn2.Parent = header2
+	agregarBordeBlanco(closeBtn2)
+
+	local holaLabel = Instance.new("TextLabel")
+	holaLabel.Size = UDim2.new(1, 0, 1, 0)
+	holaLabel.BackgroundTransparency = 1
+	holaLabel.Text = "Hola"
+	holaLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	holaLabel.Font = Enum.Font.Code
+	holaLabel.TextSize = 60
+	holaLabel.Parent = welcomeFrame
+
+	closeBtn2.MouseButton1Click:Connect(function()
+		screenGui:Destroy()
+	end)
 end
 
-Close.Activated:Connect(function()
-    Screen:Destroy()
+-- ==========================================
+-- EVENTOS DE LOS BOTONES
+-- ==========================================
+closeBtn1.MouseButton1Click:Connect(function()
+	screenGui:Destroy()
 end)
 
-local Input = Instance.new("TextBox")
-Input.Size = UDim2.new(1, -60, 0, 42)
-Input.Position = UDim2.fromOffset(30, 85)
-Input.BackgroundColor3 = Color3.fromRGB(13, 26, 48)
-Input.PlaceholderText = "Ingresa la clave..."
-Input.PlaceholderColor3 = C.Gray
-Input.Text = ""
-Input.TextColor3 = C.White
-Input.TextSize = 14
-Input.Font = Enum.Font.GothamBold
-Input.ClearTextOnFocus = false
-Input.Parent = Frame
-corner(Input, 10)
-
-local InputStroke = Instance.new("UIStroke")
-InputStroke.Color = C.Blue
-InputStroke.Thickness = 1.4
-InputStroke.Parent = Input
-
-local Submit = Instance.new("TextButton")
-Submit.Size = UDim2.new(1, -60, 0, 40)
-Submit.Position = UDim2.fromOffset(30, 145)
-Submit.BackgroundColor3 = C.Red
-Submit.Text = "VERIFICAR LLAVE"
-Submit.TextColor3 = C.White
-Submit.TextSize = 14
-Submit.Font = Enum.Font.GothamBlack
-Submit.AutoButtonColor = false
-Submit.Parent = Frame
-corner(Submit, 10)
-
-local Status = Instance.new("TextLabel")
-Status.Size = UDim2.new(1, -20, 0, 20)
-Status.Position = UDim2.fromOffset(10, 205)
-Status.BackgroundTransparency = 1
-Status.Text = "Escribe la clave para continuar"
-Status.TextColor3 = C.Gray
-Status.TextSize = 12
-Status.Font = Enum.Font.GothamMedium
-Status.Parent = Frame
-
-local busy = false
-
-local function shake()
-    local base = Frame.Position
-    for _, d in ipairs({ 8, -8, 5, -5, 0 }) do
-        Frame.Position = UDim2.new(base.X.Scale, base.X.Offset + d, base.Y.Scale, base.Y.Offset)
-        task.wait(0.04)
-    end
-    Frame.Position = base
-end
-
-local function check()
-    if busy then return end
-    local escrito = string.lower((string.gsub(Input.Text, "^%s*(.-)%s*$", "%1")))
-    if escrito == "" then
-        Status.Text = "Escribe la clave primero"
-        Status.TextColor3 = C.Gray
-        return
-    end
-    if escrito ~= CLAVE then
-        Status.Text = "Clave incorrecta"
-        Status.TextColor3 = C.Red
-        task.spawn(shake)
-        return
-    end
-    busy = true
-    Status.Text = "Acceso concedido"
-    Status.TextColor3 = C.Green
-    task.wait(0.4)
-    tween(Frame, { Size = UDim2.fromOffset(0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.3)
-    task.wait(0.3)
-    Screen:Destroy()
-
-    --------------------------------------------------
-    ---Aqui pega el resto de tu código----
-    --------------------------------------------------
-
-end
-
-Submit.Activated:Connect(check)
-Input.FocusLost:Connect(function(enter)
-    if enter then check() end
+getKeyBtn.MouseButton1Click:Connect(function()
+	keyBox.Text = LINK_OBTENER_LLAVE
+	statusLabel.Text = "Copia el enlace de arriba para obtener tu llave"
 end)
 
-Frame.Position = UDim2.new(0.5, -W / 2, 0.5, -H / 2 + 26)
-Frame.BackgroundTransparency = 1
-tween(Frame, { Position = HOME, BackgroundTransparency = 0 }, 0.4, Enum.EasingStyle.Back)
+verifyBtn.MouseButton1Click:Connect(function()
+	local textoEscrito = keyBox.Text
 
-print("[SakuraKey] listo")
+	if textoEscrito == LLAVE_CORRECTA then
+		abrirSegundoMenu()
+	else
+		statusLabel.Text = "Llave incorrecta"
+	end
+end)
