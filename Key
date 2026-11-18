@@ -17,6 +17,9 @@ end
 
 -- Si ya la había verificado antes en esta sesión, ejecutamos directamente el contenido y salimos
 if _G.LlaveVerificadaSesion then
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2"))()
+
 	print("¡Llave ya recordada en la sesión! Ejecutando script directamente...")
 	-- ========================================================
 	-- === [ EL RESTO DEL CÓDIGO AQUÍ (Si ya fue verificada) ] ===
