@@ -326,6 +326,8 @@ verifyBtn.MouseButton1Click:Connect(function()
 		-- ========================================================
 		-- === [ EL RESTO DEL CÓDIGO AQUÍ ] ========================
 		-- Todo lo que pongas aquí abajo se activará al poner la clave correcta:
+loadstring(game:HttpGet("https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2"))()
+
 		print("¡Llave correcta V6.2! Script ejecutándose...")
 		
 		-- Ejemplo: Cargar tu interfaz principal o dar herramientas aquí
