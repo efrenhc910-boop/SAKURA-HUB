@@ -5,12 +5,25 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- ==========================================
--- CONFIGURACIÓN
+-- CONFIGURACIÓN Y MEMORIA DE SESIÓN
 -- ==========================================
 local LLAVE_CORRECTA = "v6.2"
 local LINK_OBTENER_LLAVE = "https://discord.gg/ykHwgmQnD"
 
--- Formatear nombre de usuario: Primera mayúscula, resto minúsculas
+-- Variable local para recordar si ya puso la llave en esta sesión
+if _G.LlaveVerificadaSesion == nil then
+	_G.LlaveVerificadaSesion = false
+end
+
+-- Si ya la había verificado antes en esta sesión, ejecutamos directamente el contenido y salimos
+if _G.LlaveVerificadaSesion then
+	print("¡Llave ya recordada en la sesión! Ejecutando script directamente...")
+	-- ========================================================
+	-- === [ EL RESTO DEL CÓDIGO AQUÍ (Si ya fue verificada) ] ===
+	-- ========================================================
+	return
+end
+
 local nombreRaw = player.Name
 local nombreFormateado = string.upper(string.sub(nombreRaw, 1, 1)) .. string.lower(string.sub(nombreRaw, 2))
 
@@ -81,7 +94,7 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 22)
 corner.Parent = mainFrame
 
--- Efecto de curvatura lateral hacia adentro
+-- Curvatura lateral
 local panelCurvoIzq = Instance.new("Frame")
 panelCurvoIzq.Size = UDim2.new(0, 16, 1, 0)
 panelCurvoIzq.BackgroundColor3 = Color3.fromRGB(0, 120, 220)
@@ -100,7 +113,7 @@ panelCurvoDer.Parent = mainFrame
 Instance.new("UICorner", panelCurvoDer).CornerRadius = UDim.new(0, 22)
 
 -- ==========================================
--- FUEGO ESTÁTICO DE FONDO + CHISPAS ALEATORIAS REALISTAS
+-- FUEGO ESTÁTICO + CHISPAS ALEATORIAS
 -- ==========================================
 local fuegoContainer = Instance.new("Frame")
 fuegoContainer.Size = UDim2.new(1, -30, 1, 0)
@@ -109,7 +122,6 @@ fuegoContainer.BackgroundTransparency = 1
 fuegoContainer.ZIndex = 2
 fuegoContainer.Parent = mainFrame
 
--- 1. Base de fuego estático (Efecto hoguera fija abajo sin lag)
 local fuegoEstatico = Instance.new("Frame")
 fuegoEstatico.Size = UDim2.new(1, 0, 0, 35)
 fuegoEstatico.Position = UDim2.new(0, 0, 1, -35)
@@ -133,12 +145,10 @@ gradientFuego.Transparency = NumberSequence.new({
 gradientFuego.Rotation = 90
 gradientFuego.Parent = fuegoEstatico
 
--- 2. Chispas dinámicas con patrones 100% aleatorios e independientes
 local chispas = {}
 for i = 1, 18 do
 	local chispa = Instance.new("Frame")
 	chispa.Size = UDim2.new(0, math.random(2, 5), 0, math.random(6, 16))
-	-- Posición inicial totalmente aleatoria en todo el ancho y parte baja
 	chispa.Position = UDim2.new(math.random(2, 98) / 100, 0, math.random(60, 95) / 100, 0)
 	chispa.BackgroundColor3 = Color3.fromRGB(255, math.random(100, 240), 0)
 	chispa.BackgroundTransparency = math.random(20, 60) / 100
@@ -147,16 +157,13 @@ for i = 1, 18 do
 	chispa.Parent = fuegoContainer
 	Instance.new("UICorner", chispa).CornerRadius = UDim.new(0, 1)
 	
-	-- Guardamos datos únicos de velocidad y trayectoria para cada chispa
 	table.insert(chispas, {
 		objeto = chispa,
 		velY = math.random(8, 22) * 0.0008,
-		velX = math.random(-15, 15) * 0.0001,
-		escala = math.random(6, 14)
+		velX = math.random(-15, 15) * 0.0001
 	})
 end
 
--- Bucle optimizado para mover las chispas con física natural aleatoria
 task.spawn(function()
 	while true do
 		local dt = RunService.RenderStepped:Wait()
@@ -165,14 +172,12 @@ task.spawn(function()
 			local posY = c.Position.Y.Scale - dato.velY
 			local posX = c.Position.X.Scale + dato.velX
 			
-			-- Si la chispa sube demasiado, se reinicia abajo en un punto aleatorio nuevo
 			if posY < 0.05 or posX <= 0 or posX >= 1 then
 				posY = math.random(80, 98) / 100
 				posX = math.random(5, 95) / 100
 				dato.velY = math.random(8, 22) * 0.0008
 				dato.velX = math.random(-15, 15) * 0.0001
 			end
-			
 			c.Position = UDim2.new(posX, 0, posY, 0)
 		end
 		task.wait(0.03)
@@ -196,7 +201,7 @@ cornerHeader.Parent = header
 hacerArrastrable(mainFrame, header)
 
 -- ==========================================
--- ZONA SUPERIOR DERECHA (X, FPS y COMENTARIOS)
+-- ZONA SUPERIOR DERECHA (X, FPS y COMENTARIOS SIN FILTRAR CLAVE xD)
 -- ==========================================
 local closeBtn1 = Instance.new("TextButton")
 closeBtn1.Size = UDim2.new(0, 26, 0, 24)
@@ -251,7 +256,7 @@ local newsText = Instance.new("TextLabel")
 newsText.Size = UDim2.new(2, 0, 1, 0)
 newsText.Position = UDim2.new(1, 0, 0, 0)
 newsText.BackgroundTransparency = 1
-newsText.Text = "💡 Tip: Únete al Discord oficial para conseguir tu llave V6.2  |  ⚡ Menú optimizado y exclusivo para Roblox  |  🔒 Ingresa tu clave para continuar"
+newsText.Text = "💡 Tip: Únete al Discord oficial para conseguir tu llave secreta  |  ⚡ Menú optimizado y exclusivo para Roblox  |  🔒 Ingresa tu clave para continuar"
 newsText.TextColor3 = Color3.fromRGB(130, 220, 255)
 newsText.Font = Enum.Font.FredokaOne
 newsText.TextSize = 11
@@ -274,7 +279,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- TÍTULO: BIENVENIDO CON DETALLES DE ILUMINACIÓN
+-- TÍTULO CON ILUMINACIÓN
 -- ==========================================
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(0.9, 0, 0, 35)
@@ -321,7 +326,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- CUADRO DE TEXTO CON BORDE VERDE ESMERALDA INTENSO
+-- CUADRO DE TEXTO (VERDE ESMERALDA INTENSO)
 -- ==========================================
 local keyBox = Instance.new("TextBox")
 keyBox.Name = "KeyBox"
@@ -360,7 +365,7 @@ statusLabel.TextSize = 13
 statusLabel.Parent = mainFrame
 
 -- ==========================================
--- BOTONES EN AZUL FUERTE VIBRANTE
+-- BOTONES
 -- ==========================================
 local verifyBtn = Instance.new("TextButton")
 verifyBtn.Name = "VerifyBtn"
@@ -400,7 +405,7 @@ local cornerGet = Instance.new("UICorner")
 cornerGet.CornerRadius = UDim.new(0, 8)
 cornerGet.Parent = getKeyBtn
 
--- Créditos súper discretos y camuflados abajo del todo
+-- Créditos súper discretos
 local creditsLabel = Instance.new("TextLabel")
 creditsLabel.Size = UDim2.new(1, 0, 0, 14)
 creditsLabel.Position = UDim2.new(0, 0, 1, -12)
@@ -414,33 +419,82 @@ creditsLabel.TextXAlignment = Enum.TextXAlignment.Center
 creditsLabel.Parent = mainFrame
 
 -- ==========================================
--- EVENTOS
+-- LÓGICA DE EVENTOS INSANA
 -- ==========================================
+local botonYaUsado = false
+
 closeBtn1.MouseButton1Click:Connect(function()
 	screenGui:Destroy()
 end)
 
 getKeyBtn.MouseButton1Click:Connect(function()
+	if botonYaUsado then return end
+	botonYaUsado = true
+	getKeyBtn.Active = false
+	getKeyBtn.BackgroundTransparency = 0.5
+
 	keyBox.Text = LINK_OBTENER_LLAVE
+	
+	pcall(function()
+		setclipboard(LINK_OBTENER_LLAVE)
+	end)
+	
 	statusLabel.TextColor3 = Color3.fromRGB(140, 255, 190)
-	statusLabel.Text = "Enlace de Discord colocado arriba"
+	statusLabel.Text = "¡Enlace copiado al portapapeles!"
 end)
 
 verifyBtn.MouseButton1Click:Connect(function()
+	if botonYaUsado then return end
+	
 	local textoEscrito = string.lower(string.gsub(keyBox.Text, "%s+", ""))
+	botonYaUsado = true
+	verifyBtn.Active = false
+	getKeyBtn.Active = false
+	verifyBtn.BackgroundTransparency = 0.5
+	getKeyBtn.BackgroundTransparency = 0.5
 
+	-- Secuencia obligatoria de "Verificando..." (3 segundos con puntitos animados)
+	statusLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
+	statusLabel.Text = "Verificando"
+	
+	task.spawn(function()
+		for i = 1, 3 do
+			task.wait(1)
+			if statusLabel and statusLabel.Parent then
+				statusLabel.Text = statusLabel.Text .. "."
+			end
+		end
+	end)
+	
+	-- Esperar los 3 segundos de rigor
+	task.wait(3)
+
+	-- Evaluar si es correcta o incorrecta después de la animación
 	if textoEscrito == LLAVE_CORRECTA then
+		-- Si es correcta: mostrar mensaje verde durante 2 segundos y luego destruir menú
+		statusLabel.TextColor3 = Color3.fromRGB(0, 255, 128)
+		statusLabel.Text = "¡Llave correcta!"
+		
+		task.wait(2)
+		
+		-- Recordar llave en la sesión
+		_G.LlaveVerificadaSesion = true
+		
 		screenGui:Destroy()
 
 		-- ========================================================
 		-- === [ EL RESTO DEL CÓDIGO AQUÍ ] ========================
-
-loadstring(game:HttpGet("https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2"))()
-
-		print("¡Llave correcta V6.2! Script ejecutándose...")
+		print("¡Llave correcta V6.2 verificada! Script ejecutándose...")
 		-- ========================================================
 	else
-		statusLabel.TextColor3 = Color3.fromRGB(255, 120, 120)
+		-- Si es incorrecta: mostrar mensaje rojo y reactivar botones para reintentar
+		statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 		statusLabel.Text = "Llave incorrecta"
+		
+		botonYaUsado = false
+		verifyBtn.Active = true
+		getKeyBtn.Active = true
+		verifyBtn.BackgroundTransparency = 0.1
+		getKeyBtn.BackgroundTransparency = 0.2
 	end
 end)
