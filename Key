@@ -7,8 +7,8 @@ local playerGui = player:WaitForChild("PlayerGui")
 -- ==========================================
 -- CONFIGURACIÓN
 -- ==========================================
-local LLAVE_CORRECTA = "v6.2" -- Acepta v6.2 o V6.2
-local LINK_OBTENER_LLAVE = "https://discord.gg/tu-servidor"
+local LLAVE_CORRECTA = "v6.2"
+local LINK_OBTENER_LLAVE = "https://discord.gg/ykHwgmQnD"
 
 -- Formatear nombre de usuario: Primera mayúscula, resto minúsculas
 local nombreRaw = player.Name
@@ -50,150 +50,181 @@ local function hacerArrastrable(frame, barraArrastre)
 end
 
 -- ==========================================
--- CREACIÓN DE LA INTERFAZ (AGUA CRISTALINA CURVA GAMER)
+-- CREACIÓN DE LA INTERFAZ
 -- ==========================================
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "MenuAccesoGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
-local function agregarBordeCristal(objeto, grosor)
+local function agregarBordeCristal(objeto, color, grosor, transparencia)
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(130, 210, 255)
-	stroke.Transparency = 0.3
+	stroke.Color = color or Color3.fromRGB(80, 190, 255)
+	stroke.Transparency = transparencia or 0.2
 	stroke.Thickness = grosor or 1.5
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = objeto
 end
 
--- Contenedor principal con efecto curvado tipo monitor gamer
+-- Ventana principal estilo MONITOR ULTRA-ANCHO CURVO
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 460, 0, 280)
+mainFrame.Size = UDim2.new(0, 540, 0, 270)
 mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-mainFrame.BackgroundColor3 = Color3.fromRGB(8, 30, 55)
-mainFrame.BackgroundTransparency = 0.3
+mainFrame.BackgroundColor3 = Color3.fromRGB(6, 20, 38)
+mainFrame.BackgroundTransparency = 0.2
 mainFrame.Parent = screenGui
-agregarBordeCristal(mainFrame, 2)
+agregarBordeCristal(mainFrame, Color3.fromRGB(80, 190, 255), 2, 0.2)
 
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 16)
+corner.CornerRadius = UDim.new(0, 22)
 corner.Parent = mainFrame
 
--- Efecto visual curvado lateral (sombras internas simulando pantalla ultra-ancha doblada)
-local curvaIzquierda = Instance.new("Frame")
-curvaIzquierda.Size = UDim2.new(0, 12, 1, 0)
-curvaIzquierda.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-curvaIzquierda.BackgroundTransparency = 0.7
-curvaIzquierda.BorderSizePixel = 0
-curvaIzquierda.Parent = mainFrame
-Instance.new("UICorner", curvaIzquierda).CornerRadius = UDim.new(0, 16)
+-- Efecto de curvatura lateral hacia adentro
+local panelCurvoIzq = Instance.new("Frame")
+panelCurvoIzq.Size = UDim2.new(0, 16, 1, 0)
+panelCurvoIzq.BackgroundColor3 = Color3.fromRGB(0, 120, 220)
+panelCurvoIzq.BackgroundTransparency = 0.6
+panelCurvoIzq.BorderSizePixel = 0
+panelCurvoIzq.Parent = mainFrame
+Instance.new("UICorner", panelCurvoIzq).CornerRadius = UDim.new(0, 22)
 
-local curvaDerecha = Instance.new("Frame")
-curvaDerecha.Size = UDim2.new(0, 12, 1, 0)
-curvaDerecha.Position = UDim2.new(1, -12, 0, 0)
-curvaDerecha.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-curvaDerecha.BackgroundTransparency = 0.7
-curvaDerecha.BorderSizePixel = 0
-curvaDerecha.Parent = mainFrame
-Instance.new("UICorner", curvaDerecha).CornerRadius = UDim.new(0, 16)
+local panelCurvoDer = Instance.new("Frame")
+panelCurvoDer.Size = UDim2.new(0, 16, 1, 0)
+panelCurvoDer.Position = UDim2.new(1, -16, 0, 0)
+panelCurvoDer.BackgroundColor3 = Color3.fromRGB(0, 120, 220)
+panelCurvoDer.BackgroundTransparency = 0.6
+panelCurvoDer.BorderSizePixel = 0
+panelCurvoDer.Parent = mainFrame
+Instance.new("UICorner", panelCurvoDer).CornerRadius = UDim.new(0, 22)
 
--- Fuego Animado Dinámico optimizado en los bordes inferiores (Sin Lag)
-local fuegoFrame = Instance.new("Frame")
-fuegoFrame.Size = UDim2.new(1, -20, 0, 6)
-fuegoFrame.Position = UDim2.new(0, 10, 1, -6)
-fuegoFrame.BackgroundTransparency = 1
-fuegoFrame.Parent = mainFrame
+-- ==========================================
+-- FUEGO ESTÁTICO DE FONDO + CHISPAS ALEATORIAS REALISTAS
+-- ==========================================
+local fuegoContainer = Instance.new("Frame")
+fuegoContainer.Size = UDim2.new(1, -30, 1, 0)
+fuegoContainer.Position = UDim2.new(0, 15, 0, 0)
+fuegoContainer.BackgroundTransparency = 1
+fuegoContainer.ZIndex = 2
+fuegoContainer.Parent = mainFrame
 
+-- 1. Base de fuego estático (Efecto hoguera fija abajo sin lag)
+local fuegoEstatico = Instance.new("Frame")
+fuegoEstatico.Size = UDim2.new(1, 0, 0, 35)
+fuegoEstatico.Position = UDim2.new(0, 0, 1, -35)
+fuegoEstatico.BackgroundColor3 = Color3.fromRGB(255, 70, 0)
+fuegoEstatico.BackgroundTransparency = 0.6
+fuegoEstatico.BorderSizePixel = 0
+fuegoEstatico.ZIndex = 2
+fuegoEstatico.Parent = fuegoContainer
+Instance.new("UICorner", fuegoEstatico).CornerRadius = UDim.new(0, 16)
+
+local gradientFuego = Instance.new("UIGradient")
+gradientFuego.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0.0, Color3.fromRGB(255, 20, 0)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 120, 0)),
+	ColorSequenceKeypoint.new(1.0, Color3.fromRGB(255, 220, 0))
+})
+gradientFuego.Transparency = NumberSequence.new({
+	NumberSequenceKeypoint.new(0.0, 0.2),
+	NumberSequenceKeypoint.new(1.0, 1.0)
+})
+gradientFuego.Rotation = 90
+gradientFuego.Parent = fuegoEstatico
+
+-- 2. Chispas dinámicas con patrones 100% aleatorios e independientes
+local chispas = {}
+for i = 1, 18 do
+	local chispa = Instance.new("Frame")
+	chispa.Size = UDim2.new(0, math.random(2, 5), 0, math.random(6, 16))
+	-- Posición inicial totalmente aleatoria en todo el ancho y parte baja
+	chispa.Position = UDim2.new(math.random(2, 98) / 100, 0, math.random(60, 95) / 100, 0)
+	chispa.BackgroundColor3 = Color3.fromRGB(255, math.random(100, 240), 0)
+	chispa.BackgroundTransparency = math.random(20, 60) / 100
+	chispa.BorderSizePixel = 0
+	chispa.ZIndex = 2
+	chispa.Parent = fuegoContainer
+	Instance.new("UICorner", chispa).CornerRadius = UDim.new(0, 1)
+	
+	-- Guardamos datos únicos de velocidad y trayectoria para cada chispa
+	table.insert(chispas, {
+		objeto = chispa,
+		velY = math.random(8, 22) * 0.0008,
+		velX = math.random(-15, 15) * 0.0001,
+		escala = math.random(6, 14)
+	})
+end
+
+-- Bucle optimizado para mover las chispas con física natural aleatoria
 task.spawn(function()
-	local t = 0
-	while task.wait(0.05) do
-		t = t + 0.3
-		local r = math.abs(math.sin(t))
-		fuegoFrame.BackgroundColor3 = Color3.fromRGB(255, math.floor(100 + 100 * r), 0)
-		fuegoFrame.BackgroundTransparency = 0.2 + 0.3 * math.cos(t)
+	while true do
+		local dt = RunService.RenderStepped:Wait()
+		for _, dato in ipairs(chispas) do
+			local c = dato.objeto
+			local posY = c.Position.Y.Scale - dato.velY
+			local posX = c.Position.X.Scale + dato.velX
+			
+			-- Si la chispa sube demasiado, se reinicia abajo en un punto aleatorio nuevo
+			if posY < 0.05 or posX <= 0 or posX >= 1 then
+				posY = math.random(80, 98) / 100
+				posX = math.random(5, 95) / 100
+				dato.velY = math.random(8, 22) * 0.0008
+				dato.velX = math.random(-15, 15) * 0.0001
+			end
+			
+			c.Position = UDim2.new(posX, 0, posY, 0)
+		end
+		task.wait(0.03)
 	end
 end)
 
--- Barra superior (Header para arrastrar)
+-- Barra superior (Header)
 local header = Instance.new("Frame")
 header.Name = "Header"
-header.Size = UDim2.new(1, 0, 0, 42)
-header.BackgroundColor3 = Color3.fromRGB(4, 18, 35)
-header.BackgroundTransparency = 0.4
+header.Size = UDim2.new(1, 0, 0, 38)
+header.BackgroundColor3 = Color3.fromRGB(4, 14, 28)
+header.BackgroundTransparency = 0.3
 header.BorderSizePixel = 0
+header.ZIndex = 3
 header.Parent = mainFrame
 
 local cornerHeader = Instance.new("UICorner")
-cornerHeader.CornerRadius = UDim.new(0, 14)
+cornerHeader.CornerRadius = UDim.new(0.6, 0)
 cornerHeader.Parent = header
 
 hacerArrastrable(mainFrame, header)
 
 -- ==========================================
--- NOTICIARIO / MARQUESINA GIRATORIA EN LA BARRA SUPERIOR
+-- ZONA SUPERIOR DERECHA (X, FPS y COMENTARIOS)
 -- ==========================================
-local newsContainer = Instance.new("Frame")
-newsContainer.Size = UDim2.new(0.65, 0, 0, 26)
-newsContainer.Position = UDim2.new(0.03, 0, 0, 8)
-newsContainer.ClipsDescendants = true
-newsContainer.BackgroundTransparency = 1
-newsContainer.Parent = header
-
-local newsText = Instance.new("TextLabel")
-newsText.Size = UDim2.new(2, 0, 1, 0)
-newsText.Position = UDim2.new(1, 0, 0, 0)
-newsText.BackgroundTransparency = 1
-newsText.Text = "  🔥 Si te unes al discord obtendrás la clave 100% gratis  |  🦖 Sabías que los T-Rex eran depredadores gigantes  |  ⚡ Disfruta del menú v6.2 exclusivo  "
-newsText.TextColor3 = Color3.fromRGB(150, 230, 255)
-newsText.Font = Enum.Font.FredokaOne
-newsText.TextSize = 12
-newsText.TextXAlignment = Enum.TextXAlignment.Left
-newsText.Parent = newsContainer
-
--- Animación de marquesina deslizándose sin parar estilo noticiero
-task.spawn(function()
-	while true do
-		newsText.Position = UDim2.new(1, 0, 0, 0)
-		local tweenInfo = 18 -- velocidad de desplazamiento
-		local elapsed = 0
-		while elapsed < tweenInfo do
-			local dt = RunService.RenderStepped:Wait()
-			elapsed = elapsed + dt
-			local alpha = elapsed / tweenInfo
-			newsText.Position = UDim2.new(1 - (alpha * 2.3), 0, 0, 0)
-		end
-	end
-end)
-
--- Botón X (Cerrar)
 local closeBtn1 = Instance.new("TextButton")
-closeBtn1.Size = UDim2.new(0, 30, 0, 26)
-closeBtn1.Position = UDim2.new(1, -36, 0, 8)
-closeBtn1.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+closeBtn1.Size = UDim2.new(0, 26, 0, 24)
+closeBtn1.Position = UDim2.new(1, -32, 0, 7)
+closeBtn1.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
 closeBtn1.BackgroundTransparency = 0.2
 closeBtn1.Text = "X"
 closeBtn1.TextColor3 = Color3.fromRGB(255, 255, 255)
 closeBtn1.Font = Enum.Font.FredokaOne
-closeBtn1.TextSize = 14
+closeBtn1.TextSize = 13
+closeBtn1.ZIndex = 3
 closeBtn1.Parent = header
 
 local cornerClose = Instance.new("UICorner")
 cornerClose.CornerRadius = UDim.new(0, 6)
 cornerClose.Parent = closeBtn1
-agregarBordeCristal(closeBtn1, 1)
+agregarBordeCristal(closeBtn1, Color3.fromRGB(255, 100, 100), 1, 0.2)
 
--- Contador de FPS en tiempo real (Al lado de la X)
 local fpsLabel = Instance.new("TextLabel")
-fpsLabel.Size = UDim2.new(0, 50, 0, 26)
-fpsLabel.Position = UDim2.new(1, -90, 0, 8)
+fpsLabel.Size = UDim2.new(0, 48, 0, 24)
+fpsLabel.Position = UDim2.new(1, -84, 0, 7)
 fpsLabel.BackgroundTransparency = 1
 fpsLabel.Text = "FPS: 60"
-fpsLabel.TextColor3 = Color3.fromRGB(180, 240, 255)
+fpsLabel.TextColor3 = Color3.fromRGB(160, 240, 255)
 fpsLabel.Font = Enum.Font.FredokaOne
 fpsLabel.TextSize = 11
 fpsLabel.TextXAlignment = Enum.TextXAlignment.Right
+fpsLabel.ZIndex = 3
 fpsLabel.Parent = header
 
 local frames = 0
@@ -208,22 +239,67 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
+local newsContainer = Instance.new("Frame")
+newsContainer.Size = UDim2.new(1, -96, 0, 24)
+newsContainer.Position = UDim2.new(0, 12, 0, 7)
+newsContainer.ClipsDescendants = true
+newsContainer.BackgroundTransparency = 1
+newsContainer.ZIndex = 3
+newsContainer.Parent = header
+
+local newsText = Instance.new("TextLabel")
+newsText.Size = UDim2.new(2, 0, 1, 0)
+newsText.Position = UDim2.new(1, 0, 0, 0)
+newsText.BackgroundTransparency = 1
+newsText.Text = "💡 Tip: Únete al Discord oficial para conseguir tu llave V6.2  |  ⚡ Menú optimizado y exclusivo para Roblox  |  🔒 Ingresa tu clave para continuar"
+newsText.TextColor3 = Color3.fromRGB(130, 220, 255)
+newsText.Font = Enum.Font.FredokaOne
+newsText.TextSize = 11
+newsText.TextXAlignment = Enum.TextXAlignment.Left
+newsText.ZIndex = 3
+newsText.Parent = newsContainer
+
+task.spawn(function()
+	while true do
+		newsText.Position = UDim2.new(1, 0, 0, 0)
+		local tiempoAnim = 12
+		local tiempoPasado = 0
+		while tiempoPasado < tiempoAnim do
+			local dt = RunService.RenderStepped:Wait()
+			tiempoPasado = tiempoPasado + dt
+			local progreso = tiempoPasado / tiempoAnim
+			newsText.Position = UDim2.new(1 - (progreso * 2.3), 0, 0, 0)
+		end
+	end
+end)
+
 -- ==========================================
--- TÍTULO ESTILO GRAFITI URBANO (Bienvenido Usuario)
+-- TÍTULO: BIENVENIDO CON DETALLES DE ILUMINACIÓN
 -- ==========================================
 local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(0.9, 0, 0, 40)
-titleLabel.Position = UDim2.new(0.5, 0, 0.24, 0)
+titleLabel.Size = UDim2.new(0.9, 0, 0, 35)
+titleLabel.Position = UDim2.new(0.5, 0, 0.26, 0)
 titleLabel.AnchorPoint = Vector2.new(0.5, 0.5)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "BIENVENIDO " .. string.upper(nombreFormateado)
+titleLabel.Text = "Bienvenido " .. nombreFormateado
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.Font = Enum.Font.FredokaOne
 titleLabel.TextSize = 20
 titleLabel.TextXAlignment = Enum.TextXAlignment.Center
+titleLabel.ZIndex = 3
 titleLabel.Parent = mainFrame
 
--- Sombra dura para profundidad estilo muro urbano
+for i = 1, 5 do
+	local puntoLuz = Instance.new("Frame")
+	puntoLuz.Size = UDim2.new(0, 3, 0, 3)
+	puntoLuz.Position = UDim2.new(0.2 + (i * 0.12), math.random(-8, 8), 0.3, math.random(-4, 4))
+	puntoLuz.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	puntoLuz.BorderSizePixel = 0
+	puntoLuz.ZIndex = 4
+	puntoLuz.Parent = titleLabel
+	Instance.new("UICorner", puntoLuz).CornerRadius = UDim.new(1, 0)
+end
+
 local titleShadow = Instance.new("TextLabel")
 titleShadow.Size = UDim2.new(1, 0, 1, 0)
 titleShadow.Position = UDim2.new(0, 2, 0, 2)
@@ -233,10 +309,9 @@ titleShadow.TextColor3 = Color3.fromRGB(0, 0, 0)
 titleShadow.Font = Enum.Font.FredokaOne
 titleShadow.TextSize = 20
 titleShadow.TextXAlignment = Enum.TextXAlignment.Center
-titleShadow.ZIndex = titleLabel.ZIndex - 1
+titleShadow.ZIndex = titleShadow.ZIndex - 1
 titleShadow.Parent = titleLabel
 
--- Animación RGB Neón fluida
 task.spawn(function()
 	local hue = 0
 	while task.wait(0.03) do
@@ -246,52 +321,38 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- CUADRO DE TEXTO LIBRE Y ESTILIZADO
+-- CUADRO DE TEXTO CON BORDE VERDE ESMERALDA INTENSO
 -- ==========================================
 local keyBox = Instance.new("TextBox")
 keyBox.Name = "KeyBox"
-keyBox.Size = UDim2.new(0.75, 0, 0, 38)
-keyBox.Position = UDim2.new(0.5, 0, 0.44, 0)
+keyBox.Size = UDim2.new(0.68, 0, 0, 38)
+keyBox.Position = UDim2.new(0.5, 0, 0.46, 0)
 keyBox.AnchorPoint = Vector2.new(0.5, 0.5)
-keyBox.BackgroundColor3 = Color3.fromRGB(5, 20, 35)
-keyBox.BackgroundTransparency = 0.5
-keyBox.PlaceholderText = "> Pon tu llave _"
-keyBox.PlaceholderColor3 = Color3.fromRGB(160, 200, 230)
+keyBox.BackgroundColor3 = Color3.fromRGB(4, 15, 30)
+keyBox.BackgroundTransparency = 0.4
+keyBox.PlaceholderText = "Pon tu llave _"
+keyBox.PlaceholderColor3 = Color3.fromRGB(150, 190, 220)
 keyBox.Text = ""
 keyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 keyBox.Font = Enum.Font.FredokaOne
-keyBox.TextSize = 16
+keyBox.TextSize = 15
 keyBox.ClearTextOnFocus = false
+keyBox.ZIndex = 3
 keyBox.Parent = mainFrame
-agregarBordeCristal(keyBox, 1.5)
+
+agregarBordeCristal(keyBox, Color3.fromRGB(0, 230, 118), 2, 0.1)
 
 local cornerBox = Instance.new("UICorner")
-cornerBox.CornerRadius = UDim.new(0, 6)
+cornerBox.CornerRadius = UDim.new(0, 8)
 cornerBox.Parent = keyBox
 
--- Parpadeo del placeholder cuando está vacío
-task.spawn(function()
-	local estadoBlink = false
-	while true do
-		task.wait(2)
-		estadoBlink = not estadoBlink
-		if keyBox.Text == "" then
-			if estadoBlink then
-				keyBox.PlaceholderText = "> Pon tu llave"
-			else
-				keyBox.PlaceholderText = "> Pon tu llave _"
-			end
-		end
-	end
-end)
-
--- Texto de estado / error
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Name = "StatusLabel"
 statusLabel.Size = UDim2.new(0.8, 0, 0, 22)
-statusLabel.Position = UDim2.new(0.5, 0, 0.58, 0)
+statusLabel.Position = UDim2.new(0.5, 0, 0.60, 0)
 statusLabel.AnchorPoint = Vector2.new(0.5, 0.5)
 statusLabel.BackgroundTransparency = 1
+statusLabel.ZIndex = 3
 statusLabel.Text = ""
 statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 statusLabel.Font = Enum.Font.FredokaOne
@@ -299,12 +360,12 @@ statusLabel.TextSize = 13
 statusLabel.Parent = mainFrame
 
 -- ==========================================
--- BOTONES (AZUL FUERTE VIBRANTE)
+-- BOTONES EN AZUL FUERTE VIBRANTE
 -- ==========================================
 local verifyBtn = Instance.new("TextButton")
 verifyBtn.Name = "VerifyBtn"
-verifyBtn.Size = UDim2.new(0.36, 0, 0, 38)
-verifyBtn.Position = UDim2.new(0.28, 0, 0.75, 0)
+verifyBtn.Size = UDim2.new(0.33, 0, 0, 38)
+verifyBtn.Position = UDim2.new(0.29, 0, 0.76, 0)
 verifyBtn.AnchorPoint = Vector2.new(0.5, 0.5)
 verifyBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 255)
 verifyBtn.BackgroundTransparency = 0.1
@@ -312,17 +373,18 @@ verifyBtn.Text = "Verificar Llave"
 verifyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 verifyBtn.Font = Enum.Font.FredokaOne
 verifyBtn.TextSize = 14
+verifyBtn.ZIndex = 3
 verifyBtn.Parent = mainFrame
-agregarBordeCristal(verifyBtn, 1.5)
+agregarBordeCristal(verifyBtn, Color3.fromRGB(80, 190, 255), 1.5, 0.2)
 
 local cornerVerify = Instance.new("UICorner")
-cornerVerify.CornerRadius = UDim.new(0, 6)
+cornerVerify.CornerRadius = UDim.new(0, 8)
 cornerVerify.Parent = verifyBtn
 
 local getKeyBtn = Instance.new("TextButton")
 getKeyBtn.Name = "GetKeyBtn"
-getKeyBtn.Size = UDim2.new(0.36, 0, 0, 38)
-getKeyBtn.Position = UDim2.new(0.72, 0, 0.75, 0)
+getKeyBtn.Size = UDim2.new(0.33, 0, 0, 38)
+getKeyBtn.Position = UDim2.new(0.71, 0, 0.76, 0)
 getKeyBtn.AnchorPoint = Vector2.new(0.5, 0.5)
 getKeyBtn.BackgroundColor3 = Color3.fromRGB(0, 80, 200)
 getKeyBtn.BackgroundTransparency = 0.2
@@ -330,27 +392,29 @@ getKeyBtn.Text = "Obtener llave"
 getKeyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 getKeyBtn.Font = Enum.Font.FredokaOne
 getKeyBtn.TextSize = 14
+getKeyBtn.ZIndex = 3
 getKeyBtn.Parent = mainFrame
-agregarBordeCristal(getKeyBtn, 1.5)
+agregarBordeCristal(getKeyBtn, Color3.fromRGB(80, 190, 255), 1.5, 0.2)
 
 local cornerGet = Instance.new("UICorner")
-cornerGet.CornerRadius = UDim.new(0, 6)
+cornerGet.CornerRadius = UDim.new(0, 8)
 cornerGet.Parent = getKeyBtn
 
--- Créditos limpios: Echo por I`m (Abajo del todo)
+-- Créditos súper discretos y camuflados abajo del todo
 local creditsLabel = Instance.new("TextLabel")
-creditsLabel.Size = UDim2.new(1, 0, 0, 20)
-creditsLabel.Position = UDim2.new(0, 0, 1, -16)
+creditsLabel.Size = UDim2.new(1, 0, 0, 14)
+creditsLabel.Position = UDim2.new(0, 0, 1, -12)
 creditsLabel.BackgroundTransparency = 1
+creditsLabel.ZIndex = 3
 creditsLabel.Text = "Echo por I`m"
-creditsLabel.TextColor3 = Color3.fromRGB(150, 210, 255)
+creditsLabel.TextColor3 = Color3.fromRGB(45, 70, 95)
 creditsLabel.Font = Enum.Font.FredokaOne
-creditsLabel.TextSize = 11
+creditsLabel.TextSize = 9
 creditsLabel.TextXAlignment = Enum.TextXAlignment.Center
 creditsLabel.Parent = mainFrame
 
 -- ==========================================
--- EVENTOS DE LOS BOTONES Y ACCESO
+-- EVENTOS
 -- ==========================================
 closeBtn1.MouseButton1Click:Connect(function()
 	screenGui:Destroy()
@@ -358,26 +422,19 @@ end)
 
 getKeyBtn.MouseButton1Click:Connect(function()
 	keyBox.Text = LINK_OBTENER_LLAVE
-	statusLabel.TextColor3 = Color3.fromRGB(150, 255, 200)
-	statusLabel.Text = "Enlace colocado arriba"
+	statusLabel.TextColor3 = Color3.fromRGB(140, 255, 190)
+	statusLabel.Text = "Enlace de Discord colocado arriba"
 end)
 
 verifyBtn.MouseButton1Click:Connect(function()
-	-- Limpiamos y evaluamos sin importar mayúsculas/minúsculas
 	local textoEscrito = string.lower(string.gsub(keyBox.Text, "%s+", ""))
 
 	if textoEscrito == LLAVE_CORRECTA then
-		-- Destruir por completo el menú de acceso
 		screenGui:Destroy()
 
 		-- ========================================================
 		-- === [ EL RESTO DEL CÓDIGO AQUÍ ] ========================
-		-- Todo lo que pongas aquí abajo se activará al poner la clave correcta:
-loadstring(game:HttpGet("https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2"))()
-
 		print("¡Llave correcta V6.2! Script ejecutándose...")
-		
-		-- Ejemplo: Cargar tu interfaz principal o dar herramientas aquí
 		-- ========================================================
 	else
 		statusLabel.TextColor3 = Color3.fromRGB(255, 120, 120)
