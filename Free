@@ -1266,11 +1266,10 @@ end
 
 local S = {
     esp = false, lockMode = nil, target = nil,
-    infJump = false, fly = false, walk = false, noclip = false,
+    infJump = false, noclip = false,
     boost = false, walls = false, full = false,
-    flySpeed = 60, walkSpeed = 32, defWalk = 16,
 }
-local flyInput = { up = false, down = false }
+local setNoclip
 
 local function getCamera()
     return Workspace.CurrentCamera
@@ -1483,9 +1482,10 @@ for _, plr in ipairs(Players:GetPlayers()) do hookPlayer(plr) end
 
 print("[DestroyaHub] parte 7 lista")
 --##################################################
---# ► PARTE 8 — CAM LOCK
---#   La cámara orbita alrededor de TU personaje y solo
---#   cambia de orientación. Sin TP.
+--# ► PARTE 8 — CAM LOCK (CON NOCLIP PEGADO)
+--#   La cámara orbita alrededor de TU personaje. Mientras
+--#   está puesto, el noclip se activa y al apagarlo vuelve
+--#   a como estaba.
 --##################################################
 
 local Sel = { list = {}, set = {} }
@@ -1602,9 +1602,22 @@ local function syncLock()
     if UI.refreshLists then UI.refreshLists() end
 end
 
+local noclipPrev = false
+
 local function setLockMode(mode)
+    local wasLocked = S.lockMode ~= nil
     S.lockMode = mode
     if not mode then S.target = nil end
+
+    if mode and not wasLocked then
+        noclipPrev = S.noclip
+        setNoclip(true)
+        if UI.noclipToggle then UI.noclipToggle.Set(true, true) end
+    elseif not mode and wasLocked then
+        setNoclip(noclipPrev)
+        if UI.noclipToggle then UI.noclipToggle.Set(noclipPrev, true) end
+    end
+
     syncLock()
     if not mode then pcall(releaseCamera) end
 end
@@ -1637,49 +1650,9 @@ end)
 
 print("[DestroyaHub] parte 8 lista")
 --##################################################
---# ► PARTE 9 — FLY, NOCLIP, VELOCIDAD, SALTO Y LUZ
+--# ► PARTE 9 — NOCLIP, SALTO INFINITO Y LUZ
 --##################################################
 
-local flyBV
-
-local function stopFly()
-    if flyBV then
-        flyBV:Destroy()
-        flyBV = nil
-    end
-end
-
-track(RunService.Heartbeat:Connect(function()
-    if not S.fly then
-        if flyBV then stopFly() end
-        return
-    end
-    local root, hum = getParts()
-    local cam = getCamera()
-    if not root or not hum or not cam then
-        stopFly()
-        return
-    end
-    if not flyBV or flyBV.Parent ~= root then
-        stopFly()
-        flyBV = Instance.new("BodyVelocity")
-        flyBV.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-        flyBV.Velocity = Vector3.zero
-        flyBV.Parent = root
-    end
-    local move = hum.MoveDirection
-    local velocity = Vector3.zero
-    if move.Magnitude > 0.05 then
-        local rel = cam.CFrame:VectorToObjectSpace(move)
-        local dir = cam.CFrame.LookVector * (-rel.Z) + cam.CFrame.RightVector * rel.X
-        if dir.Magnitude > 0.01 then velocity = dir.Unit * move.Magnitude * S.flySpeed end
-    end
-    local vertical = (flyInput.up and 1 or 0) - (flyInput.down and 1 or 0)
-    if vertical ~= 0 then velocity += Vector3.new(0, vertical * S.flySpeed, 0) end
-    flyBV.Velocity = velocity
-end))
-
-local setNoclip
 do
     local parts, changed, refreshAt = {}, {}, 0
 
@@ -1724,73 +1697,6 @@ do
         table.clear(changed)
         refreshAt = 0
     end))
-end
-
-local setWalkEnabled
-do
-    local humConn, reverts, fallback = nil, 0, false
-
-    local function unbind()
-        if humConn then
-            humConn:Disconnect()
-            humConn = nil
-        end
-    end
-
-    local function bindHum(hum)
-        unbind()
-        if not hum then return end
-        humConn = hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
-            if S.walk and hum.WalkSpeed ~= S.walkSpeed and reverts < 20 then
-                reverts += 1
-                hum.WalkSpeed = S.walkSpeed
-            end
-        end)
-    end
-
-    setWalkEnabled = function(value)
-        local _, hum = getParts()
-        if value then
-            if hum and not S.walk and hum.WalkSpeed ~= S.walkSpeed then S.defWalk = hum.WalkSpeed end
-            S.walk = true
-            reverts = 0
-            bindHum(hum)
-            if hum then hum.WalkSpeed = S.walkSpeed end
-        else
-            S.walk = false
-            fallback = false
-            unbind()
-            if hum then hum.WalkSpeed = S.defWalk end
-        end
-    end
-
-    track(player.CharacterAdded:Connect(function(char)
-        local hum = char:WaitForChild("Humanoid", 10)
-        if S.walk and hum then
-            bindHum(hum)
-            hum.WalkSpeed = S.walkSpeed
-        end
-    end))
-
-    track(RunService.Heartbeat:Connect(function(dt)
-        if not S.walk then return end
-        local root, hum = getParts()
-        if not root or not hum then return end
-        if hum.WalkSpeed ~= S.walkSpeed then hum.WalkSpeed = S.walkSpeed end
-        if fallback and not S.fly and hum.MoveDirection.Magnitude > 0.05 then
-            local v = root.AssemblyLinearVelocity
-            local extra = S.walkSpeed - Vector3.new(v.X, 0, v.Z).Magnitude
-            if extra > 1 then root.CFrame = root.CFrame + hum.MoveDirection * extra * dt end
-        end
-    end))
-
-    task.spawn(function()
-        while Screen.Parent do
-            task.wait(1)
-            fallback = S.walk and reverts >= 15
-            reverts = 0
-        end
-    end)
 end
 
 track(UserInputService.JumpRequest:Connect(function()
@@ -2106,6 +2012,7 @@ end
 print("[DestroyaHub] parte 10 lista")
 --##################################################
 --# ► PARTE 11 — PESTAÑAS Y PÁGINA FUNCIONES
+--#   Noclip vive junto a los Cam Lock.
 --##################################################
 
 local FunctionPage = addTab("Funciones")
@@ -2125,6 +2032,11 @@ do
             clearESP()
         end
     end)
+end
+
+createSection(FunctionPage, "Cámara y Noclip")
+do
+    local grid = createGrid(FunctionPage)
 
     UI.headToggle = createButton(grid, "Cam Lock Cabeza", "Apunta a la cabeza", function(v)
         setLockMode(v and "head" or nil)
@@ -2133,31 +2045,18 @@ do
     UI.chestToggle = createButton(grid, "Cam Lock Pecho", "Apunta al pecho", function(v)
         setLockMode(v and "chest" or nil)
     end)
+
+    UI.noclipToggle = createButton(grid, "Noclip", "Atraviesa paredes", function(v)
+        setNoclip(v)
+    end)
 end
 
-createSection(FunctionPage, "Movimiento")
+createSection(FunctionPage, "Salto")
 do
     local grid = createGrid(FunctionPage)
 
-    createButton(grid, "Fly", "Vuela con botones", function(v)
-        S.fly = v
-        if UI.flyPad then UI.flyPad.Visible = v end
-        if not v then
-            if UI.resetFlyInput then UI.resetFlyInput() end
-            stopFly()
-        end
-    end)
-
-    createButton(grid, "Walk Speed", "Corre más rápido", function(v)
-        setWalkEnabled(v)
-    end)
-
     createButton(grid, "Infinite Jump", "Salta sin parar", function(v)
         S.infJump = v
-    end)
-
-    createButton(grid, "Noclip", "Atraviesa paredes", function(v)
-        setNoclip(v)
     end)
 end
 
@@ -2369,7 +2268,7 @@ end, "PlayerRemoving")))
 print("[DestroyaHub] parte 12 lista")
 --##################################################
 --# ► PARTE 13 — CONFIGURACIÓN Y BOTONES FLOTANTES
---#   Incluye el botón X LOCK. Sin botón de TP.
+--#   Sin sliders de fly ni de caminar.
 --##################################################
 
 do
@@ -2407,16 +2306,6 @@ do
         C.Minus = col
         recolorMini("minus")
     end)
-
-    createSection(SettingsPage, "Velocidades")
-
-    createSlider(SettingsPage, "Velocidad de Fly", 20, 150, 60,
-        function(v) return tostring(math.floor(v + 0.5)) end,
-        function(v) S.flySpeed = v end)
-
-    createSlider(SettingsPage, "Velocidad de caminar", 16, 200, 32,
-        function(v) return tostring(math.floor(v + 0.5)) end,
-        function(v) S.walkSpeed = v end)
 
     createSection(SettingsPage, "Vista")
 
@@ -2624,7 +2513,8 @@ end, "camstop"))
 
 print("[DestroyaHub] parte 13 lista")
 --##################################################
---# ► PARTE 14 — FPS, FLY PAD, CIERRE Y LIMPIEZA
+--# ► PARTE 14 — FPS, CIERRE Y LIMPIEZA
+--#   Sin fly pad.
 --##################################################
 
 local FpsText = Instance.new("TextButton")
@@ -2672,148 +2562,14 @@ FpsText.InputBegan:Connect(function(input)
     end
 end)
 
-UI.padItems = {}
-local heldInputs = {}
-
 do
-    local PAD_BG = Color3.fromRGB(10, 30, 40)
-    local PAD_ON = Color3.fromRGB(28, 92, 116)
-
-    local pad = Instance.new("Frame")
-    pad.Name = "FlyPad"
-    pad.Size = UDim2.fromOffset(64, 160)
-    pad.Position = UDim2.new(1, -90, 0.5, -80)
-    pad.BackgroundTransparency = 1
-    pad.Visible = false
-    pad.ZIndex = 10
-    pad.Parent = Screen
-    UI.flyPad = pad
-
-    local function addItem(strokeObj, parts)
-        UI.padItems[#UI.padItems + 1] = { stroke = strokeObj, parts = parts or {} }
-    end
-
-    local handle = Instance.new("TextButton")
-    handle.Size = UDim2.fromOffset(64, 22)
-    handle.BackgroundColor3 = PAD_BG
-    handle.BackgroundTransparency = 0.12
-    handle.AutoButtonColor = false
-    handle.Text = "FLY"
-    handle.TextSize = 13
-    handle.Font = F.head
-    handle.TextColor3 = WHITE
-    handle.ZIndex = 10
-    handle.Parent = pad
-    corner(handle, 11)
-    local hs = Instance.new("UIStroke")
-    hs.Thickness = 1.6
-    hs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    hs.Parent = handle
-    addItem(hs)
-
-    handle.InputBegan:Connect(function(input)
-        if isPointer(input) then
-            local startPos, startMouse = pad.Position, input.Position
-            beginDrag(input, function(i)
-                local d = i.Position - startMouse
-                pad.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X,
-                    startPos.Y.Scale, startPos.Y.Offset + d.Y)
-            end)
-        end
-    end)
-
-    local padBtns = {}
-    local function makePadButton(key, y, pointUp)
-        local b = Instance.new("TextButton")
-        b.Size = UDim2.fromOffset(64, 64)
-        b.Position = UDim2.fromOffset(0, y)
-        b.BackgroundColor3 = PAD_BG
-        b.BackgroundTransparency = 0.15
-        b.AutoButtonColor = false
-        b.Text = ""
-        b.ZIndex = 10
-        b.Parent = pad
-        corner(b, 18)
-
-        local sheen = Instance.new("UIGradient")
-        sheen.Rotation = 90
-        sheen.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(120, 190, 210))
-        sheen.Parent = b
-
-        local s = Instance.new("UIStroke")
-        s.Thickness = 2.6
-        s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-        s.Parent = b
-
-        local sc = Instance.new("UIScale")
-        sc.Parent = b
-
-        local chev, parts = drawChevron(b, Color3.fromRGB(235, 252, 255), 2.4)
-        chev.Position = UDim2.fromScale(0.5, 0.5)
-        chev.Rotation = pointUp and 180 or 0
-        chev.ZIndex = 11
-        for _, p in ipairs(parts) do p.ZIndex = 11 end
-
-        addItem(s, parts)
-        padBtns[key] = b
-
-        b.InputBegan:Connect(function(input)
-            if isPointer(input) then
-                flyInput[key] = true
-                heldInputs[key] = input
-                b.BackgroundColor3 = PAD_ON
-                tween(sc, { Scale = 0.9 }, 0.08)
-            end
-        end)
-    end
-    makePadButton("up", 28, true)
-    makePadButton("down", 96, false)
-
-    local function releaseKey(key)
-        heldInputs[key] = nil
-        flyInput[key] = false
-        local b = padBtns[key]
-        if b then
-            b.BackgroundColor3 = PAD_BG
-            local sc = b:FindFirstChildOfClass("UIScale")
-            if sc then tween(sc, { Scale = 1 }, 0.2, Enum.EasingStyle.Back) end
-        end
-    end
-
-    UI.resetFlyInput = function()
-        for key in pairs(flyInput) do releaseKey(key) end
-    end
-
-    track(UserInputService.InputEnded:Connect(function(input)
-        for key, held in pairs(heldInputs) do
-            if held == input or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                releaseKey(key)
-            end
-        end
-    end))
-end
-
-do
-    local clock, acc, frames, fpsAcc = 0, 0, 0, 0
+    local frames, fpsAcc = 0, 0
     track(RunService.Heartbeat:Connect(function(dt)
         frames += 1
         fpsAcc += dt
         if fpsAcc >= 0.5 then
             FpsText.Text = "FPS " .. math.floor(frames / fpsAcc + 0.5)
             frames, fpsAcc = 0, 0
-        end
-
-        acc += dt
-        if acc < 1 / 15 then return end
-        clock += acc
-        acc = 0
-
-        if UI.flyPad and UI.flyPad.Visible then
-            for i, it in ipairs(UI.padItems) do
-                local c = UI.anim and Color3.fromHSV((clock * 0.4 + i * 0.17) % 1, 1, 1) or GLOW
-                it.stroke.Color = c
-                for _, p in ipairs(it.parts) do p.BackgroundColor3 = c end
-            end
         end
     end))
 end
@@ -2852,16 +2608,14 @@ do
 end
 
 Screen.Destroying:Connect(function()
-    S.esp, S.fly, S.infJump = false, false, false
+    S.esp, S.infJump = false, false
     S.lockMode, S.target = nil, nil
     S.noclip, S.walls = false, false
     pcall(releaseCamera)
-    pcall(setWalkEnabled, false)
     pcall(setNoclip, false)
     pcall(setFpsBoost, false)
     pcall(setWalls, false)
     pcall(setFullbright, false)
-    pcall(stopFly)
     pcall(clearESP)
     pcall(function() RunService.Stepped:Wait() end)
     for _, c in ipairs(conns) do
@@ -2871,4 +2625,4 @@ Screen.Destroying:Connect(function()
 end)
 
 notify("Destroya Hub cargado")
-print("DESTROYA HUB v6.3 SIN TP CARGADO")
+print("DESTROYA HUB v6.4 CARGADO")
