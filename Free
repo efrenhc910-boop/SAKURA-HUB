@@ -2341,12 +2341,16 @@ track(Players.PlayerRemoving:Connect(safe(function(plr)
         notify("@" .. plr.Name .. " salió y se quitó de la lista")
     end
     if S.target == plr then
-        setLockMode(nil)
-        UI.setStatus("El objetivo salió del juego")
+        S.target = UI.nearestPlayer and UI.nearestPlayer() or nil
+        if S.target then
+            syncLock()
+        else
+            setLockMode(nil)
+            UI.setStatus("El objetivo salió del juego")
+        end
     end
     task.delay(0.25, UI.refreshLists)
 end, "PlayerRemoving")))
-
 print("[DestroyaHub] parte 12 lista")
 --##################################################
 --# ► PARTE 13 — CONFIGURACIÓN Y BOTONES FLOTANTES
