@@ -32,7 +32,7 @@ local nombreFormateado = string.upper(string.sub(nombreRaw, 1, 1)) .. string.low
 
 -- ==========================================
 -- FUNCIÓN AUXILIAR PARA ARRASTRAR VENTANAS
--- ==========================================
+-- =========================================
 local function hacerArrastrable(frame, barraArrastre)
         local arrastrando = false
         local puntoInicio
