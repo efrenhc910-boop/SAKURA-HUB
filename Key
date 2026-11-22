@@ -1,542 +1,532 @@
---[[ DESTROYA ACCESS · PARTE 1/7 · AJUSTES ]]
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local TextService = game:GetService("TextService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
-local PLR = Players.LocalPlayer
-local URL = "https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2"
-local CLAVE = "freedestroya"
-local ARCHIVO = "LlaveGuardada_Im.txt"
+-- ==========================================
+-- CONFIGURACIÓN Y GUARDADO PERMANENTE AUTOMÁTICO
+-- ==========================================
+local LLAVE_CORRECTA = "v6.2"
+local LINK_OBTENER_LLAVE = "https://discord.gg/ykHwgmQnD"
+local ARCHIVO_LLAVE = "LlaveGuardada_Im.txt"
 
--- ===== EDITABLE =====
-local CONFIG = {
-	ANCHO = 0.93,       -- % del ancho de pantalla
-	ANCHO_MAX = 500,
-	ALTO = 470,
-	FUEGO_MAX = 26,
-	FUEGO_VEL = 1,      -- 1 normal, 2 el doble de rápido
-	VEL_CINTA = 58,
-	SUAVIDAD = 22,      -- más alto = más seco
-}
--- ====================
-
-local NEGRO   = Color3.fromRGB(9, 9, 11)
-local ASFALTO = Color3.fromRGB(24, 24, 27)
-local HUMO    = Color3.fromRGB(48, 48, 54)
-local HUESO   = Color3.fromRGB(238, 235, 228)
-local VERDE   = Color3.fromRGB(0, 224, 116)
-local VERDE2  = Color3.fromRGB(140, 255, 190)
-local ROJO    = Color3.fromRGB(206, 30, 30)
-
-local VIVO = true
-local CONEX = {}
-local function conectar(sig, fn)
-	local c = sig:Connect(fn)
-	table.insert(CONEX, c)
-	return c
-end
-
-local function crear(clase, props, padre)
-	local o = Instance.new(clase)
-	for k, v in pairs(props or {}) do o[k] = v end
-	if padre then o.Parent = padre end
-	return o
-end
-
-local function esquina(o, r)
-	crear("UICorner", { CornerRadius = UDim.new(0, r or 6) }, o)
-end
-
-local function trazo(o, col, grosor, trans)
-	local s = crear("UIStroke", { Color = col, Thickness = grosor or 1.5, Transparency = trans or 0 }, o)
-	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	return s
-end
-
-local function grad(o, c1, c2, rot)
-	return crear("UIGradient", { Color = ColorSequence.new(c1, c2), Rotation = rot or 90 }, o)
-end
---[[ PARTE 2/7 · PANEL + ARRASTRE ]]
-local GUI = crear("ScreenGui", {
-	Name = "DestroyaAccess",
-	ResetOnSpawn = false,
-	IgnoreGuiInset = true,
-	DisplayOrder = 999,
-	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-}, PLR:WaitForChild("PlayerGui"))
-
-local VELO = crear("Frame", {
-	Size = UDim2.fromScale(1, 1),
-	BackgroundColor3 = Color3.fromRGB(4, 4, 6),
-	BackgroundTransparency = 0.45,
-	BorderSizePixel = 0,
-}, GUI)
-
-local vp = workspace.CurrentCamera.ViewportSize
-local ANCHO = math.min(vp.X * CONFIG.ANCHO, CONFIG.ANCHO_MAX)
-
-local PANEL = crear("Frame", {
-	Size = UDim2.fromOffset(ANCHO, CONFIG.ALTO),
-	Position = UDim2.fromOffset(vp.X / 2 - ANCHO / 2, vp.Y / 2 - CONFIG.ALTO / 2),
-	BackgroundColor3 = ASFALTO,
-	BorderSizePixel = 0,
-	ClipsDescendants = true,
-}, GUI)
-esquina(PANEL, 12)
-trazo(PANEL, HUESO, 2, 0.35)
-grad(crear("Frame", {
-	Size = UDim2.fromScale(1, 1),
-	BackgroundColor3 = Color3.new(1, 1, 1),
-	BorderSizePixel = 0,
-	ZIndex = 1,
-}, PANEL), Color3.fromRGB(34, 34, 38), Color3.fromRGB(12, 12, 14), 90)
-
--- arrastre: coordenadas relativas, sin realimentación
-local tx = PANEL.Position.X.Offset
-local ty = PANEL.Position.Y.Offset
-local arrastrando = false
-local iniX, iniY, baseX, baseY = 0, 0, 0, 0
-
-conectar(PANEL.InputBegan, function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-		arrastrando = true
-		iniX, iniY = i.Position.X, i.Position.Y
-		baseX, baseY = tx, ty
+local function verificarLlaveGuardada()
+	if isfile and readfile and isfile(ARCHIVO_LLAVE) then
+		local contenido = string.lower(string.gsub(readfile(ARCHIVO_LLAVE), "%s+", ""))
+		if contenido == LLAVE_CORRECTA then
+			return true
+		end
 	end
-end)
+	return false
+end
 
-conectar(UserInputService.InputChanged, function(i)
-	if arrastrando and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-		tx = baseX + (i.Position.X - iniX)
-		ty = baseY + (i.Position.Y - iniY)
-	end
-end)
+if verificarLlaveGuardada() then
+	print("¡Llave guardada detectada! Ejecutando script...")
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2"))()
+	return
+end
 
-conectar(UserInputService.InputEnded, function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-		arrastrando = false
-	end
-end)
+local nombreRaw = player.Name
+local nombreFormateado = string.upper(string.sub(nombreRaw, 1, 1)) .. string.lower(string.sub(nombreRaw, 2))
 
-conectar(RunService.RenderStepped, function(dt)
-	if not VIVO then return end
-	local f = math.clamp(dt * CONFIG.SUAVIDAD, 0, 1)
-	local a = PANEL.AbsolutePosition
-	local nx = a.X + (tx - a.X) * f
-	local ny = a.Y + (ty - a.Y) * f
-	local limX = GUI.AbsoluteSize.X - PANEL.AbsoluteSize.X
-	local limY = GUI.AbsoluteSize.Y - PANEL.AbsoluteSize.Y
-	PANEL.Position = UDim2.fromOffset(
-		math.clamp(nx, 0, math.max(limX, 0)),
-		math.clamp(ny, 0, math.max(limY, 0))
-	)
-end)
---[[ PARTE 3/7 · CABECERA ]]
-local CAB = crear("Frame", {
-	Size = UDim2.new(1, 0, 0, 110),
-	BackgroundColor3 = NEGRO,
-	BorderSizePixel = 0,
-	ZIndex = 6,
-}, PANEL)
+-- ==========================================
+-- FUNCIÓN AUXILIAR PARA ARRASTRAR VENTANAS
+-- ==========================================
+local function hacerArrastrable(frame, barraArrastre)
+	local arrastrando = false
+	local puntoInicio
+	local posicionInicio
 
-crear("Frame", {
-	Size = UDim2.new(1, 0, 0, 3),
-	Position = UDim2.new(0, 0, 1, -3),
-	BackgroundColor3 = VERDE,
-	BorderSizePixel = 0,
-	ZIndex = 7,
-}, CAB)
+	barraArrastre.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			arrastrando = true
+			puntoInicio = input.Position
+			posicionInicio = frame.Position
 
-local TIT = crear("TextLabel", {
-	Size = UDim2.new(1, -24, 0, 48),
-	Position = UDim2.fromOffset(14, 22),
-	BackgroundTransparency = 1,
-	Font = Enum.Font.LuckiestGuy,
-	Text = "DESTROYA",
-	TextSize = 44,
-	TextColor3 = HUESO,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	Rotation = -1.5,
-	ZIndex = 8,
-}, CAB)
-trazo(TIT, NEGRO, 3)
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					arrastrando = false
+				end
+			end)
+		end
+	end)
 
-local SUB = crear("TextLabel", {
-	Size = UDim2.new(1, -24, 0, 34),
-	Position = UDim2.fromOffset(16, 68),
-	BackgroundTransparency = 1,
-	Font = Enum.Font.LuckiestGuy,
-	Text = "ACCESS",
-	TextSize = 31,
-	TextColor3 = VERDE,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	Rotation = -1.5,
-	ZIndex = 8,
-}, CAB)
-trazo(SUB, NEGRO, 3)
-
-local CERRAR = crear("TextButton", {
-	Size = UDim2.fromOffset(30, 30),
-	Position = UDim2.new(1, -42, 0, 15),
-	BackgroundColor3 = ROJO,
-	Font = Enum.Font.GothamBlack,
-	Text = "X",
-	TextSize = 16,
-	TextColor3 = HUESO,
-	AutoButtonColor = false,
-	ZIndex = 9,
-}, CAB)
-esquina(CERRAR, 7)
-trazo(CERRAR, Color3.fromRGB(255, 110, 110), 1.5, 0.3)
-
-local NOMBRE = crear("TextLabel", {
-	Size = UDim2.new(1, -28, 0, 22),
-	Position = UDim2.fromOffset(14, 118),
-	BackgroundTransparency = 1,
-	Font = Enum.Font.GothamBold,
-	TextSize = 15,
-	Text = "Bienvenido, @" .. PLR.Name,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	TextColor3 = VERDE,
-	ZIndex = 5,
-}, PANEL)
-
-local tono = 0
-conectar(RunService.RenderStepped, function(dt)
-	if not VIVO then return end
-	tono = (tono + dt * 0.15) % 1
-	NOMBRE.TextColor3 = Color3.fromHSV(tono, 0.7, 1)
-end)
---[[ PARTE 4/7 · FUEGO ]]
-local FUEGO = crear("Frame", {
-	Size = UDim2.fromScale(1, 1),
-	BackgroundTransparency = 1,
-	ClipsDescendants = true,
-	ZIndex = 2,
-}, PANEL)
-
-local BASE = crear("Frame", {
-	Size = UDim2.new(1, 0, 0, 16),
-	Position = UDim2.new(0, 0, 1, -16),
-	BackgroundColor3 = VERDE,
-	BackgroundTransparency = 0.4,
-	BorderSizePixel = 0,
-	ZIndex = 2,
-}, FUEGO)
-esquina(BASE, 12)
-grad(BASE, Color3.fromRGB(0, 190, 100), VERDE2, 90)
-
-local VIVAS = 0
-
-local function chispa()
-	if not VIVO or VIVAS >= CONFIG.FUEGO_MAX then return end
-	VIVAS += 1
-
-	local tam = math.random(3, 7)
-	local xs = math.random() * 0.94 + 0.03
-	local s = crear("Frame", {
-		Size = UDim2.fromOffset(tam, tam),
-		Position = UDim2.new(xs, 0, 1, -10),
-		BackgroundColor3 = (math.random(1, 3) == 1)
-			and Color3.fromRGB(225, 255, 240)
-			or Color3.fromRGB(0, 230, 120),
-		BackgroundTransparency = 0.05,
-		BorderSizePixel = 0,
-		ZIndex = 3,
-	}, FUEGO)
-	esquina(s, 10)
-
-	local alto = math.random(150, 390)
-	local deriva = math.random(-30, 30) / ANCHO
-	local dur = math.random(90, 180) / 100 / CONFIG.FUEGO_VEL
-
-	TweenService:Create(s, TweenInfo.new(dur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Position = UDim2.new(xs + deriva, 0, 0, -alto),
-		Size = UDim2.fromOffset(1, 1),
-		BackgroundTransparency = 1,
-		Rotation = math.random(-80, 80),
-	}):Play()
-
-	task.delay(dur, function()
-		VIVAS -= 1
-		s:Destroy()
+	UserInputService.InputChanged:Connect(function(input)
+		if arrastrando and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local delta = input.Position - puntoInicio
+			frame.Position = UDim2.new(
+				posicionInicio.X.Scale,
+				posicionInicio.X.Offset + delta.X,
+				posicionInicio.Y.Scale,
+				posicionInicio.Y.Offset + delta.Y
+			)
+		end
 	end)
 end
 
+-- ==========================================
+-- CREACIÓN DE LA INTERFAZ
+-- ==========================================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MenuAccesoGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local function agregarBordeCristal(objeto, color, grosor, transparencia)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = color or Color3.fromRGB(80, 190, 255)
+	stroke.Transparency = transparencia or 0.2
+	stroke.Thickness = grosor or 1.5
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = objeto
+end
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 540, 0, 270)
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.BackgroundColor3 = Color3.fromRGB(6, 20, 38)
+mainFrame.BackgroundTransparency = 0.2
+mainFrame.Parent = screenGui
+agregarBordeCristal(mainFrame, Color3.fromRGB(80, 190, 255), 2, 0.2)
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 22)
+corner.Parent = mainFrame
+
+-- ==========================================
+-- FUEGO QUE SUBE + CHISPAS
+-- ==========================================
+local fuegoContainer = Instance.new("Frame")
+fuegoContainer.Size = UDim2.new(1, -30, 1, 0)
+fuegoContainer.Position = UDim2.new(0, 15, 0, 0)
+fuegoContainer.BackgroundTransparency = 1
+fuegoContainer.ClipsDescendants = true
+fuegoContainer.ZIndex = 2
+fuegoContainer.Parent = mainFrame
+
+local fuegoEstatico = Instance.new("Frame")
+fuegoEstatico.Size = UDim2.new(1, 0, 0, 40)
+fuegoEstatico.Position = UDim2.new(0, 0, 1, -40)
+fuegoEstatico.BackgroundColor3 = Color3.fromRGB(255, 70, 0)
+fuegoEstatico.BackgroundTransparency = 0.55
+fuegoEstatico.BorderSizePixel = 0
+fuegoEstatico.ZIndex = 2
+fuegoEstatico.Parent = fuegoContainer
+Instance.new("UICorner", fuegoEstatico).CornerRadius = UDim.new(0, 18)
+
+local gradientFuego = Instance.new("UIGradient")
+gradientFuego.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0.0, Color3.fromRGB(255, 20, 0)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 120, 0)),
+	ColorSequenceKeypoint.new(1.0, Color3.fromRGB(255, 220, 0))
+})
+gradientFuego.Transparency = NumberSequence.new({
+	NumberSequenceKeypoint.new(0.0, 0.15),
+	NumberSequenceKeypoint.new(1.0, 1.0)
+})
+gradientFuego.Rotation = 90
+gradientFuego.Parent = fuegoEstatico
+
+local chispas = {}
+for i = 1, 30 do
+	local chispa = Instance.new("Frame")
+	chispa.Size = UDim2.new(0, math.random(2, 6), 0, math.random(7, 20))
+	chispa.Position = UDim2.new(math.random(2, 98) / 100, 0, math.random(60, 98) / 100, 0)
+	chispa.BackgroundColor3 = (i % 4 == 0) and Color3.fromRGB(255, 240, 170) or Color3.fromRGB(255, math.random(100, 240), 0)
+	chispa.BackgroundTransparency = math.random(10, 45) / 100
+	chispa.BorderSizePixel = 0
+	chispa.ZIndex = 2
+	chispa.Parent = fuegoContainer
+	Instance.new("UICorner", chispa).CornerRadius = UDim.new(1, 0)
+
+	table.insert(chispas, {
+		objeto = chispa,
+		velY = math.random(10, 26) * 0.0008,
+		velX = math.random(-18, 18) * 0.0001,
+		vida = math.random(50, 100) / 100
+	})
+end
+
 task.spawn(function()
-	while VIVO do
-		chispa()
-		task.wait(math.random(3, 8) / 100 / CONFIG.FUEGO_VEL)
+	while true do
+		local dt = RunService.RenderStepped:Wait()
+		for _, dato in ipairs(chispas) do
+			local c = dato.objeto
+			local posY = c.Position.Y.Scale - dato.velY
+			local posX = c.Position.X.Scale + dato.velX
+			dato.vida = dato.vida - dt
+
+			if posY < 0.04 or posX <= 0.02 or posX >= 0.98 or dato.vida <= 0 then
+				posY = math.random(80, 98) / 100
+				posX = math.random(5, 95) / 100
+				dato.velY = math.random(10, 26) * 0.0008
+				dato.velX = math.random(-18, 18) * 0.0001
+				dato.vida = math.random(50, 100) / 100
+				c.BackgroundTransparency = math.random(10, 45) / 100
+				c.Size = UDim2.new(0, math.random(2, 6), 0, math.random(7, 20))
+			else
+				c.BackgroundTransparency = math.min(0.85, c.BackgroundTransparency + dt * 0.5)
+			end
+			c.Position = UDim2.new(posX, 0, posY, 0)
+		end
+		task.wait(0.03)
 	end
 end)
---[[ PARTE 5/7 · LLAVE ]]
-local CAJA = crear("Frame", {
-	Size = UDim2.new(1, -28, 0, 40),
-	Position = UDim2.fromOffset(14, 148),
-	BackgroundColor3 = NEGRO,
-	BackgroundTransparency = 0.1,
-	BorderSizePixel = 0,
-	ZIndex = 5,
-}, PANEL)
-esquina(CAJA, 8)
-local BORDE = trazo(CAJA, VERDE, 2, 0.15)
+-- ==========================================
+-- BARRA SUPERIOR
+-- ==========================================
+local header = Instance.new("Frame")
+header.Name = "Header"
+header.Size = UDim2.new(1, 0, 0, 38)
+header.BackgroundColor3 = Color3.fromRGB(4, 14, 28)
+header.BackgroundTransparency = 0.3
+header.BorderSizePixel = 0
+header.ZIndex = 3
+header.Parent = mainFrame
 
-local CAMPO = crear("TextBox", {
-	Size = UDim2.new(1, -24, 1, 0),
-	Position = UDim2.fromOffset(12, 0),
-	BackgroundTransparency = 1,
-	Font = Enum.Font.GothamBold,
-	TextSize = 15,
-	TextColor3 = HUESO,
-	PlaceholderText = "Llave de acceso...",
-	PlaceholderColor3 = Color3.fromRGB(118, 118, 126),
-	TextXAlignment = Enum.TextXAlignment.Left,
-	ClearTextOnFocus = false,
-	ZIndex = 6,
-}, CAJA)
+local cornerHeader = Instance.new("UICorner")
+cornerHeader.CornerRadius = UDim.new(0.6, 0)
+cornerHeader.Parent = header
 
-conectar(CAMPO.Focused, function()
-	TweenService:Create(BORDE, TweenInfo.new(0.15), { Thickness = 3, Transparency = 0, Color = VERDE2 }):Play()
-	TweenService:Create(CAJA, TweenInfo.new(0.15), { BackgroundTransparency = 0 }):Play()
+hacerArrastrable(mainFrame, header)
+
+local closeBtn1 = Instance.new("TextButton")
+closeBtn1.Size = UDim2.new(0, 26, 0, 24)
+closeBtn1.Position = UDim2.new(1, -32, 0, 7)
+closeBtn1.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+closeBtn1.BackgroundTransparency = 0.2
+closeBtn1.Text = "X"
+closeBtn1.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn1.Font = Enum.Font.FredokaOne
+closeBtn1.TextSize = 13
+closeBtn1.ZIndex = 3
+closeBtn1.Parent = header
+
+local cornerClose = Instance.new("UICorner")
+cornerClose.CornerRadius = UDim.new(0, 6)
+cornerClose.Parent = closeBtn1
+agregarBordeCristal(closeBtn1, Color3.fromRGB(255, 100, 100), 1, 0.2)
+
+local fpsLabel = Instance.new("TextLabel")
+fpsLabel.Size = UDim2.new(0, 48, 0, 24)
+fpsLabel.Position = UDim2.new(1, -84, 0, 7)
+fpsLabel.BackgroundTransparency = 1
+fpsLabel.Text = "FPS: 60"
+fpsLabel.TextColor3 = Color3.fromRGB(160, 240, 255)
+fpsLabel.Font = Enum.Font.FredokaOne
+fpsLabel.TextSize = 11
+fpsLabel.TextXAlignment = Enum.TextXAlignment.Right
+fpsLabel.ZIndex = 3
+fpsLabel.Parent = header
+
+local frames = 0
+local ultimoTiempo = tick()
+RunService.RenderStepped:Connect(function()
+	frames = frames + 1
+	local ahora = tick()
+	if ahora - ultimoTiempo >= 1 then
+		fpsLabel.Text = "FPS: " .. frames
+		frames = 0
+		ultimoTiempo = ahora
+	end
 end)
 
-conectar(CAMPO.FocusLost, function()
-	TweenService:Create(BORDE, TweenInfo.new(0.2), { Thickness = 2, Transparency = 0.15, Color = VERDE }):Play()
-	TweenService:Create(CAJA, TweenInfo.new(0.2), { BackgroundTransparency = 0.1 }):Play()
-end)
+local newsContainer = Instance.new("Frame")
+newsContainer.Size = UDim2.new(1, -96, 0, 24)
+newsContainer.Position = UDim2.new(0, 12, 0, 7)
+newsContainer.ClipsDescendants = true
+newsContainer.BackgroundTransparency = 1
+newsContainer.ZIndex = 3
+newsContainer.Parent = header
 
-local OBTENER = crear("TextButton", {
-	Size = UDim2.new(1, -28, 0, 34),
-	Position = UDim2.fromOffset(14, 198),
-	BackgroundColor3 = HUMO,
-	Font = Enum.Font.GothamBlack,
-	Text = "OBTENER LLAVE  ·  DISCORD",
-	TextSize = 12,
-	TextColor3 = HUESO,
-	AutoButtonColor = false,
-	ZIndex = 5,
-}, PANEL)
-esquina(OBTENER, 7)
-trazo(OBTENER, HUESO, 1.5, 0.5)
-
-local ESTADO = crear("TextLabel", {
-	Size = UDim2.new(1, -28, 0, 22),
-	Position = UDim2.fromOffset(14, 240),
-	BackgroundTransparency = 1,
-	Font = Enum.Font.GothamMedium,
-	TextSize = 12,
-	Text = "",
-	TextXAlignment = Enum.TextXAlignment.Left,
-	TextColor3 = HUESO,
-	TextWrapped = true,
-	ZIndex = 5,
-}, PANEL)
---[[ PARTE 6/7 · BOTÓN + CINTA ]]
-local BTN = crear("TextButton", {
-	Size = UDim2.new(1, -28, 0, 72),
-	Position = UDim2.fromOffset(14, 286),
-	BackgroundColor3 = VERDE,
-	Font = Enum.Font.LuckiestGuy,
-	Text = "ENTRAR AL HUB",
-	TextSize = 30,
-	TextColor3 = NEGRO,
-	AutoButtonColor = false,
-	Rotation = -1,
-	ZIndex = 8,
-}, PANEL)
-esquina(BTN, 10)
-trazo(BTN, NEGRO, 4)
-grad(crear("Frame", {
-	Size = UDim2.fromScale(1, 1),
-	BackgroundColor3 = Color3.new(1, 1, 1),
-	BorderSizePixel = 0,
-	ZIndex = 7,
-}, BTN), VERDE2, Color3.fromRGB(0, 175, 92), 0)
-
-local BRILLO = crear("Frame", {
-	Size = UDim2.new(0, 38, 1, 0),
-	Position = UDim2.new(0, -46, 0, 0),
-	BackgroundColor3 = Color3.new(1, 1, 1),
-	BackgroundTransparency = 0.62,
-	BorderSizePixel = 0,
-	Rotation = 16,
-	ZIndex = 9,
-}, BTN)
+local newsText = Instance.new("TextLabel")
+newsText.Size = UDim2.new(2, 0, 1, 0)
+newsText.Position = UDim2.new(1, 0, 0, 0)
+newsText.BackgroundTransparency = 1
+newsText.Text = "💡 Tip: Únete al Discord oficial para conseguir tu llave secreta  |  ⚡ Menú optimizado y exclusivo para Roblox  |  🔒 Ingresa tu clave para continuar"
+newsText.TextColor3 = Color3.fromRGB(130, 220, 255)
+newsText.Font = Enum.Font.FredokaOne
+newsText.TextSize = 11
+newsText.TextXAlignment = Enum.TextXAlignment.Left
+newsText.ZIndex = 3
+newsText.Parent = newsContainer
 
 task.spawn(function()
-	while VIVO do
-		BRILLO.Position = UDim2.new(0, -46, 0, 0)
-		task.wait(0.3)
-		TweenService:Create(BRILLO, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			Position = UDim2.new(1, 22, 0, 0),
+	while true do
+		newsText.Position = UDim2.new(1, 0, 0, 0)
+		local tiempoAnim = 12
+		local tiempoPasado = 0
+		while tiempoPasado < tiempoAnim do
+			local dt = RunService.RenderStepped:Wait()
+			tiempoPasado = tiempoPasado + dt
+			local progreso = tiempoPasado / tiempoAnim
+			newsText.Position = UDim2.new(1 - (progreso * 2.3), 0, 0, 0)
+		end
+	end
+end)
+
+-- ==========================================
+-- TÍTULO DESTROYA ACCESS + NOMBRE ARCOÍRIS
+-- ==========================================
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(0.9, 0, 0, 34)
+titleLabel.Position = UDim2.new(0.5, 0, 0.24, 0)
+titleLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "DESTROYA ACCESS"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.FredokaOne
+titleLabel.TextSize = 26
+titleLabel.TextXAlignment = Enum.TextXAlignment.Center
+titleLabel.ZIndex = 3
+titleLabel.Parent = mainFrame
+
+local titleShadow = Instance.new("TextLabel")
+titleShadow.Size = UDim2.new(1, 0, 1, 0)
+titleShadow.Position = UDim2.new(0, 2, 0, 2)
+titleShadow.BackgroundTransparency = 1
+titleShadow.Text = titleLabel.Text
+titleShadow.TextColor3 = Color3.fromRGB(0, 0, 0)
+titleShadow.Font = Enum.Font.FredokaOne
+titleShadow.TextSize = 26
+titleShadow.TextXAlignment = Enum.TextXAlignment.Center
+titleShadow.ZIndex = 2
+titleShadow.Parent = titleLabel
+
+for i = 1, 5 do
+	local puntoLuz = Instance.new("Frame")
+	puntoLuz.Size = UDim2.new(0, 3, 0, 3)
+	puntoLuz.Position = UDim2.new(0.2 + (i * 0.12), math.random(-8, 8), 0.3, math.random(-4, 4))
+	puntoLuz.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	puntoLuz.BorderSizePixel = 0
+	puntoLuz.ZIndex = 4
+	puntoLuz.Parent = titleLabel
+	Instance.new("UICorner", puntoLuz).CornerRadius = UDim.new(1, 0)
+end
+
+local nameLabel = Instance.new("TextLabel")
+nameLabel.Size = UDim2.new(0.9, 0, 0, 20)
+nameLabel.Position = UDim2.new(0.5, 0, 0.36, 0)
+nameLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+nameLabel.BackgroundTransparency = 1
+nameLabel.Text = "Bienvenido, @" .. nombreFormateado
+nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+nameLabel.Font = Enum.Font.FredokaOne
+nameLabel.TextSize = 14
+nameLabel.TextXAlignment = Enum.TextXAlignment.Center
+nameLabel.ZIndex = 3
+nameLabel.Parent = mainFrame
+
+task.spawn(function()
+	local hue = 0
+	while task.wait(0.03) do
+		hue = (hue + 1) % 360
+		nameLabel.TextColor3 = Color3.fromHSV(hue / 360, 1, 1)
+	end
+end)
+-- ==========================================
+-- CUADRO DE TEXTO
+-- ==========================================
+local keyBox = Instance.new("TextBox")
+keyBox.Name = "KeyBox"
+keyBox.Size = UDim2.new(0.68, 0, 0, 38)
+keyBox.Position = UDim2.new(0.5, 0, 0.50, 0)
+keyBox.AnchorPoint = Vector2.new(0.5, 0.5)
+keyBox.BackgroundColor3 = Color3.fromRGB(4, 15, 30)
+keyBox.BackgroundTransparency = 0.4
+keyBox.PlaceholderText = "Pon tu llave _"
+keyBox.PlaceholderColor3 = Color3.fromRGB(150, 190, 220)
+keyBox.Text = ""
+keyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+keyBox.Font = Enum.Font.FredokaOne
+keyBox.TextSize = 15
+keyBox.ClearTextOnFocus = false
+keyBox.ZIndex = 3
+keyBox.Parent = mainFrame
+
+local bordeCaja = Instance.new("UIStroke")
+bordeCaja.Color = Color3.fromRGB(0, 230, 118)
+bordeCaja.Transparency = 0.1
+bordeCaja.Thickness = 2
+bordeCaja.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+bordeCaja.Parent = keyBox
+
+Instance.new("UICorner", keyBox).CornerRadius = UDim.new(0, 8)
+
+keyBox.Focused:Connect(function()
+	game:GetService("TweenService"):Create(bordeCaja, TweenInfo.new(0.15), {
+		Thickness = 3, Transparency = 0, Color = Color3.fromRGB(140, 255, 190)
+	}):Play()
+end)
+
+keyBox.FocusLost:Connect(function()
+	game:GetService("TweenService"):Create(bordeCaja, TweenInfo.new(0.2), {
+		Thickness = 2, Transparency = 0.1, Color = Color3.fromRGB(0, 230, 118)
+	}):Play()
+end)
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "StatusLabel"
+statusLabel.Size = UDim2.new(0.8, 0, 0, 22)
+statusLabel.Position = UDim2.new(0.5, 0, 0.63, 0)
+statusLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+statusLabel.BackgroundTransparency = 1
+statusLabel.ZIndex = 3
+statusLabel.Text = ""
+statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+statusLabel.Font = Enum.Font.FredokaOne
+statusLabel.TextSize = 13
+statusLabel.Parent = mainFrame
+
+-- ==========================================
+-- BOTONES
+-- ==========================================
+local verifyBtn = Instance.new("TextButton")
+verifyBtn.Name = "VerifyBtn"
+verifyBtn.Size = UDim2.new(0.34, 0, 0, 40)
+verifyBtn.Position = UDim2.new(0.29, 0, 0.79, 0)
+verifyBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+verifyBtn.BackgroundColor3 = Color3.fromRGB(0, 210, 110)
+verifyBtn.Text = "VERIFICAR"
+verifyBtn.TextColor3 = Color3.fromRGB(8, 22, 12)
+verifyBtn.Font = Enum.Font.FredokaOne
+verifyBtn.TextSize = 17
+verifyBtn.ZIndex = 5
+verifyBtn.Parent = mainFrame
+agregarBordeCristal(verifyBtn, Color3.fromRGB(4, 20, 10), 2, 0)
+
+local gradVerde = Instance.new("UIGradient")
+gradVerde.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0.0, Color3.fromRGB(150, 255, 190)),
+	ColorSequenceKeypoint.new(1.0, Color3.fromRGB(0, 165, 85))
+})
+gradVerde.Rotation = 0
+gradVerde.Parent = verifyBtn
+
+Instance.new("UICorner", verifyBtn).CornerRadius = UDim.new(0, 9)
+
+local brilloBtn = Instance.new("Frame")
+brilloBtn.Size = UDim2.new(0, 34, 1, 0)
+brilloBtn.Position = UDim2.new(0, -40, 0, 0)
+brilloBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+brilloBtn.BackgroundTransparency = 0.55
+brilloBtn.BorderSizePixel = 0
+brilloBtn.Rotation = 16
+brilloBtn.ZIndex = 4
+brilloBtn.Parent = verifyBtn
+
+task.spawn(function()
+	while verifyBtn.Parent do
+		brilloBtn.Position = UDim2.new(0, -40, 0, 0)
+		task.wait(0.4)
+		game:GetService("TweenService"):Create(brilloBtn, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Position = UDim2.new(1, 16, 0, 0)
 		}):Play()
 		task.wait(2.2)
 	end
 end)
 
-task.spawn(function()
-	while VIVO do
-		TweenService:Create(BTN, TweenInfo.new(0.85, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-			Size = UDim2.new(1, -20, 0, 74),
-		}):Play()
-		task.wait(0.9)
-		TweenService:Create(BTN, TweenInfo.new(0.85, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-			Size = UDim2.new(1, -28, 0, 72),
-		}):Play()
-		task.wait(0.9)
-	end
+local getKeyBtn = Instance.new("TextButton")
+getKeyBtn.Name = "GetKeyBtn"
+getKeyBtn.Size = UDim2.new(0.34, 0, 0, 40)
+getKeyBtn.Position = UDim2.new(0.71, 0, 0.79, 0)
+getKeyBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+getKeyBtn.BackgroundColor3 = Color3.fromRGB(20, 34, 52)
+getKeyBtn.Text = "Obtener llave"
+getKeyBtn.TextColor3 = Color3.fromRGB(210, 240, 255)
+getKeyBtn.Font = Enum.Font.FredokaOne
+getKeyBtn.TextSize = 14
+getKeyBtn.ZIndex = 5
+getKeyBtn.Parent = mainFrame
+agregarBordeCristal(getKeyBtn, Color3.fromRGB(80, 190, 255), 1.5, 0.2)
+Instance.new("UICorner", getKeyBtn).CornerRadius = UDim.new(0, 9)
+
+local creditsLabel = Instance.new("TextLabel")
+creditsLabel.Size = UDim2.new(1, 0, 0, 14)
+creditsLabel.Position = UDim2.new(0, 0, 1, -12)
+creditsLabel.BackgroundTransparency = 1
+creditsLabel.ZIndex = 3
+creditsLabel.Text = "Echo por I`m"
+creditsLabel.TextColor3 = Color3.fromRGB(45, 70, 95)
+creditsLabel.Font = Enum.Font.FredokaOne
+creditsLabel.TextSize = 9
+creditsLabel.TextXAlignment = Enum.TextXAlignment.Center
+creditsLabel.Parent = mainFrame
+-- ==========================================
+-- LÓGICA DE EVENTOS Y GUARDADO AUTOMÁTICO
+-- ==========================================
+local botonYaUsado = false
+
+closeBtn1.MouseButton1Click:Connect(function()
+	screenGui:Destroy()
 end)
 
--- cinta con carril propio, sin encimarse
-local CARRIL = crear("Frame", {
-	Size = UDim2.new(1, 0, 0, 24),
-	Position = UDim2.new(0, 0, 1, -24),
-	BackgroundColor3 = NEGRO,
-	BorderSizePixel = 0,
-	ClipsDescendants = true,
-	ZIndex = 10,
-}, PANEL)
-crear("Frame", {
-	Size = UDim2.new(1, 0, 0, 2),
-	BackgroundColor3 = VERDE,
-	BorderSizePixel = 0,
-	ZIndex = 11,
-}, CARRIL)
+getKeyBtn.MouseButton1Click:Connect(function()
+	if botonYaUsado then return end
+	botonYaUsado = true
+	getKeyBtn.Active = false
+	getKeyBtn.BackgroundTransparency = 0.5
 
-local CINTA = crear("TextLabel", {
-	Size = UDim2.fromOffset(0, 24),
-	Position = UDim2.fromOffset(0, 0),
-	BackgroundTransparency = 1,
-	Font = Enum.Font.GothamBlack,
-	TextSize = 12,
-	TextColor3 = VERDE2,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	Text = "  ///  DESTROYA HUB  ///  SIN LAG  ///  ESP 100m  ///  CAM LOCK  ///  TELEPORT  ///  WALLS  ///  ECHO POR I`m  ///  ",
-	AutomaticSize = Enum.AutomaticSize.X,
-	ZIndex = 11,
-}, CARRIL)
+	keyBox.Text = LINK_OBTENER_LLAVE
 
-local desplazo = 0
-conectar(RunService.RenderStepped, function(dt)
-	if not VIVO then return end
-	desplazo -= dt * CONFIG.VEL_CINTA
-	if desplazo <= -CINTA.TextBounds.X then
-		desplazo = CARRIL.AbsoluteSize.X
-	end
-	CINTA.Position = UDim2.fromOffset(desplazo, 0)
-end)
---[[ PARTE 7/7 · SISTEMA ]]
-local function aviso(txt, col)
-	ESTADO.Text = txt
-	ESTADO.TextColor3 = col or HUESO
-end
-
-local function normalizar(s)
-	return string.lower((string.gsub(tostring(s or ""), "%s", "")))
-end
-
-local function guardar()
 	pcall(function()
-		if writefile then writefile(ARCHIVO, CLAVE) end
+		setclipboard(LINK_OBTENER_LLAVE)
 	end)
-end
 
-local function leerGuardada()
-	local ok, res = pcall(function()
-		if isfile and isfile(ARCHIVO) and readfile then return readfile(ARCHIVO) end
-		return nil
-	end)
-	return ok and res ~= nil and normalizar(res) == CLAVE
-end
+	statusLabel.TextColor3 = Color3.fromRGB(140, 255, 190)
+	statusLabel.Text = "¡Enlace copiado al portapapeles!"
+end)
 
-local function descargar()
-	local rutas = {
-		function() return game:HttpGet(URL, true) end,
-		function() return game:HttpGetAsync(URL) end,
-		function() return request({ Url = URL, Method = "GET" }).Body end,
-		function() return syn.request({ Url = URL, Method = "GET" }).Body end,
-	}
-	for _, m in ipairs(rutas) do
-		local ok, res = pcall(m)
-		if ok and type(res) == "string" and #res > 300 then return res end
-	end
-	return nil
-end
+verifyBtn.MouseButton1Click:Connect(function()
+	if botonYaUsado then return end
 
-function CerrarTodo()
-	VIVO = false
-	for _, c in ipairs(CONEX) do pcall(function() c:Disconnect() end) end
-	CONEX = {}
-	pcall(function() GUI:Destroy() end)
-end
+	local textoEscrito = string.lower(string.gsub(keyBox.Text, "%s+", ""))
+	botonYaUsado = true
+	verifyBtn.Active = false
+	getKeyBtn.Active = false
+	verifyBtn.BackgroundTransparency = 0.5
+	getKeyBtn.BackgroundTransparency = 0.5
 
-local cargando = false
-
-local function entrar()
-	if cargando then return end
-	cargando = true
-	BTN.Text = "CARGANDO..."
-	aviso("Descargando Destroya Hub...", VERDE)
+	statusLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
+	statusLabel.Text = "Verificando"
 
 	task.spawn(function()
-		local src = descargar()
-		if not src then
-			aviso("No se pudo descargar. Revisa tu conexión.", ROJO)
-			BTN.Text = "ENTRAR AL HUB"
-			cargando = false
-			return
+		for i = 1, 3 do
+			task.wait(1)
+			if statusLabel and statusLabel.Parent then
+				statusLabel.Text = statusLabel.Text .. "."
+			end
 		end
-		aviso("Compilando...", VERDE)
-		local fn, err = loadstring(src, "DestroyaHub")
-		if not fn then
-			aviso("Error de compilación: " .. tostring(err), ROJO)
-			BTN.Text = "ENTRAR AL HUB"
-			cargando = false
-			return
-		end
-		guardar()
-		CerrarTodo()
-		task.wait(0.2)
-		local ok, e = pcall(fn)
-		if not ok then warn("[Destroya] " .. tostring(e)) end
 	end)
-end
 
-conectar(BTN.Activated, function()
-	local k = normalizar(CAMPO.Text)
-	if k == "" then
-		aviso("Escribe la llave. Está en el Discord.", ROJO)
-		return
-	end
-	if k ~= CLAVE then
-		aviso("Llave incorrecta.", ROJO)
-		local bx, by = tx, ty
-		for _ = 1, 3 do
-			tx = bx + 8 task.wait(0.05)
-			tx = bx - 8 task.wait(0.05)
+	task.wait(3)
+
+	if textoEscrito == LLAVE_CORRECTA then
+		statusLabel.TextColor3 = Color3.fromRGB(0, 255, 128)
+		statusLabel.Text = "¡Llave correcta!"
+
+		task.wait(2)
+
+		if writefile then
+			pcall(function()
+				writefile(ARCHIVO_LLAVE, LLAVE_CORRECTA)
+			end)
 		end
-		tx = bx
-		return
-	end
-	entrar()
-end)
 
-conectar(OBTENER.Activated, function()
-	local link = "https://discord.gg/ykHwgmQnD"
-	local ok = pcall(function() setclipboard(link) end)
-	aviso(ok and "Link copiado. La llave está en #acceso." or link, VERDE)
-end)
+		screenGui:Destroy()
 
-conectar(CERRAR.Activated, function() CerrarTodo() end)
-
-task.defer(function()
-	if leerGuardada() then
-		aviso("Llave guardada. Cargando...", VERDE)
-		task.wait(0.6)
-		if VIVO then entrar() end
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2"))()
 	else
-		aviso("Consigue tu llave en el Discord.", Color3.fromRGB(148, 148, 156))
+		statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+		statusLabel.Text = "Llave incorrecta"
+
+		botonYaUsado = false
+		verifyBtn.Active = true
+		getKeyBtn.Active = true
+		verifyBtn.BackgroundTransparency = 0
+		getKeyBtn.BackgroundTransparency = 0
 	end
 end)
