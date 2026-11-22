@@ -6,7 +6,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 -- ==========================================
 -- CONFIGURACIÓN Y GUARDADO PERMANENTE AUTOMÁTICO
--- ==========================================
+-- =========================================
 local LLAVE_CORRECTA = "v6.2"
 local LINK_OBTENER_LLAVE = "https://discord.gg/ykHwgmQnD"
 local ARCHIVO_LLAVE = "LlaveGuardada_Im.txt"
