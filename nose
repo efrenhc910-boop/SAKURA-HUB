@@ -1,0 +1,308 @@
+-- ============================================================
+-- PARTE 0: RECON  (ejecutar aparte, una vez)
+-- ============================================================
+local RS = game:GetService("ReplicatedStorage")
+
+for _, d in ipairs(RS:GetDescendants()) do
+    local n = d.Name:lower()
+    if d:IsA("RemoteEvent") or d:IsA("RemoteFunction") then
+        if n:find("skin") or n:find("equip") or n:find("attack")
+        or n:find("fire") or n:find("swing") or n:find("hit") then
+            print("[REMOTE]", d:GetFullName(), d.ClassName)
+        end
+    elseif d:IsA("ModuleScript") then
+        if n:find("skin") or n:find("cosmetic") or n:find("item") then
+            print("[MODULE]", d:GetFullName())
+        end
+    end
+end
+print("--- recon listo, copia los nombres a CFG ---")
+-- ============================================================
+-- PARTE 1: BASE
+-- ============================================================
+local Players = game:GetService("Players")
+local RS      = game:GetService("ReplicatedStorage")
+local UIS     = game:GetService("UserInputService")
+local Run     = game:GetService("RunService")
+
+local LP = Players.LocalPlayer
+
+local CFG = {
+    -- ---- SKINS ----
+    SkinEquipRemote = "EquipSkin",   -- <-- pon aquí lo que salga en el recon
+    SkinUnlockAll   = true,          -- false = solo parchea propiedad local, sin forzar equip
+
+    -- ---- POWER JUMP ----
+    JumpImpulse     = 130,           -- fuerza vertical (110-150 va bien, +200 = desync)
+    JumpAutoEnable  = false,         -- true = activo al cargar
+
+    -- ---- I'M BOT ----
+    BotRingRadius   = 14,            -- radio del círculo
+    BotRingColor    = Color3.fromRGB(255, 40, 40),
+    BotRingSegments = 32,            -- más = círculo más fino
+    BotTagText      = "[BOT]",
+    BotKillRange    = 40,            -- alcance del auto-kill
+    BotKillDelay    = 0.12,          -- cadencia de golpes
+    BotAutoKill     = true,
+}
+
+-- búsqueda profunda por nombre + clase
+local function deepFind(name, class)
+    for _, d in ipairs(RS:GetDescendants()) do
+        if d.Name == name and d:IsA(class) then return d end
+    end
+end
+
+local function getChar()
+    local c = LP.Character
+    return c, c and c:FindFirstChild("Humanoid"), c and c:FindFirstChild("HumanoidRootPart")
+end
+
+local function isAlive()
+    local _, hum = getChar()
+    return hum and hum.Health > 0
+end
+-- ============================================================
+-- PARTE 2: SKINS UNLOCKER
+-- ============================================================
+local Skins = { ids = {}, owned = {} }
+
+-- 2.1 localizar el módulo de datos de skins
+function Skins.findData()
+    for _, d in ipairs(RS:GetDescendants()) do
+        if d:IsA("ModuleScript") then
+            local n = d.Name:lower()
+            if n:find("skin") or n:find("cosmetic") then
+                local ok, data = pcall(require, d)
+                if ok and type(data) == "table" then
+                    Skins.module = d
+                    return data
+                end
+            end
+        end
+    end
+end
+
+-- 2.2 aplanar el módulo a una lista de IDs (acepta tablas anidadas)
+function Skins.collect(tbl)
+    for k, v in pairs(tbl or {}) do
+        if type(v) == "table" then
+            Skins.collect(v)
+        elseif type(v) == "string" and #v > 2 then
+            Skins.ids[v] = true
+        elseif type(k) == "string" and #k > 2 and type(v) == "boolean" then
+            Skins.ids[k] = true      -- formato { SkinId = true }
+        end
+    end
+end
+
+-- 2.3 CAPA A: marcar propiedad en el perfil local
+function Skins.patchProfile()
+    -- el perfil suele colgar del jugador o de _G si el script ya lo cacheó
+    local prof = rawget(getfenv(), "RIVALS_PROFILE") or _G.RIVALS_PROFILE
+    if not prof then return false end
+
+    pcall(setreadonly, prof, false)
+    local lists = { "OwnedSkins", "Skins", "Owned", "Inventory" }
+    for _, key in ipairs(lists) do
+        local t = prof[key]
+        if type(t) == "table" then
+            for id in pairs(Skins.ids) do t[id] = true end
+        end
+    end
+    pcall(setreadonly, prof, true)
+    return true
+end
+
+-- 2.4 CAPA B: forzar equip
+function Skins.equip(id)
+    local remote = deepFind(CFG.SkinEquipRemote, "RemoteEvent")
+             or deepFind(CFG.SkinEquipRemote, "RemoteFunction")
+    if not remote then return false end
+
+    if remote:IsA("RemoteFunction") then
+        pcall(function() remote:InvokeServer(id) end)
+    else
+        pcall(function() remote:FireServer(id) end)
+    end
+    return true
+end
+
+function Skins.unlockAll()
+    local data = Skins.findData()
+    if data then Skins.collect(data) end
+    Skins.patchProfile()
+
+    local count = 0
+    for id in pairs(Skins.ids) do
+        if Skins.equip(id) then count += 1 end
+        task.wait(0.03)              -- throttle: si no, el server te tira
+    end
+    print(("[SKINS] %d skins procesadas"):format(count))
+end
+-- ============================================================
+-- PARTE 3: POWER JUMP
+-- ============================================================
+local PowerJump = { on = CFG.JumpAutoEnable, conn = nil }
+
+function PowerJump.set(state)
+    PowerJump.on = state
+    if state and not PowerJump.conn then
+        PowerJump.conn = UIS.JumpRequest:Connect(function()
+            if not PowerJump.on or not isAlive() then return end
+            local _, hum, hrp = getChar()
+            if not hrp then return end
+            hum.UseJumpPower = true
+            hum.JumpPower = 50                       -- base normal
+            local v = hrp.AssemblyLinearVelocity
+            hrp.AssemblyLinearVelocity = Vector3.new(v.X, CFG.JumpImpulse, v.Z)
+        end)
+    elseif not state and PowerJump.conn then
+        PowerJump.conn:Disconnect()
+        PowerJump.conn = nil
+    end
+end
+PowerJump.set(PowerJump.on)
+-- ============================================================
+-- PARTE 4: I'M BOT
+-- ============================================================
+local ImBot = { on = false, ring = {}, tag = nil, loop = nil }
+
+-- 4.1 anillo: partes finas soldadas al HRP
+function ImBot.buildRing(hrp)
+    local segs = CFG.BotRingSegments
+    for i = 1, segs do
+        local ang = (i / segs) * math.pi * 2
+        local p = Instance.new("Part")
+        p.Anchored     = false
+        p.CanCollide   = false
+        p.CanQuery     = false
+        p.CanTouch     = false
+        p.Material     = Enum.Material.Neon
+        p.Color        = CFG.BotRingColor
+        p.Transparency = 0.25
+        p.Size         = Vector3.new(0.6, 0.12, 0.9)
+        p.CFrame       = hrp.CFrame * CFrame.new(
+            math.cos(ang) * CFG.BotRingRadius,
+            -2.6,
+            math.sin(ang) * CFG.BotRingRadius
+        ) * CFrame.Angles(0, -ang, 0)
+
+        local w = Instance.new("WeldConstraint")
+        w.Part0, w.Part1 = hrp, p
+        w.Parent = p
+        p.Parent = workspace
+        table.insert(ImBot.ring, p)
+    end
+end
+
+-- 4.2 etiqueta de bot
+function ImBot.buildTag(hrp)
+    local bb = Instance.new("BillboardGui")
+    bb.Size = UDim2.fromScale(5, 1.6)
+    bb.StudsOffset = Vector3.new(0, 3.4, 0)
+    bb.AlwaysOnTop = true
+    bb.Parent = hrp
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.fromScale(1, 1)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = CFG.BotTagText
+    lbl.TextColor3 = Color3.fromRGB(220, 220, 220)
+    lbl.TextStrokeTransparency = 0.4
+    lbl.Font = Enum.Font.Code
+    lbl.TextScaled = true
+    lbl.Parent = bb
+
+    ImBot.tag = bb
+end
+
+-- 4.3 ataque: gira al objetivo y dispara/golpea
+function ImBot.attack(target)
+    local char, _, hrp = getChar()
+    if not char or not hrp then return end
+    local thp = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+    if not thp then return end
+
+    -- encarar
+    hrp.CFrame = CFrame.lookAt(hrp.Position, Vector3.new(
+        thp.Position.X, hrp.Position.Y, thp.Position.Z
+    ))
+
+    local tool = char:FindFirstChildOfClass("Tool")
+    if tool then
+        pcall(function() tool:Activate() end)
+    else
+        local remote = deepFind("FireWeapon", "RemoteEvent") or deepFind("Attack", "RemoteEvent")
+        if remote then pcall(function() remote:FireServer() end) end
+    end
+end
+
+-- 4.4 bucle: busca el más cercano en rango y lo mata
+function ImBot.startKill()
+    if ImBot.loop then return end
+    ImBot.loop = task.spawn(function()
+        while ImBot.on do
+            if CFG.BotAutoKill and isAlive() then
+                local _, _, hrp = getChar()
+                local best, bestD = nil, CFG.BotKillRange
+
+                for _, plr in ipairs(Players:GetPlayers()) do
+                    if plr ~= LP and plr.Character then
+                        local ph = plr.Character:FindFirstChild("Humanoid")
+                        local pr = plr.Character:FindFirstChild("HumanoidRootPart")
+                        if ph and pr and ph.Health > 0 then
+                            local d = (pr.Position - hrp.Position).Magnitude
+                            if d < bestD then best, bestD = plr, d end
+                        end
+                    end
+                end
+
+                if best then ImBot.attack(best) end
+            end
+            task.wait(CFG.BotKillDelay)
+        end
+    end)
+end
+
+-- 4.5 toggle
+function ImBot.set(state)
+    ImBot.on = state
+    if state then
+        local _, _, hrp = getChar()
+        if hrp then
+            ImBot.buildRing(hrp)
+            ImBot.buildTag(hrp)
+        end
+        ImBot.startKill()
+    else
+        for _, p in ipairs(ImBot.ring) do p:Destroy() end
+        ImBot.ring = {}
+        if ImBot.tag then ImBot.tag:Destroy() ImBot.tag = nil end
+        ImBot.loop = nil
+    end
+end
+-- ============================================================
+-- PARTE 5: BOOT
+-- ============================================================
+if CFG.SkinUnlockAll then task.spawn(Skins.unlockAll) end
+
+UIS.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == Enum.KeyCode.J then
+        ImBot.set(not ImBot.on)
+    elseif input.KeyCode == Enum.KeyCode.K then
+        PowerJump.set(not PowerJump.on)
+    elseif input.KeyCode == Enum.KeyCode.L then
+        Skins.unlockAll()
+    end
+end)
+
+-- re-aplicar anillo/tag al respawnear
+LP.CharacterAdded:Connect(function()
+    task.wait(1)
+    if ImBot.on then
+        local _, _, hrp = getChar()
+        if hrp then ImBot.buildRing(hrp) ImBot.buildTag(hrp) end
+    end
+end)
