@@ -458,3 +458,75 @@ creditsLabel.Parent = mainFrame
 -- ==========================================
 -- LÓGICA DE EVENTOS Y GUARDADO AUTOMÁTICO
 -- ==========================================
+local botonYaUsado = false
+
+closeBtn1.MouseButton1Click:Connect(function()
+        screenGui:Destroy()
+end)
+
+getKeyBtn.MouseButton1Click:Connect(function()
+        if botonYaUsado then return end
+        botonYaUsado = true
+        getKeyBtn.Active = false
+        getKeyBtn.BackgroundTransparency = 0.5
+
+        keyBox.Text = LINK_OBTENER_LLAVE
+
+        pcall(function()
+                setclipboard(LINK_OBTENER_LLAVE)
+        end)
+
+        statusLabel.TextColor3 = Color3.fromRGB(140, 255, 190)
+        statusLabel.Text = "¡Enlace copiado al portapapeles!"
+end)
+
+verifyBtn.MouseButton1Click:Connect(function()
+        if botonYaUsado then return end
+
+        local textoEscrito = string.lower(string.gsub(keyBox.Text, "%s+", ""))
+        botonYaUsado = true
+        verifyBtn.Active = false
+        getKeyBtn.Active = false
+        verifyBtn.BackgroundTransparency = 0.5
+        getKeyBtn.BackgroundTransparency = 0.5
+
+        statusLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
+        statusLabel.Text = "Verificando"
+
+        task.spawn(function()
+                for i = 1, 3 do
+                        task.wait(1)
+                        if statusLabel and statusLabel.Parent then
+                                statusLabel.Text = statusLabel.Text .. "."
+                        end
+                end
+        end)
+
+        task.wait(3)
+
+        if textoEscrito == LLAVE_CORRECTA then
+                statusLabel.TextColor3 = Color3.fromRGB(0, 255, 128)
+                statusLabel.Text = "¡Llave correcta!"
+
+                task.wait(2)
+
+                if writefile then
+                        pcall(function()
+                                writefile(ARCHIVO_LLAVE, LLAVE_CORRECTA)
+                        end)
+                end
+
+                screenGui:Destroy()
+
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2"))()
+        else
+                statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+                statusLabel.Text = "Llave incorrecta"
+
+                botonYaUsado = false
+                verifyBtn.Active = true
+                getKeyBtn.Active = true
+                verifyBtn.BackgroundTransparency = 0
+                getKeyBtn.BackgroundTransparency = 0
+        end
+end)
