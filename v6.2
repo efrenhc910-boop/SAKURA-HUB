@@ -332,133 +332,36 @@ end
 print("[DestroyaHub] parte 1 lista")
 --##################################################
 --# ► PARTE 1.5 — CANDADO: SOLO RIVALS
---#   Fuera de RIVALS el hub avisa y se expulsa
---#   solo. No banea, no bloquea nada.
+--#   Fuera de RIVALS se patea al jugador con aviso
+--#   y lo manda de vuelta al lobby de Roblox.
 --##################################################
 
 local RIVALS_ID    = 6035872082
 local RIVALS_PLACE = 17625359962
-local RIVALS_LINK  = "https://www.roblox.com/games/17625359962/RIVALS"
-local HUB_URL      = "https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2"
+local AVISO_PATADA = "No estás dentro de RIVALS"
 
 local function dentroDeRivals()
     return game.GameId == RIVALS_ID or game.PlaceId == RIVALS_PLACE
 end
 
-if dentroDeRivals() then
-    print("[DestroyaHub] dentro de RIVALS, adelante")
-else
-    local expulsado = false
+if not dentroDeRivals() then
+    print("[DestroyaHub] fuera de RIVALS, pateando")
 
-    local function expulsar()
-        if expulsado then return end
-        expulsado = true
+    pcall(function()
         if Screen.Parent then Screen:Destroy() end
-        print("[DestroyaHub] expulsado: no estás dentro de RIVALS")
-    end
+    end)
 
-    local ROJO   = Color3.fromRGB(255, 40, 60)
-    local ROJO_T = Color3.fromRGB(255, 140, 150)
+    -- patada con mensaje
+    pcall(function() player:Kick(AVISO_PATADA) end)
 
-    local panel = Instance.new("Frame")
-    panel.AnchorPoint = Vector2.new(0.5, 0.5)
-    panel.Size = UDim2.fromOffset(320, 214)
-    panel.Position = UDim2.fromScale(0.5, 0.5)
-    panel.BackgroundColor3 = Color3.fromRGB(12, 10, 12)
-    panel.BorderSizePixel = 0
-    panel.ZIndex = 40
-    panel.Parent = Screen
-    corner(panel, 14)
-
-    local borde = Instance.new("UIStroke")
-    borde.Color = ROJO
-    borde.Thickness = 2
-    borde.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    borde.Parent = panel
-
-    local marca = Instance.new("Frame")
-    marca.Size = UDim2.new(1, 0, 0, 4)
-    marca.BorderSizePixel = 0
-    marca.ZIndex = 41
-    marca.Parent = panel
-    corner(marca, 3)
-    marca.BackgroundColor3 = ROJO
-
-    plain(panel, "NO ESTÁS DENTRO DE RIVALS", 17, F.head, ROJO,
-        UDim2.fromOffset(16, 18), UDim2.new(1, -32, 0, 22), Enum.TextXAlignment.Center)
-
-    plain(panel, "Destroya Hub solo funciona en RIVALS.\nEntra al juego y vuelve a ejecutar el script.",
-        11, F.body, C.Gray, UDim2.fromOffset(16, 46), UDim2.new(1, -32, 0, 32), Enum.TextXAlignment.Center)
-
-    local detectado = plain(panel, "Detectado: ...", 11, F.body, Color3.fromRGB(255, 170, 90),
-        UDim2.fromOffset(16, 84), UDim2.new(1, -32, 0, 16), Enum.TextXAlignment.Center)
-
-    task.spawn(function()
-        local ok, info = pcall(function()
-            return game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId, Enum.InfoType.Asset)
+    -- si el ejecutor no permite patada desde cliente, se sale igual
+    task.delay(1.5, function()
+        pcall(function()
+            game:GetService("TeleportService"):Teleport(1, player)
         end)
-        if detectado and detectado.Parent then
-            detectado.Text = "Detectado: " .. ((ok and info and info.Name) or game.Name or "desconocido")
-        end
     end)
 
-    local estado = plain(panel, "El hub se cerrará en unos segundos.", 10, F.body, C.Gray,
-        UDim2.fromOffset(16, 104), UDim2.new(1, -32, 0, 16), Enum.TextXAlignment.Center)
-
-    local function boton(texto, x, ancho, color, textoColor)
-        local b = Instance.new("TextButton")
-        b.Size = UDim2.fromOffset(ancho, 36)
-        b.Position = UDim2.fromOffset(x, 152)
-        b.BackgroundColor3 = color
-        b.BackgroundTransparency = 0.15
-        b.AutoButtonColor = false
-        b.Text = texto
-        b.TextSize = 11
-        b.Font = F.head
-        b.TextColor3 = textoColor
-        b.ZIndex = 41
-        b.Parent = panel
-        corner(b, 9)
-        squish(b, 0.94)
-        return b
-    end
-
-    local copiar = boton("COPIAR LINK", 16, 92, Color3.fromRGB(24, 84, 104), C.White)
-    local reintentar = boton("REINTENTAR", 114, 92, Color3.fromRGB(22, 60, 44), C.White)
-    local cerrar = boton("CERRAR", 212, 92, ROJO, Color3.fromRGB(255, 240, 242))
-
-    copiar.Activated:Connect(function()
-        local ok = pcall(function() setclipboard(RIVALS_LINK) end)
-        estado.Text = ok and "Link copiado. Ábrelo y vuelve a ejecutar." or RIVALS_LINK
-        estado.TextColor3 = ROJO_T
-    end)
-
-    reintentar.Activated:Connect(function()
-        if dentroDeRivals() then
-            expulsado = true
-            if Screen.Parent then Screen:Destroy() end
-            estado.Text = "Cargando..."
-            local ok, src = pcall(function() return game:HttpGet(HUB_URL, true) end)
-            if ok and type(src) == "string" and #src > 300 then
-                local fn = loadstring(src, "DestroyaHub")
-                if fn then
-                    task.spawn(fn)
-                else
-                    estado.Text = "No se pudo compilar. Ejecuta de nuevo."
-                end
-            else
-                estado.Text = "No se pudo descargar. Ejecuta de nuevo."
-            end
-        else
-            estado.Text = "Sigues fuera de RIVALS."
-            estado.TextColor3 = ROJO_T
-        end
-    end)
-
-    cerrar.Activated:Connect(expulsar)
-    task.delay(9, expulsar)
-
-    warn("[DestroyaHub] fuera de RIVALS: " .. tostring(game.Name))
+    return
 end
 --##################################################
 --# ► PARTE 2 — VENTANA, CABECERA Y TÍTULO
