@@ -1,22 +1,34 @@
---[[ DESTROYA ACCESS · PARTE 1/7 ]]
+--[[ DESTROYA ACCESS · PARTE 1/7 · AJUSTES ]]
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local TextService = game:GetService("TextService")
 
 local PLR = Players.LocalPlayer
 local URL = "https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2"
 local CLAVE = "freedestroya"
 local ARCHIVO = "LlaveGuardada_Im.txt"
 
--- paleta callejera
+-- ===== EDITABLE =====
+local CONFIG = {
+	ANCHO = 0.93,       -- % del ancho de pantalla
+	ANCHO_MAX = 500,
+	ALTO = 470,
+	FUEGO_MAX = 26,
+	FUEGO_VEL = 1,      -- 1 normal, 2 el doble de rápido
+	VEL_CINTA = 58,
+	SUAVIDAD = 22,      -- más alto = más seco
+}
+-- ====================
+
 local NEGRO   = Color3.fromRGB(9, 9, 11)
-local ASFALTO = Color3.fromRGB(22, 22, 25)
-local HUMO    = Color3.fromRGB(46, 46, 52)
-local AMBAR   = Color3.fromRGB(255, 182, 0)
-local ROJO    = Color3.fromRGB(208, 28, 28)
-local HUESO   = Color3.fromRGB(238, 234, 226)
+local ASFALTO = Color3.fromRGB(24, 24, 27)
+local HUMO    = Color3.fromRGB(48, 48, 54)
+local HUESO   = Color3.fromRGB(238, 235, 228)
 local VERDE   = Color3.fromRGB(0, 224, 116)
+local VERDE2  = Color3.fromRGB(140, 255, 190)
+local ROJO    = Color3.fromRGB(206, 30, 30)
 
 local VIVO = true
 local CONEX = {}
@@ -46,7 +58,7 @@ end
 local function grad(o, c1, c2, rot)
 	return crear("UIGradient", { Color = ColorSequence.new(c1, c2), Rotation = rot or 90 }, o)
 end
---[[ PARTE 2/7 ]]
+--[[ PARTE 2/7 · PANEL + ARRASTRE ]]
 local GUI = crear("ScreenGui", {
 	Name = "DestroyaAccess",
 	ResetOnSpawn = false,
@@ -58,44 +70,47 @@ local GUI = crear("ScreenGui", {
 local VELO = crear("Frame", {
 	Size = UDim2.fromScale(1, 1),
 	BackgroundColor3 = Color3.fromRGB(4, 4, 6),
-	BackgroundTransparency = 0.42,
+	BackgroundTransparency = 0.45,
 	BorderSizePixel = 0,
 }, GUI)
 
 local vp = workspace.CurrentCamera.ViewportSize
+local ANCHO = math.min(vp.X * CONFIG.ANCHO, CONFIG.ANCHO_MAX)
+
 local PANEL = crear("Frame", {
-	Size = UDim2.fromOffset(342, 432),
-	Position = UDim2.fromOffset(vp.X / 2 - 171, vp.Y / 2 - 216),
+	Size = UDim2.fromOffset(ANCHO, CONFIG.ALTO),
+	Position = UDim2.fromOffset(vp.X / 2 - ANCHO / 2, vp.Y / 2 - CONFIG.ALTO / 2),
 	BackgroundColor3 = ASFALTO,
 	BorderSizePixel = 0,
 	ClipsDescendants = true,
 }, GUI)
-esquina(PANEL, 10)
-trazo(PANEL, AMBAR, 2, 0.12)
+esquina(PANEL, 12)
+trazo(PANEL, HUESO, 2, 0.35)
 grad(crear("Frame", {
 	Size = UDim2.fromScale(1, 1),
 	BackgroundColor3 = Color3.new(1, 1, 1),
-	BackgroundTransparency = 0,
 	BorderSizePixel = 0,
 	ZIndex = 1,
-}, PANEL), Color3.fromRGB(30, 30, 34), Color3.fromRGB(13, 13, 15), 90)
+}, PANEL), Color3.fromRGB(34, 34, 38), Color3.fromRGB(12, 12, 14), 90)
 
--- arrastre con suavizado (inercia real)
-local tx, ty = PANEL.Position.X.Offset, PANEL.Position.Y.Offset
-local arrastrando, offX, offY = false, 0, 0
+-- arrastre: coordenadas relativas, sin realimentación
+local tx = PANEL.Position.X.Offset
+local ty = PANEL.Position.Y.Offset
+local arrastrando = false
+local iniX, iniY, baseX, baseY = 0, 0, 0, 0
 
 conectar(PANEL.InputBegan, function(i)
 	if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
 		arrastrando = true
-		offX = i.Position.X - PANEL.AbsolutePosition.X
-		offY = i.Position.Y - PANEL.AbsolutePosition.Y
+		iniX, iniY = i.Position.X, i.Position.Y
+		baseX, baseY = tx, ty
 	end
 end)
 
 conectar(UserInputService.InputChanged, function(i)
 	if arrastrando and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-		tx = i.Position.X - offX
-		ty = i.Position.Y - offY
+		tx = baseX + (i.Position.X - iniX)
+		ty = baseY + (i.Position.Y - iniY)
 	end
 end)
 
@@ -107,15 +122,20 @@ end)
 
 conectar(RunService.RenderStepped, function(dt)
 	if not VIVO then return end
+	local f = math.clamp(dt * CONFIG.SUAVIDAD, 0, 1)
 	local a = PANEL.AbsolutePosition
-	local f = math.clamp(dt * 20, 0, 1)
 	local nx = a.X + (tx - a.X) * f
 	local ny = a.Y + (ty - a.Y) * f
-	PANEL.Position = UDim2.fromOffset(nx, ny)
+	local limX = GUI.AbsoluteSize.X - PANEL.AbsoluteSize.X
+	local limY = GUI.AbsoluteSize.Y - PANEL.AbsoluteSize.Y
+	PANEL.Position = UDim2.fromOffset(
+		math.clamp(nx, 0, math.max(limX, 0)),
+		math.clamp(ny, 0, math.max(limY, 0))
+	)
 end)
---[[ PARTE 3/7 ]]
+--[[ PARTE 3/7 · CABECERA ]]
 local CAB = crear("Frame", {
-	Size = UDim2.new(1, 0, 0, 104),
+	Size = UDim2.new(1, 0, 0, 110),
 	BackgroundColor3 = NEGRO,
 	BorderSizePixel = 0,
 	ZIndex = 6,
@@ -124,85 +144,72 @@ local CAB = crear("Frame", {
 crear("Frame", {
 	Size = UDim2.new(1, 0, 0, 3),
 	Position = UDim2.new(0, 0, 1, -3),
-	BackgroundColor3 = AMBAR,
+	BackgroundColor3 = VERDE,
 	BorderSizePixel = 0,
 	ZIndex = 7,
 }, CAB)
-
--- cinta de esquina
-local cinta = crear("Frame", {
-	Size = UDim2.fromOffset(54, 13),
-	Position = UDim2.fromOffset(-12, 12),
-	BackgroundColor3 = HUMO,
-	BackgroundTransparency = 0.35,
-	BorderSizePixel = 0,
-	Rotation = -38,
-	ZIndex = 7,
-}, CAB)
-grad(cinta, Color3.fromRGB(70, 70, 78), Color3.fromRGB(40, 40, 46))
 
 local TIT = crear("TextLabel", {
-	Size = UDim2.new(1, -20, 0, 46),
-	Position = UDim2.fromOffset(12, 20),
+	Size = UDim2.new(1, -24, 0, 48),
+	Position = UDim2.fromOffset(14, 22),
 	BackgroundTransparency = 1,
 	Font = Enum.Font.LuckiestGuy,
 	Text = "DESTROYA",
-	TextSize = 40,
-	TextColor3 = AMBAR,
+	TextSize = 44,
+	TextColor3 = HUESO,
 	TextXAlignment = Enum.TextXAlignment.Left,
-	Rotation = -2,
+	Rotation = -1.5,
 	ZIndex = 8,
 }, CAB)
 trazo(TIT, NEGRO, 3)
 
 local SUB = crear("TextLabel", {
-	Size = UDim2.new(1, -20, 0, 32),
-	Position = UDim2.fromOffset(14, 64),
+	Size = UDim2.new(1, -24, 0, 34),
+	Position = UDim2.fromOffset(16, 68),
 	BackgroundTransparency = 1,
 	Font = Enum.Font.LuckiestGuy,
 	Text = "ACCESS",
-	TextSize = 30,
-	TextColor3 = HUESO,
+	TextSize = 31,
+	TextColor3 = VERDE,
 	TextXAlignment = Enum.TextXAlignment.Left,
-	Rotation = -2,
+	Rotation = -1.5,
 	ZIndex = 8,
 }, CAB)
 trazo(SUB, NEGRO, 3)
 
 local CERRAR = crear("TextButton", {
-	Size = UDim2.fromOffset(28, 28),
-	Position = UDim2.new(1, -38, 0, 14),
+	Size = UDim2.fromOffset(30, 30),
+	Position = UDim2.new(1, -42, 0, 15),
 	BackgroundColor3 = ROJO,
-	BackgroundTransparency = 0.15,
 	Font = Enum.Font.GothamBlack,
 	Text = "X",
-	TextSize = 15,
+	TextSize = 16,
 	TextColor3 = HUESO,
 	AutoButtonColor = false,
 	ZIndex = 9,
 }, CAB)
-esquina(CERRAR, 6)
-trazo(CERRAR, Color3.fromRGB(255, 90, 90), 1.5, 0.3)
+esquina(CERRAR, 7)
+trazo(CERRAR, Color3.fromRGB(255, 110, 110), 1.5, 0.3)
 
 local NOMBRE = crear("TextLabel", {
-	Size = UDim2.new(1, -24, 0, 20),
-	Position = UDim2.fromOffset(12, 112),
+	Size = UDim2.new(1, -28, 0, 22),
+	Position = UDim2.fromOffset(14, 118),
 	BackgroundTransparency = 1,
 	Font = Enum.Font.GothamBold,
-	TextSize = 14,
+	TextSize = 15,
 	Text = "Bienvenido, @" .. PLR.Name,
 	TextXAlignment = Enum.TextXAlignment.Left,
-	TextColor3 = AMBAR,
+	TextColor3 = VERDE,
 	ZIndex = 5,
 }, PANEL)
 
 local tono = 0
 conectar(RunService.RenderStepped, function(dt)
 	if not VIVO then return end
-	tono = (tono + dt * 0.14) % 1
-	NOMBRE.TextColor3 = Color3.fromHSV(tono, 0.72, 1)
+	tono = (tono + dt * 0.15) % 1
+	NOMBRE.TextColor3 = Color3.fromHSV(tono, 0.7, 1)
 end)
---[[ PARTE 4/7 ]]
+--[[ PARTE 4/7 · FUEGO ]]
 local FUEGO = crear("Frame", {
 	Size = UDim2.fromScale(1, 1),
 	BackgroundTransparency = 1,
@@ -213,46 +220,46 @@ local FUEGO = crear("Frame", {
 local BASE = crear("Frame", {
 	Size = UDim2.new(1, 0, 0, 16),
 	Position = UDim2.new(0, 0, 1, -16),
-	BackgroundColor3 = Color3.fromRGB(255, 110, 10),
-	BackgroundTransparency = 0.35,
+	BackgroundColor3 = VERDE,
+	BackgroundTransparency = 0.4,
 	BorderSizePixel = 0,
 	ZIndex = 2,
 }, FUEGO)
 esquina(BASE, 12)
-grad(BASE, Color3.fromRGB(255, 80, 0), Color3.fromRGB(255, 205, 90), 90)
+grad(BASE, Color3.fromRGB(0, 190, 100), VERDE2, 90)
 
-local VIVAS, MAX_CHISPAS = 0, 30
+local VIVAS = 0
 
 local function chispa()
-	if not VIVO or VIVAS >= MAX_CHISPAS then return end
+	if not VIVO or VIVAS >= CONFIG.FUEGO_MAX then return end
 	VIVAS += 1
 
 	local tam = math.random(3, 7)
-	local xs = math.random() * 0.92 + 0.04
+	local xs = math.random() * 0.94 + 0.03
 	local s = crear("Frame", {
 		Size = UDim2.fromOffset(tam, tam),
 		Position = UDim2.new(xs, 0, 1, -10),
 		BackgroundColor3 = (math.random(1, 3) == 1)
-			and Color3.fromRGB(255, 240, 170)
-			or Color3.fromRGB(255, 132, 18),
+			and Color3.fromRGB(225, 255, 240)
+			or Color3.fromRGB(0, 230, 120),
 		BackgroundTransparency = 0.05,
 		BorderSizePixel = 0,
 		ZIndex = 3,
 	}, FUEGO)
 	esquina(s, 10)
 
-	local alto = math.random(140, 370)
-	local deriva = math.random(-30, 30) / 342
-	local dur = math.random(85, 175) / 100
+	local alto = math.random(150, 390)
+	local deriva = math.random(-30, 30) / ANCHO
+	local dur = math.random(90, 180) / 100 / CONFIG.FUEGO_VEL
 
-	local t = TweenService:Create(s, TweenInfo.new(dur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+	TweenService:Create(s, TweenInfo.new(dur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 		Position = UDim2.new(xs + deriva, 0, 0, -alto),
 		Size = UDim2.fromOffset(1, 1),
 		BackgroundTransparency = 1,
 		Rotation = math.random(-80, 80),
-	})
-	t:Play()
-	t.Completed:Connect(function()
+	}):Play()
+
+	task.delay(dur, function()
 		VIVAS -= 1
 		s:Destroy()
 	end)
@@ -261,63 +268,62 @@ end
 task.spawn(function()
 	while VIVO do
 		chispa()
-		task.wait(math.random(3, 8) / 100)
+		task.wait(math.random(3, 8) / 100 / CONFIG.FUEGO_VEL)
 	end
 end)
-
--- brasas lentas que flotan
-task.spawn(function()
-	while VIVO do
-		task.wait(math.random(30, 70) / 100)
-		if VIVO and VIVAS < MAX_CHISPAS then
-			chispa()
-		end
-	end
-end)
---[[ PARTE 5/7 ]]
+--[[ PARTE 5/7 · LLAVE ]]
 local CAJA = crear("Frame", {
-	Size = UDim2.new(1, -24, 0, 38),
-	Position = UDim2.fromOffset(12, 142),
+	Size = UDim2.new(1, -28, 0, 40),
+	Position = UDim2.fromOffset(14, 148),
 	BackgroundColor3 = NEGRO,
 	BackgroundTransparency = 0.1,
 	BorderSizePixel = 0,
 	ZIndex = 5,
 }, PANEL)
-esquina(CAJA, 7)
-trazo(CAJA, VERDE, 2, 0.05)
+esquina(CAJA, 8)
+local BORDE = trazo(CAJA, VERDE, 2, 0.15)
 
 local CAMPO = crear("TextBox", {
 	Size = UDim2.new(1, -24, 1, 0),
 	Position = UDim2.fromOffset(12, 0),
 	BackgroundTransparency = 1,
 	Font = Enum.Font.GothamBold,
-	TextSize = 14,
+	TextSize = 15,
 	TextColor3 = HUESO,
 	PlaceholderText = "Llave de acceso...",
-	PlaceholderColor3 = Color3.fromRGB(120, 120, 128),
+	PlaceholderColor3 = Color3.fromRGB(118, 118, 126),
 	TextXAlignment = Enum.TextXAlignment.Left,
 	ClearTextOnFocus = false,
 	ZIndex = 6,
 }, CAJA)
 
+conectar(CAMPO.Focused, function()
+	TweenService:Create(BORDE, TweenInfo.new(0.15), { Thickness = 3, Transparency = 0, Color = VERDE2 }):Play()
+	TweenService:Create(CAJA, TweenInfo.new(0.15), { BackgroundTransparency = 0 }):Play()
+end)
+
+conectar(CAMPO.FocusLost, function()
+	TweenService:Create(BORDE, TweenInfo.new(0.2), { Thickness = 2, Transparency = 0.15, Color = VERDE }):Play()
+	TweenService:Create(CAJA, TweenInfo.new(0.2), { BackgroundTransparency = 0.1 }):Play()
+end)
+
 local OBTENER = crear("TextButton", {
-	Size = UDim2.new(1, -24, 0, 32),
-	Position = UDim2.fromOffset(12, 190),
+	Size = UDim2.new(1, -28, 0, 34),
+	Position = UDim2.fromOffset(14, 198),
 	BackgroundColor3 = HUMO,
-	BackgroundTransparency = 0.25,
 	Font = Enum.Font.GothamBlack,
 	Text = "OBTENER LLAVE  ·  DISCORD",
 	TextSize = 12,
-	TextColor3 = AMBAR,
+	TextColor3 = HUESO,
 	AutoButtonColor = false,
 	ZIndex = 5,
 }, PANEL)
-esquina(OBTENER, 6)
-trazo(OBTENER, AMBAR, 1.5, 0.35)
+esquina(OBTENER, 7)
+trazo(OBTENER, HUESO, 1.5, 0.5)
 
 local ESTADO = crear("TextLabel", {
-	Size = UDim2.new(1, -24, 0, 20),
-	Position = UDim2.fromOffset(12, 230),
+	Size = UDim2.new(1, -28, 0, 22),
+	Position = UDim2.fromOffset(14, 240),
 	BackgroundTransparency = 1,
 	Font = Enum.Font.GothamMedium,
 	TextSize = 12,
@@ -327,35 +333,33 @@ local ESTADO = crear("TextLabel", {
 	TextWrapped = true,
 	ZIndex = 5,
 }, PANEL)
---[[ PARTE 6/7 ]]
+--[[ PARTE 6/7 · BOTÓN + CINTA ]]
 local BTN = crear("TextButton", {
-	Size = UDim2.new(1, -24, 0, 66),
-	Position = UDim2.fromOffset(12, 306),
-	BackgroundColor3 = ROJO,
-	BackgroundTransparency = 0,
+	Size = UDim2.new(1, -28, 0, 72),
+	Position = UDim2.fromOffset(14, 286),
+	BackgroundColor3 = VERDE,
 	Font = Enum.Font.LuckiestGuy,
 	Text = "ENTRAR AL HUB",
-	TextSize = 26,
+	TextSize = 30,
 	TextColor3 = NEGRO,
 	AutoButtonColor = false,
 	Rotation = -1,
 	ZIndex = 8,
 }, PANEL)
-esquina(BTN, 9)
-trazo(BTN, NEGRO, 3)
+esquina(BTN, 10)
+trazo(BTN, NEGRO, 4)
 grad(crear("Frame", {
 	Size = UDim2.fromScale(1, 1),
 	BackgroundColor3 = Color3.new(1, 1, 1),
 	BorderSizePixel = 0,
 	ZIndex = 7,
-}, BTN), Color3.fromRGB(255, 210, 40), Color3.fromRGB(224, 34, 34), 0)
+}, BTN), VERDE2, Color3.fromRGB(0, 175, 92), 0)
 
--- brillo que barre el botón
 local BRILLO = crear("Frame", {
-	Size = UDim2.new(0, 34, 1, 0),
-	Position = UDim2.new(0, -40, 0, 0),
+	Size = UDim2.new(0, 38, 1, 0),
+	Position = UDim2.new(0, -46, 0, 0),
 	BackgroundColor3 = Color3.new(1, 1, 1),
-	BackgroundTransparency = 0.68,
+	BackgroundTransparency = 0.62,
 	BorderSizePixel = 0,
 	Rotation = 16,
 	ZIndex = 9,
@@ -364,64 +368,73 @@ local BRILLO = crear("Frame", {
 task.spawn(function()
 	while VIVO do
 		BRILLO.Position = UDim2.new(0, -46, 0, 0)
-		task.wait(0.35)
-		TweenService:Create(BRILLO, TweenInfo.new(0.75, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			Position = UDim2.new(1, 20, 0, 0),
+		task.wait(0.3)
+		TweenService:Create(BRILLO, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Position = UDim2.new(1, 22, 0, 0),
 		}):Play()
-		task.wait(2.4)
+		task.wait(2.2)
 	end
 end)
 
 task.spawn(function()
 	while VIVO do
-		TweenService:Create(BTN, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-			Size = UDim2.new(1, -18, 0, 68),
+		TweenService:Create(BTN, TweenInfo.new(0.85, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+			Size = UDim2.new(1, -20, 0, 74),
 		}):Play()
-		task.wait(0.95)
-		TweenService:Create(BTN, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-			Size = UDim2.new(1, -24, 0, 66),
+		task.wait(0.9)
+		TweenService:Create(BTN, TweenInfo.new(0.85, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+			Size = UDim2.new(1, -28, 0, 72),
 		}):Play()
-		task.wait(0.95)
+		task.wait(0.9)
 	end
 end)
 
--- cinta de noticias
-local BARRA = crear("Frame", {
-	Size = UDim2.new(1, 0, 0, 22),
-	Position = UDim2.new(0, 0, 1, -22),
-	BackgroundColor3 = AMBAR,
+-- cinta con carril propio, sin encimarse
+local CARRIL = crear("Frame", {
+	Size = UDim2.new(1, 0, 0, 24),
+	Position = UDim2.new(0, 0, 1, -24),
+	BackgroundColor3 = NEGRO,
 	BorderSizePixel = 0,
 	ClipsDescendants = true,
 	ZIndex = 10,
 }, PANEL)
+crear("Frame", {
+	Size = UDim2.new(1, 0, 0, 2),
+	BackgroundColor3 = VERDE,
+	BorderSizePixel = 0,
+	ZIndex = 11,
+}, CARRIL)
 
 local CINTA = crear("TextLabel", {
-	Size = UDim2.fromOffset(900, 22),
+	Size = UDim2.fromOffset(0, 24),
 	Position = UDim2.fromOffset(0, 0),
 	BackgroundTransparency = 1,
 	Font = Enum.Font.GothamBlack,
 	TextSize = 12,
-	TextColor3 = NEGRO,
+	TextColor3 = VERDE2,
 	TextXAlignment = Enum.TextXAlignment.Left,
-	Text = "  ///  DESTROYA HUB  ///  SIN LAG  ///  ESP A 100m  ///  CAM LOCK  ///  TELEPORT  ///  WALLS TRANSPARENTES  ///  FREE KEY: DISCORD  ///  ECHO POR I`m  ",
+	Text = "  ///  DESTROYA HUB  ///  SIN LAG  ///  ESP 100m  ///  CAM LOCK  ///  TELEPORT  ///  WALLS  ///  ECHO POR I`m  ///  ",
+	AutomaticSize = Enum.AutomaticSize.X,
 	ZIndex = 11,
-}, BARRA)
+}, CARRIL)
 
 local desplazo = 0
 conectar(RunService.RenderStepped, function(dt)
 	if not VIVO then return end
-	desplazo -= dt * 62
-	if desplazo <= -900 then desplazo = 0 end
+	desplazo -= dt * CONFIG.VEL_CINTA
+	if desplazo <= -CINTA.TextBounds.X then
+		desplazo = CARRIL.AbsoluteSize.X
+	end
 	CINTA.Position = UDim2.fromOffset(desplazo, 0)
 end)
---[[ PARTE 7/7 ]]
+--[[ PARTE 7/7 · SISTEMA ]]
 local function aviso(txt, col)
 	ESTADO.Text = txt
 	ESTADO.TextColor3 = col or HUESO
 end
 
 local function normalizar(s)
-	return (string.lower(string.gsub(tostring(s or ""), "%s", "")))
+	return string.lower((string.gsub(tostring(s or ""), "%s", "")))
 end
 
 local function guardar()
@@ -432,13 +445,10 @@ end
 
 local function leerGuardada()
 	local ok, res = pcall(function()
-		if isfile and isfile(ARCHIVO) and readfile then
-			return readfile(ARCHIVO)
-		end
+		if isfile and isfile(ARCHIVO) and readfile then return readfile(ARCHIVO) end
 		return nil
 	end)
-	if ok and res and normalizar(res) == CLAVE then return true end
-	return false
+	return ok and res ~= nil and normalizar(res) == CLAVE
 end
 
 local function descargar()
@@ -450,18 +460,14 @@ local function descargar()
 	}
 	for _, m in ipairs(rutas) do
 		local ok, res = pcall(m)
-		if ok and type(res) == "string" and #res > 300 then
-			return res
-		end
+		if ok and type(res) == "string" and #res > 300 then return res end
 	end
 	return nil
 end
 
 function CerrarTodo()
 	VIVO = false
-	for _, c in ipairs(CONEX) do
-		pcall(function() c:Disconnect() end)
-	end
+	for _, c in ipairs(CONEX) do pcall(function() c:Disconnect() end) end
 	CONEX = {}
 	pcall(function() GUI:Destroy() end)
 end
@@ -472,8 +478,7 @@ local function entrar()
 	if cargando then return end
 	cargando = true
 	BTN.Text = "CARGANDO..."
-	BTN.TextColor3 = NEGRO
-	aviso("Descargando Destroya Hub...", AMBAR)
+	aviso("Descargando Destroya Hub...", VERDE)
 
 	task.spawn(function()
 		local src = descargar()
@@ -483,8 +488,7 @@ local function entrar()
 			cargando = false
 			return
 		end
-
-		aviso("Compilando...", AMBAR)
+		aviso("Compilando...", VERDE)
 		local fn, err = loadstring(src, "DestroyaHub")
 		if not fn then
 			aviso("Error de compilación: " .. tostring(err), ROJO)
@@ -492,7 +496,6 @@ local function entrar()
 			cargando = false
 			return
 		end
-
 		guardar()
 		CerrarTodo()
 		task.wait(0.2)
@@ -509,15 +512,12 @@ conectar(BTN.Activated, function()
 	end
 	if k ~= CLAVE then
 		aviso("Llave incorrecta.", ROJO)
-		-- sacudida
-		local p = PANEL.Position
+		local bx, by = tx, ty
 		for _ = 1, 3 do
-			TweenService:Create(PANEL, TweenInfo.new(0.05), { Position = UDim2.fromOffset(tx + 6, ty) }):Play()
-			task.wait(0.05)
-			TweenService:Create(PANEL, TweenInfo.new(0.05), { Position = UDim2.fromOffset(tx - 6, ty) }):Play()
-			task.wait(0.05)
+			tx = bx + 8 task.wait(0.05)
+			tx = bx - 8 task.wait(0.05)
 		end
-		PANEL.Position = p
+		tx = bx
 		return
 	end
 	entrar()
@@ -529,17 +529,14 @@ conectar(OBTENER.Activated, function()
 	aviso(ok and "Link copiado. La llave está en #acceso." or link, VERDE)
 end)
 
-conectar(CERRAR.Activated, function()
-	CerrarTodo()
-end)
+conectar(CERRAR.Activated, function() CerrarTodo() end)
 
--- si ya hay llave guardada, entra solo
 task.defer(function()
 	if leerGuardada() then
 		aviso("Llave guardada. Cargando...", VERDE)
 		task.wait(0.6)
 		if VIVO then entrar() end
 	else
-		aviso("Consigue tu llave en el Discord.", Color3.fromRGB(150, 150, 158))
+		aviso("Consigue tu llave en el Discord.", Color3.fromRGB(148, 148, 156))
 	end
 end)
