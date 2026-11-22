@@ -1483,9 +1483,9 @@ for _, plr in ipairs(Players:GetPlayers()) do hookPlayer(plr) end
 print("[DestroyaHub] parte 7 lista")
 --##################################################
 --# ► PARTE 8 — CAM LOCK (CON NOCLIP PEGADO)
---#   La cámara orbita alrededor de TU personaje. Mientras
---#   está puesto, el noclip se activa y al apagarlo vuelve
---#   a como estaba.
+--#   Reintenta enganchar, elige objetivo solo y avisa
+--#   si no hay a quién apuntar. Mientras está puesto,
+--#   el noclip va activo y al apagarlo vuelve a su sitio.
 --##################################################
 
 local Sel = { list = {}, set = {} }
@@ -1518,6 +1518,9 @@ local CAM_DIST = 8.5
 local CAM_UP = 3.2
 local PIVOT_UP = 2.2
 
+local lastDir = Vector3.new(0, 0, -1)
+local waitTime, camMiss = 0, 0
+
 local function releaseCamera()
     local cam = getCamera()
     local _, hum = getParts()
@@ -1538,25 +1541,60 @@ local function aimPoint(char, mode, rootPart)
     return t and t.Position or (rootPart.Position + Vector3.new(0, 0.5, 0))
 end
 
-local function camStep()
-    if not S.lockMode or not S.target then
+local function nearestPlayer()
+    local root = getParts()
+    if not root then return nil end
+    local best, bestD = nil, math.huge
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= player then
+            local c = plr.Character
+            local r = c and c:FindFirstChild("HumanoidRootPart")
+            local h = c and c:FindFirstChildOfClass("Humanoid")
+            if r and h and h.Health > 0 then
+                local d = (r.Position - root.Position).Magnitude
+                if d < bestD then
+                    best, bestD = plr, d
+                end
+            end
+        end
+    end
+    return best
+end
+UI.nearestPlayer = nearestPlayer
+
+local function camStep(dt)
+    if not S.lockMode then
         if camHeld then releaseCamera() end
         return
     end
+
     local cam = getCamera()
     local root, hum = getParts()
-    if not cam or not root then return end
-
-    local tChar = S.target.Character
-    local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
-    if not tRoot then
+    if not cam or not root then
         if camHeld then releaseCamera() end
         return
     end
 
+    local tChar = S.target and S.target.Character
+    local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+    if not tRoot then
+        waitTime += dt
+        if waitTime > 0.8 and S.target then
+            UI.setStatus("Esperando a @" .. S.target.Name .. "...")
+        end
+        if camHeld then releaseCamera() end
+        return
+    end
+    waitTime = 0
+
     local flat = Vector3.new(tRoot.Position.X - root.Position.X, 0, tRoot.Position.Z - root.Position.Z)
-    if flat.Magnitude < 0.4 then return end
-    local dir = flat.Unit
+    local dir
+    if flat.Magnitude >= 0.4 then
+        dir = flat.Unit
+        lastDir = dir
+    else
+        dir = lastDir
+    end
 
     if not camHeld then
         camHeld = true
@@ -1591,7 +1629,7 @@ local function lockStatus()
     if not S.lockMode then return "Cam Lock desactivado" end
     local where = (S.lockMode == "head") and "cabeza" or "pecho"
     if S.target then return "Objetivo: @" .. S.target.Name .. " (" .. where .. ")" end
-    return "Elige un objetivo (" .. where .. ")"
+    return "Buscando objetivo (" .. where .. ")"
 end
 
 local function syncLock()
@@ -1607,12 +1645,24 @@ local noclipPrev = false
 local function setLockMode(mode)
     local wasLocked = S.lockMode ~= nil
     S.lockMode = mode
-    if not mode then S.target = nil end
+    if not mode then
+        S.target = nil
+        waitTime, camMiss = 0, 0
+    end
 
     if mode and not wasLocked then
         noclipPrev = S.noclip
         setNoclip(true)
         if UI.noclipToggle then UI.noclipToggle.Set(true, true) end
+
+        if not S.target or S.target.Parent ~= Players then
+            local pick = nearestPlayer()
+            if pick then
+                S.target = pick
+            else
+                notify("No hay jugadores cerca, esperando")
+            end
+        end
     elseif not mode and wasLocked then
         setNoclip(noclipPrev)
         if UI.noclipToggle then UI.noclipToggle.Set(noclipPrev, true) end
@@ -1628,12 +1678,45 @@ local function selectTarget(plr)
         return
     end
     S.target = plr
+    camMiss = 0
     if S.lockMode ~= "head" then S.lockMode = "chest" end
     syncLock()
 end
 
-RunService:BindToRenderStep("DestroyaCam", Enum.RenderPriority.Last.Value, function()
-    local ok, err = pcall(camStep)
+-- Reenganche: si el objetivo muere o desaparece, busca otro
+track(RunService.Heartbeat:Connect(function(dt)
+    if not S.lockMode then
+        camMiss = 0
+        return
+    end
+    local t = S.target
+    local tChar = t and t.Character
+    local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
+    local alive = t and t.Parent == Players and tChar and tChar:FindFirstChild("HumanoidRootPart")
+        and (not tHum or tHum.Health > 0)
+
+    if alive then
+        camMiss = 0
+        return
+    end
+
+    camMiss += dt
+    if camMiss < 1.2 then return end
+    camMiss = 0
+
+    local pick = nearestPlayer()
+    if pick and pick ~= t then
+        S.target = pick
+        syncLock()
+        notify("Objetivo cambiado a @" .. pick.Name)
+    elseif not pick then
+        S.target = nil
+        UI.setStatus("Sin jugadores cerca")
+    end
+end))
+
+RunService:BindToRenderStep("DestroyaCam", Enum.RenderPriority.Last.Value, function(dt)
+    local ok, err = pcall(camStep, dt)
     if ok then
         camErr = 0
     else
@@ -1641,8 +1724,7 @@ RunService:BindToRenderStep("DestroyaCam", Enum.RenderPriority.Last.Value, funct
         if camErr == 1 then warn("[DestroyaHub] cámara: " .. tostring(err)) end
         if camErr > 30 then
             camErr = 0
-            S.lockMode, S.target = nil, nil
-            pcall(releaseCamera)
+            setLockMode(nil)
             notify("Cam Lock apagado por un error")
         end
     end
