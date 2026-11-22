@@ -23,7 +23,7 @@ end
 
 if verificarLlaveGuardada() then
         print("¡Llave guardada detectada! Ejecutando script...")
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/Free"))()
         return
 end
 
@@ -518,7 +518,7 @@ verifyBtn.MouseButton1Click:Connect(function()
 
                 screenGui:Destroy()
 
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/v6.2"))()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/efrenhc910-boop/SAKURA-HUB/refs/heads/main/Free"))()
         else
                 statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
                 statusLabel.Text = "Llave incorrecta"
