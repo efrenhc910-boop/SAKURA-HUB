@@ -1,9 +1,9 @@
 --==================================================
---            DESTROYA HUB  •  v7.8
---   Base v6.4 · estado S declarado · fly · bot
---   skins · comprobaciones · paleta fija
+--            DESTROYA HUB  •  v8.1
+--   ESP 170 · paredes 170 con límite 130
+--   fly + noclip · TP continuo · decoración
 --==================================================
-print("[DestroyaHub] cargando v7.8...")
+print("[DestroyaHub] cargando v8.1...")
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -15,7 +15,6 @@ local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
 local GuiService = game:GetService("GuiService")
 local TextService = game:GetService("TextService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
 while not player do
@@ -46,7 +45,6 @@ for _, container in ipairs({ guiParent, playerGui }) do
         if old then old:Destroy() end
     end
 end
-pcall(function() RunService:UnbindFromRenderStep("TargetCamera") end)
 pcall(function() RunService:UnbindFromRenderStep("DestroyaCam") end)
 
 local Screen = Instance.new("ScreenGui")
@@ -62,18 +60,21 @@ Screen.Parent = guiParent
 --==================================================
 local CONFIG = {
     ESP_MAX      = 170,
-    ESP_TICK     = 0.10,
+    ESP_TICK     = 0.12,
+    MAX_TARGETS  = 5,
     WALL_RADIUS  = 170,
     WALL_ALPHA   = 0.62,
-    MENU_T       = 0.22,
+    STRUCT_LIMIT = 130,
+    TP_OFFSET    = 6,
+    TP_TICK      = 0.12,
+    JUMP_BOOST   = 200,
+    FLY_SPEED    = 70,
+    MENU_T       = 0.20,
     BTN_T        = 0.50,
     BTN_T_ON     = 0.32,
     CELL_H       = 34,
     CELL_GAP     = 10,
-    CIRCLE_R     = 26,
-    JUMP_BOOST   = 200,
-    HIT_CD       = 0.16,
-    FLY_SPEED    = 70,
+    MAX_SIZE     = 1.12,
 }
 
 local function pickFont(name, fallback)
@@ -102,28 +103,27 @@ local C = {
     Tab  = Color3.fromRGB(22, 52, 64),
     White= Color3.fromRGB(240, 252, 255),
     Gray = Color3.fromRGB(168, 208, 220),
-    Plus = Color3.fromRGB(60, 220, 120),
-    Minus= Color3.fromRGB(255, 60, 80),
 }
 C.RowOn = C.Row:Lerp(C.Acc, 0.3)
-C.Btn   = C.Acc:Lerp(C.Dark, 0.5)
 
 --==================================================
--- ESTADO GLOBAL (S)
+-- ESTADO GLOBAL
 --==================================================
 local S = {
-    esp = false, lockMode = nil, target = nil,
+    esp = false, espTeam = false, espDist = CONFIG.ESP_MAX,
+    lockMode = nil, target = nil, wallCheck = true,
     infJump = false, noclip = false, powerJump = false,
     fly = false, flySpeed = CONFIG.FLY_SPEED, flyUp = false, flyDown = false,
+    flyNoclipPrev = false,
     boost = false, walls = false, full = false,
-    bot = false, circle = false, autoHit = true, aimAt = true,
-    radius = CONFIG.CIRCLE_R,
+    tpFollow = false, tpTarget = nil, autoBack = true,
     spin = true, perf = false,
 }
 
-local UI = { open = true, size = 1, anim = true, low = false, filter = "" }
+local UI = { open = true, size = 1, anim = true, low = false, autoLow = false }
 local conns = {}
 local alive = true
+local busyLock = false
 
 local function track(c)
     conns[#conns + 1] = c
@@ -134,8 +134,6 @@ local function bind(obj, prop, key)
     obj[prop] = C[key]
     return obj
 end
-
-local function onTheme(fn) fn() end
 
 local function tween(obj, props, time, style, dir)
     local t = TweenService:Create(obj,
@@ -186,11 +184,6 @@ local function isPointer(input)
         or input.UserInputType == Enum.UserInputType.MouseButton1
 end
 
-local function screenPos(input)
-    local inset = GuiService:GetGuiInset()
-    return Vector2.new(input.Position.X + inset.X, input.Position.Y + inset.Y)
-end
-
 local orderN = 0
 local function nextOrder()
     orderN += 1
@@ -219,6 +212,10 @@ local function debounced(fn)
     end
 end
 
+local function lowFx()
+    return UI.low or UI.autoLow
+end
+
 local function squish(btn, depth)
     local sc = Instance.new("UIScale")
     sc.Parent = btn
@@ -226,7 +223,7 @@ local function squish(btn, depth)
         if isPointer(i) and UI.anim then tween(sc, { Scale = depth or 0.95 }, 0.08, Enum.EasingStyle.Quad) end
     end)
     btn.InputEnded:Connect(function(i)
-        if isPointer(i) then tween(sc, { Scale = 1 }, 0.22, Enum.EasingStyle.Back) end
+        if isPointer(i) then tween(sc, { Scale = 1 }, 0.24, Enum.EasingStyle.Back) end
     end)
     return sc
 end
@@ -265,35 +262,34 @@ local function notify(text)
     local toast = Instance.new("Frame")
     lastToast = toast
     toast.AnchorPoint = Vector2.new(0.5, 1)
-    toast.Size = UDim2.fromOffset(280, 30)
+    toast.Size = UDim2.fromOffset(300, 32)
     toast.Position = UDim2.new(0.5, 0, 1, 14)
     toast.BackgroundColor3 = Color3.fromRGB(8, 22, 30)
-    toast.BackgroundTransparency = 0.08
+    toast.BackgroundTransparency = 0.05
     toast.BorderSizePixel = 0
     toast.ZIndex = 30
     toast.Parent = Screen
-    corner(toast, 9)
+    corner(toast, 10)
+    stroke(toast, "Acc", 1, 0.55)
     local bar = Instance.new("Frame")
-    bar.Position = UDim2.fromOffset(0, 7)
+    bar.Position = UDim2.fromOffset(0, 8)
     bar.Size = UDim2.fromOffset(3, 16)
     bar.BackgroundColor3 = C.Acc
     bar.BorderSizePixel = 0
     bar.ZIndex = 31
     bar.Parent = toast
-    local l = plain(toast, text, 12, F.head, C.White, UDim2.fromOffset(12, 0), UDim2.new(1, -18, 1, 0))
+    corner(bar, 2)
+    local l = plain(toast, text, 12, F.head, C.White, UDim2.fromOffset(12, 0), UDim2.new(1, -20, 1, 0))
     l.ZIndex = 31
     tween(toast, { Position = UDim2.new(0.5, 0, 1, -16) }, 0.35, Enum.EasingStyle.Back)
     task.delay(2.2, function()
         if toast.Parent then
-            tween(toast, { Position = UDim2.new(0.5, 0, 1, 44) }, 0.25)
+            tween(toast, { Position = UDim2.new(0.5, 0, 1, 48) }, 0.25)
             task.delay(0.28, function() toast:Destroy() end)
         end
     end)
 end
 
---==================================================
--- COMPROBACIÓN
---==================================================
 local function verify(label, fn, delay)
     task.delay(delay or 0.3, function()
         if not alive then return end
@@ -329,10 +325,21 @@ if not dentroDeRivals() then
     return
 end
 
-local BASE_W, BASE_H, HEADER_H = 620, 430, 52
+local BASE_W, BASE_H, HEADER_H = 700, 470, 56
 local HOME = UDim2.fromScale(0.5, 0.5)
 local MENU_T = CONFIG.MENU_T
 local GLOW = Color3.fromRGB(140, 232, 255)
+
+local Shadow = Instance.new("Frame")
+Shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+Shadow.Size = UDim2.fromOffset(BASE_W + 16, BASE_H + 16)
+Shadow.Position = HOME
+Shadow.BackgroundColor3 = Color3.new(0, 0, 0)
+Shadow.BackgroundTransparency = 0.5
+Shadow.BorderSizePixel = 0
+Shadow.ZIndex = 1
+Shadow.Parent = Screen
+corner(Shadow, 20)
 
 local Main = Instance.new("Frame")
 Main.Name = "Main"
@@ -341,10 +348,11 @@ Main.Size = UDim2.fromOffset(BASE_W, BASE_H)
 Main.Position = HOME
 Main.BackgroundTransparency = MENU_T
 Main.BorderSizePixel = 0
+Main.ZIndex = 2
 Main.Parent = Screen
 bind(Main, "BackgroundColor3", "Dark")
-corner(Main, 14)
-stroke(Main, "Acc", 1.8, 0.1)
+corner(Main, 16)
+stroke(Main, "Acc", 1.8, 0.08)
 
 local MenuScale = Instance.new("UIScale")
 MenuScale.Scale = 0.75
@@ -352,20 +360,20 @@ MenuScale.Parent = Main
 tween(MenuScale, { Scale = 1 }, 0.45, Enum.EasingStyle.Back)
 
 local Header = Instance.new("Frame")
-Header.Name = "Header"
 Header.Size = UDim2.new(1, 0, 0, HEADER_H)
 Header.BackgroundColor3 = Color3.new(1, 1, 1)
 Header.BorderSizePixel = 0
+Header.ZIndex = 3
 Header.Parent = Main
-corner(Header, 14)
+corner(Header, 16)
 
 local hGrad = Instance.new("UIGradient")
 hGrad.Parent = Header
-hGrad.Color = ColorSequence.new(C.Acc:Lerp(C.Dark, 0.72), C.Dark)
+hGrad.Color = ColorSequence.new(C.Acc:Lerp(C.Dark, 0.70), C.Dark)
 
 local hFill = Instance.new("Frame")
-hFill.Position = UDim2.new(0, 0, 1, -14)
-hFill.Size = UDim2.new(1, 0, 0, 14)
+hFill.Position = UDim2.new(0, 0, 1, -16)
+hFill.Size = UDim2.new(1, 0, 0, 16)
 hFill.BackgroundColor3 = Color3.new(1, 1, 1)
 hFill.BorderSizePixel = 0
 hFill.Parent = Header
@@ -375,28 +383,28 @@ local blood = Instance.new("Frame")
 blood.Position = UDim2.new(0, 0, 1, -2)
 blood.Size = UDim2.new(1, 0, 0, 2)
 blood.BorderSizePixel = 0
-blood.ZIndex = 2
+blood.ZIndex = 4
 blood.Parent = Header
 bind(blood, "BackgroundColor3", "Acc2")
 local bgGrad = Instance.new("UIGradient")
 bgGrad.Transparency = NumberSequence.new({
-    NumberSequenceKeypoint.new(0, 0.1),
-    NumberSequenceKeypoint.new(0.6, 0.55),
+    NumberSequenceKeypoint.new(0, 0.05),
+    NumberSequenceKeypoint.new(0.6, 0.5),
     NumberSequenceKeypoint.new(1, 1),
 })
 bgGrad.Parent = blood
 
-local TITLE_X, TITLE_Y = 44, 4
-local titleW = TextService:GetTextSize("DESTROYA HUB", 30, F.title, Vector2.new(600, 44)).X
+local TITLE_X, TITLE_Y = 48, 3
+local titleW = TextService:GetTextSize("DESTROYA HUB", 32, F.title, Vector2.new(700, 48)).X
 
-local TitleShadow = plain(Header, "DESTROYA HUB", 30, F.title, Color3.new(0, 0, 0),
-    UDim2.fromOffset(TITLE_X + 2, TITLE_Y + 2), UDim2.fromOffset(titleW + 26, 34))
+local TitleShadow = plain(Header, "DESTROYA HUB", 32, F.title, Color3.new(0, 0, 0),
+    UDim2.fromOffset(TITLE_X + 2, TITLE_Y + 2), UDim2.fromOffset(titleW + 28, 36))
 TitleShadow.TextTransparency = 0.5
-TitleShadow.ZIndex = 2
+TitleShadow.ZIndex = 4
 
-local Title = plain(Header, "DESTROYA HUB", 30, F.title, Color3.new(1, 1, 1),
-    UDim2.fromOffset(TITLE_X, TITLE_Y), UDim2.fromOffset(titleW + 26, 34))
-Title.ZIndex = 3
+local Title = plain(Header, "DESTROYA HUB", 32, F.title, Color3.new(1, 1, 1),
+    UDim2.fromOffset(TITLE_X, TITLE_Y), UDim2.fromOffset(titleW + 28, 36))
+Title.ZIndex = 5
 
 local CARBON = Color3.fromRGB(20, 20, 24)
 local CARBON_D = Color3.fromRGB(9, 9, 11)
@@ -420,6 +428,11 @@ TitleStroke.Transparency = 0.25
 TitleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
 TitleStroke.Parent = Title
 
+local Sub = plain(Header, "RIVALS · v8.1", 9, F.section, C.Acc2,
+    UDim2.fromOffset(TITLE_X + 2, 40), UDim2.fromOffset(180, 12))
+Sub.ZIndex = 4
+Sub.TextTransparency = 0.25
+
 local ul = titleW * 0.95
 local underline = Instance.new("Frame")
 underline.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -427,7 +440,7 @@ underline.Position = UDim2.fromOffset(TITLE_X + ul / 2, 40)
 underline.Size = UDim2.fromOffset(ul, 2)
 underline.Rotation = -1
 underline.BorderSizePixel = 0
-underline.ZIndex = 3
+underline.ZIndex = 4
 underline.Parent = Header
 bind(underline, "BackgroundColor3", "Acc2")
 
@@ -453,20 +466,20 @@ end
 task.spawn(function()
     task.wait(2)
     while Screen.Parent do
-        if UI.open and UI.anim and not UI.low then pcall(playFx) end
+        if UI.open and UI.anim and not lowFx() then pcall(playFx) end
         task.wait(9)
     end
 end)
 
 local function iconButton(kind, pos, bgColor)
     local b = Instance.new("TextButton")
-    b.Size = UDim2.fromOffset(28, 28)
+    b.Size = UDim2.fromOffset(30, 30)
     b.Position = pos
     b.BackgroundColor3 = bgColor
     b.BackgroundTransparency = 0.05
     b.Text = ""
     b.AutoButtonColor = false
-    b.ZIndex = 5
+    b.ZIndex = 6
     b.Parent = Header
     corner(b, 9)
     squish(b, 0.88)
@@ -478,35 +491,37 @@ local function iconButton(kind, pos, bgColor)
         f.Rotation = rot
         f.BackgroundColor3 = Color3.fromRGB(235, 252, 255)
         f.BorderSizePixel = 0
-        f.ZIndex = 6
+        f.ZIndex = 7
         f.Parent = b
         corner(f, 1)
     end
     if kind == "x" then
-        glyph(14, 45)
-        glyph(14, -45)
+        glyph(15, 45)
+        glyph(15, -45)
     else
-        glyph(13, 0)
+        glyph(14, 0)
     end
     return b
 end
 
-local DestroyBtn = iconButton("x", UDim2.fromOffset(8, 12), Color3.fromRGB(24, 84, 104))
-local HideBtn = iconButton("minus", UDim2.new(1, -36, 0, 12), Color3.fromRGB(26, 62, 74))
+local DestroyBtn = iconButton("x", UDim2.fromOffset(8, 13), Color3.fromRGB(24, 84, 104))
+local HideBtn = iconButton("minus", UDim2.new(1, -38, 0, 13), Color3.fromRGB(26, 62, 74))
 
 local DragZone = Instance.new("Frame")
-DragZone.Position = UDim2.fromOffset(44, 0)
-DragZone.Size = UDim2.new(1, -90, 1, 0)
+DragZone.Position = UDim2.fromOffset(46, 0)
+DragZone.Size = UDim2.new(1, -94, 1, 0)
 DragZone.BackgroundTransparency = 1
-DragZone.ZIndex = 4
+DragZone.ZIndex = 5
 DragZone.Parent = Header
 DragZone.InputBegan:Connect(function(input)
     if isPointer(input) then
         local startPos, startMouse = Main.Position, input.Position
         beginDrag(input, function(i)
             local d = i.Position - startMouse
-            Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X,
+            local np = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X,
                 startPos.Y.Scale, startPos.Y.Offset + d.Y)
+            Main.Position = np
+            Shadow.Position = np
         end)
     end
 end)
@@ -518,12 +533,13 @@ print("[DestroyaHub] parte 2 lista")
 
 local TabBar = Instance.new("Frame")
 TabBar.Position = UDim2.fromOffset(8, HEADER_H + 6)
-TabBar.Size = UDim2.new(1, -16, 0, 28)
+TabBar.Size = UDim2.new(1, -16, 0, 30)
 TabBar.BackgroundTransparency = 0.5
 TabBar.BorderSizePixel = 0
+TabBar.ZIndex = 3
 TabBar.Parent = Main
 bind(TabBar, "BackgroundColor3", "Tab")
-corner(TabBar, 9)
+corner(TabBar, 10)
 
 local TabScroll = Instance.new("ScrollingFrame")
 TabScroll.Size = UDim2.fromScale(1, 1)
@@ -532,32 +548,53 @@ TabScroll.BorderSizePixel = 0
 TabScroll.ScrollBarThickness = 0
 TabScroll.ScrollingDirection = Enum.ScrollingDirection.X
 TabScroll.CanvasSize = UDim2.new()
+TabScroll.ZIndex = 3
 TabScroll.Parent = TabBar
 
 local TabIndicator = Instance.new("Frame")
-TabIndicator.Size = UDim2.fromOffset(0, 24)
+TabIndicator.Size = UDim2.fromOffset(0, 26)
 TabIndicator.Position = UDim2.fromOffset(3, 2)
 TabIndicator.BorderSizePixel = 0
 TabIndicator.ZIndex = 1
 TabIndicator.Parent = TabScroll
 bind(TabIndicator, "BackgroundColor3", "Acc")
-corner(TabIndicator, 7)
+corner(TabIndicator, 8)
 
 local Content = Instance.new("Frame")
-Content.Position = UDim2.fromOffset(8, HEADER_H + 40)
-Content.Size = UDim2.new(1, -16, 1, -(HEADER_H + 40 + 26))
-Content.BackgroundTransparency = 0.55
+Content.Position = UDim2.fromOffset(8, HEADER_H + 42)
+Content.Size = UDim2.new(1, -16, 1, -(HEADER_H + 42 + 28))
+Content.BackgroundTransparency = MENU_T + 0.15
 Content.BorderSizePixel = 0
+Content.ZIndex = 3
 Content.Parent = Main
 bind(Content, "BackgroundColor3", "Panel")
-corner(Content, 10)
+corner(Content, 12)
+local contentGrad = Instance.new("UIGradient")
+contentGrad.Rotation = 90
+contentGrad.Color = ColorSequence.new(Color3.fromRGB(24, 56, 72), Color3.fromRGB(12, 32, 42))
+contentGrad.Parent = Content
 
-local Status = plain(Main, "Listo.", 10, F.body, C.Gray,
-    UDim2.new(0, 12, 1, -22), UDim2.fromOffset(420, 12))
+local StatusBar = Instance.new("Frame")
+StatusBar.Position = UDim2.new(0, 8, 1, -24)
+StatusBar.Size = UDim2.new(1, -16, 0, 16)
+StatusBar.BackgroundTransparency = 1
+StatusBar.ZIndex = 3
+StatusBar.Parent = Main
+
+local statusAccent = Instance.new("Frame")
+statusAccent.Position = UDim2.fromOffset(0, 2)
+statusAccent.Size = UDim2.fromOffset(3, 12)
+statusAccent.BorderSizePixel = 0
+statusAccent.Parent = StatusBar
+bind(statusAccent, "BackgroundColor3", "Acc")
+corner(statusAccent, 2)
+
+local Status = plain(StatusBar, "Listo.", 10, F.body, C.Gray,
+    UDim2.fromOffset(10, 2), UDim2.new(1, -110, 0, 12))
 UI.setStatus = function(t) Status.Text = t end
 
-local Author = plain(Main, "by Efrén Hub", 8, F.body, C.Gray,
-    UDim2.new(1, -10, 1, -13), UDim2.fromOffset(90, 9), Enum.TextXAlignment.Right)
+local Author = plain(StatusBar, "by Efrén Hub", 8, F.body, C.Gray,
+    UDim2.new(1, -10, 0, 3), UDim2.fromOffset(90, 10), Enum.TextXAlignment.Right)
 Author.AnchorPoint = Vector2.new(1, 0)
 Author.TextTransparency = 0.45
 
@@ -568,7 +605,7 @@ local function moveIndicator(animated)
     local b = TabButtons[CurrentPage]
     if not b then return end
     if animated and UI.anim then
-        tween(TabIndicator, { Position = b.Position, Size = b.Size }, 0.32, Enum.EasingStyle.Quint)
+        tween(TabIndicator, { Position = b.Position, Size = b.Size }, 0.34, Enum.EasingStyle.Quint)
     else
         TabIndicator.Position = b.Position
         TabIndicator.Size = b.Size
@@ -578,7 +615,7 @@ end
 local function paintTabs(animated)
     for name, b in pairs(TabButtons) do
         local col = (name == CurrentPage) and C.Dark or C.Gray
-        if animated and UI.anim then tween(b, { TextColor3 = col }, 0.22) else b.TextColor3 = col end
+        if animated and UI.anim then tween(b, { TextColor3 = col }, 0.24) else b.TextColor3 = col end
     end
     moveIndicator(animated)
 end
@@ -586,11 +623,11 @@ end
 local function layoutTabs()
     local n = #tabOrder
     if n == 0 then return end
-    local gap = 3
-    local w = math.max(88, (BASE_W - 16 - 6 - gap * (n - 1)) / n)
+    local gap = 4
+    local w = math.max(100, (BASE_W - 16 - 6 - gap * (n - 1)) / n)
     for i, name in ipairs(tabOrder) do
         local b = TabButtons[name]
-        b.Size = UDim2.fromOffset(w, 24)
+        b.Size = UDim2.fromOffset(w, 26)
         b.Position = UDim2.fromOffset(3 + (i - 1) * (w + gap), 2)
     end
     TabScroll.CanvasSize = UDim2.fromOffset(6 + n * (w + gap), 0)
@@ -609,9 +646,9 @@ local function showPage(name)
         local vis = pageName == name
         page.Visible = vis
         if vis then
-            page.Position = UDim2.fromOffset(0, 14)
-            if UI.anim then
-                tween(page, { Position = UDim2.fromOffset(0, 0) }, 0.3, Enum.EasingStyle.Quint)
+            if UI.anim and not lowFx() then
+                page.Position = UDim2.fromOffset(0, 12)
+                tween(page, { Position = UDim2.fromOffset(0, 0) }, 0.28, Enum.EasingStyle.Quint)
             else
                 page.Position = UDim2.fromOffset(0, 0)
             end
@@ -644,6 +681,7 @@ local function addTab(name, build)
     page.CanvasSize = UDim2.new()
     page.AutomaticCanvasSize = Enum.AutomaticSize.Y
     page.Visible = false
+    page.ZIndex = 4
     page.Parent = Content
     bind(page, "ScrollBarImageColor3", "Acc")
 
@@ -689,20 +727,21 @@ local function createSection(page, text)
     h.LayoutOrder = nextOrder()
     h.Parent = page
 
-    local barF = Instance.new("Frame")
-    barF.Position = UDim2.fromOffset(2, 10)
-    barF.Size = UDim2.fromOffset(3, 11)
-    barF.BorderSizePixel = 0
-    barF.Parent = h
-    bind(barF, "BackgroundColor3", "Acc")
-    corner(barF, 2)
+    local dia = Instance.new("Frame")
+    dia.AnchorPoint = Vector2.new(0.5, 0.5)
+    dia.Position = UDim2.fromOffset(7, 12)
+    dia.Size = UDim2.fromOffset(7, 7)
+    dia.Rotation = 45
+    dia.BorderSizePixel = 0
+    dia.Parent = h
+    bind(dia, "BackgroundColor3", "Acc")
 
     local up = string.upper(text)
-    mkLabel(h, up, 9, F.section, "Acc2", UDim2.fromOffset(12, 9), UDim2.fromOffset(380, 14))
-    local w = TextService:GetTextSize(up, 9, F.section, Vector2.new(700, 20)).X
+    mkLabel(h, up, 9, F.section, "Acc2", UDim2.fromOffset(18, 9), UDim2.fromOffset(420, 14))
+    local w = TextService:GetTextSize(up, 9, F.section, Vector2.new(760, 20)).X
     local line = Instance.new("Frame")
-    line.Position = UDim2.fromOffset(12 + w + 10, 16)
-    line.Size = UDim2.new(1, -(12 + w + 10) - 8, 0, 1)
+    line.Position = UDim2.fromOffset(18 + w + 10, 16)
+    line.Size = UDim2.new(1, -(18 + w + 10) - 8, 0, 1)
     line.BorderSizePixel = 0
     line.Parent = h
     bind(line, "BackgroundColor3", "Acc")
@@ -728,61 +767,6 @@ local function createGrid(page)
     return grid
 end
 
-local function drawChevron(parent, color, k)
-    k = k or 1
-    local box = Instance.new("Frame")
-    box.AnchorPoint = Vector2.new(0.5, 0.5)
-    box.Size = UDim2.fromOffset(14 * k, 12 * k)
-    box.BackgroundTransparency = 1
-    box.Parent = parent
-    for _, s in ipairs({ { 4, 6, 45 }, { 10, 6, -45 } }) do
-        local p = Instance.new("Frame")
-        p.AnchorPoint = Vector2.new(0.5, 0.5)
-        p.Size = UDim2.fromOffset(9 * k, 2 * k)
-        p.Position = UDim2.fromOffset(s[1] * k, s[2] * k)
-        p.Rotation = s[3]
-        p.BorderSizePixel = 0
-        p.Parent = box
-        corner(p, 1)
-        if typeof(color) == "string" then bind(p, "BackgroundColor3", color) else p.BackgroundColor3 = color end
-    end
-    return box
-end
-
-local miniSets = {
-    plus = setmetatable({}, { __mode = "k" }),
-    minus = setmetatable({}, { __mode = "k" }),
-}
-
-local function createMiniButton(parent, kind, size)
-    size = size or 26
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.fromOffset(size, size)
-    b.BackgroundColor3 = (kind == "plus") and C.Plus or C.Minus
-    b.BackgroundTransparency = 0.35
-    b.Text = ""
-    b.AutoButtonColor = false
-    b.Parent = parent
-    corner(b, math.floor(size * 0.3))
-    squish(b, 0.86)
-    local len = math.floor(size * 0.5)
-    local h = Instance.new("Frame")
-    h.AnchorPoint = Vector2.new(0.5, 0.5)
-    h.Position = UDim2.fromScale(0.5, 0.5)
-    h.Size = UDim2.fromOffset(len, 2)
-    h.BackgroundColor3 = Color3.new(1, 1, 1)
-    h.BorderSizePixel = 0
-    h.Parent = b
-    corner(h, 1)
-    if kind == "plus" then
-        local v = h:Clone()
-        v.Size = UDim2.fromOffset(2, len)
-        v.Parent = b
-    end
-    miniSets[kind][b] = true
-    return b
-end
-
 local function createButton(parent, name, desc, callback)
     local cb = callback and safe(callback, name)
 
@@ -795,7 +779,7 @@ local function createButton(parent, name, desc, callback)
     row.Parent = parent
     bind(row, "BackgroundColor3", "Row")
     corner(row, 9)
-    squish(row, 0.95)
+    local sc = squish(row, 0.95)
 
     local glass = Instance.new("UIStroke")
     glass.Color = Color3.fromRGB(220, 250, 255)
@@ -866,16 +850,20 @@ local function createButton(parent, name, desc, callback)
             end
         end
     end
-    onTheme(function() paint(false) end)
+    paint(false)
 
     local api = {}
     function api.Set(v, silent)
         if v == enabled then return end
         enabled = v
         paint(true)
-        if v and UI.anim then
-            flash.BackgroundTransparency = 0.8
-            tween(flash, { BackgroundTransparency = 1 }, 0.4)
+        if UI.anim then
+            tween(sc, { Scale = 1.04 }, 0.1)
+            task.delay(0.11, function() tween(sc, { Scale = 1 }, 0.2, Enum.EasingStyle.Back) end)
+            if v then
+                flash.BackgroundTransparency = 0.8
+                tween(flash, { BackgroundTransparency = 1 }, 0.45)
+            end
         end
         if cb and not silent then cb(enabled) end
     end
@@ -970,9 +958,6 @@ print("[DestroyaHub] parte 4 lista")
 --==================================================
 -- ► PARTE 5 — ESP
 --==================================================
-
-local ESP_MAX = CONFIG.ESP_MAX
-local ESP_TICK = CONFIG.ESP_TICK
 
 local PAL = {
     enemy = { main = Color3.fromRGB(120, 230, 255), light = Color3.fromRGB(200, 248, 255), dark = Color3.fromRGB(0, 60, 90) },
@@ -1080,66 +1065,86 @@ local function applyESP(plr)
     paintESP(d, isAlly(plr))
 end
 
+local playerConns = setmetatable({}, { __mode = "k" })
+
 local function hookPlayer(plr)
     if plr == player then return end
-    track(plr.CharacterAdded:Connect(function()
+    if playerConns[plr] then playerConns[plr]:Disconnect() end
+    playerConns[plr] = plr.CharacterAdded:Connect(function()
         if S.esp then
             task.wait(1)
             if S.esp then pcall(applyESP, plr) end
         end
-    end))
+    end)
+end
+
+local function unhookPlayer(plr)
+    local c = playerConns[plr]
+    if c then
+        c:Disconnect()
+        playerConns[plr] = nil
+    end
 end
 
 local function espTick()
-    local lr = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if not lr then return end
+    local myRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not myRoot then
+        if next(espObjects) then clearESP() end
+        return
+    end
+
+    local cands = {}
     for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= player then
+        if plr ~= player and (not isAlly(plr) or S.espTeam) then
             local char = plr.Character
             local root = char and char:FindFirstChild("HumanoidRootPart")
-            local d = espObjects[plr]
-            local dist = (root and lr) and math.floor((root.Position - lr.Position).Magnitude + 0.5) or 0
-
-            if not (char and root) then
-                if d then removeESP(plr) end
-            elseif dist > ESP_MAX then
-                if d then
-                    if d.bb.Enabled then d.bb.Enabled = false end
-                    if d.hl.Enabled then d.hl.Enabled = false end
-                end
-            else
-                if not d or d.char ~= char then
-                    applyESP(plr)
-                    d = espObjects[plr]
-                end
-                if d then
-                    if not d.bb.Enabled then d.bb.Enabled = true end
-                    if not d.hl.Enabled then d.hl.Enabled = true end
-
-                    local ally = isAlly(plr)
-                    if d.ally ~= ally then paintESP(d, ally) end
-
-                    local hum = char:FindFirstChildOfClass("Humanoid")
-                    local head = char:FindFirstChild("Head") or root
-                    if head and d.bb.Adornee ~= head then d.bb.Adornee = head end
-
-                    local hp, mx = 0, 100
-                    if hum then
-                        hp = math.max(0, math.floor(hum.Health + 0.5))
-                        mx = math.max(1, math.floor(hum.MaxHealth + 0.5))
-                    end
-                    if d.hp ~= hp or d.mx ~= mx then
-                        d.hp, d.mx = hp, mx
-                        d.fill.Size = UDim2.fromScale(math.clamp(hp / mx, 0, 1), 1)
-                        d.hpL.Text = hp .. " / " .. mx
-                    end
-                    if d.dist ~= dist then
-                        d.dist = dist
-                        d.distL.Text = dist .. " m"
-                    end
+            if root then
+                local d = (root.Position - myRoot.Position).Magnitude
+                if d <= S.espDist then
+                    cands[#cands + 1] = { p = plr, d = d, c = char, root = root }
                 end
             end
         end
+    end
+
+    table.sort(cands, function(a, b) return a.d < b.d end)
+    for i = CONFIG.MAX_TARGETS + 1, #cands do cands[i] = nil end
+
+    local seen = {}
+    for _, e in ipairs(cands) do
+        seen[e.p] = true
+        local o = espObjects[e.p]
+        if not o or o.char ~= e.c then
+            applyESP(e.p)
+            o = espObjects[e.p]
+        end
+        if o then
+            if not o.bb.Enabled then o.bb.Enabled = true end
+            if not o.hl.Enabled then o.hl.Enabled = true end
+            local head = e.c:FindFirstChild("Head") or e.root
+            if head and o.bb.Adornee ~= head then o.bb.Adornee = head end
+
+            local hum = e.c:FindFirstChildOfClass("Humanoid")
+            local hp, mx = 0, 100
+            if hum then
+                hp = math.max(0, math.floor(hum.Health + 0.5))
+                mx = math.max(1, math.floor(hum.MaxHealth + 0.5))
+            end
+            if o.hp ~= hp or o.mx ~= mx then
+                o.hp, o.mx = hp, mx
+                o.fill.Size = UDim2.fromScale(math.clamp(hp / mx, 0, 1), 1)
+                o.hpL.Text = hp .. " / " .. mx
+            end
+            local dInt = math.floor(e.d)
+            if o.dist ~= dInt then
+                o.dist = dInt
+                o.distL.Text = dInt .. " m"
+            end
+        end
+    end
+
+    for p in pairs(espObjects) do
+        if not seen[p] then removeESP(p) end
     end
 end
 
@@ -1148,7 +1153,7 @@ do
     track(RunService.Heartbeat:Connect(function(dt)
         if not S.esp then return end
         acc += dt
-        if acc < ESP_TICK then return end
+        if acc < CONFIG.ESP_TICK then return end
         acc = 0
         local ok, err = pcall(espTick)
         if not ok then warn("[DestroyaHub] esp: " .. tostring(err)) end
@@ -1162,26 +1167,6 @@ print("[DestroyaHub] parte 5 lista")
 -- ► PARTE 6 — CÁMARA, MOVILIDAD Y LUZ
 --==================================================
 
-local Sel = { list = {}, set = {} }
-
-local function selAdd(plr)
-    if not plr or plr.Parent ~= Players or Sel.set[plr] then return false end
-    Sel.set[plr] = true
-    Sel.list[#Sel.list + 1] = plr
-    if UI.refreshLists then UI.refreshLists() end
-    return true
-end
-
-local function selRemove(plr)
-    if not Sel.set[plr] then return false end
-    Sel.set[plr] = nil
-    for i = #Sel.list, 1, -1 do
-        if Sel.list[i] == plr then table.remove(Sel.list, i) end
-    end
-    if UI.refreshLists then UI.refreshLists() end
-    return true
-end
-
 local function getCamera()
     return Workspace.CurrentCamera
 end
@@ -1192,16 +1177,24 @@ local function getParts()
     return char:FindFirstChild("HumanoidRootPart"), char:FindFirstChildOfClass("Humanoid"), char
 end
 
+local function alive(p)
+    local c = p and p.Character
+    if not c then return false end
+    local h = c:FindFirstChildOfClass("Humanoid")
+    return h and h.Health > 0
+end
+
 local camHeld, camPrev, camErr = false, nil, 0
 local camParams = RaycastParams.new()
 camParams.FilterType = Enum.RaycastFilterType.Exclude
 camParams.IgnoreWater = true
 camParams.RespectCanCollide = true
 
-local CAM_DIST = 8.5
-local CAM_UP = 3.2
-local PIVOT_UP = 2.2
+local losParams = RaycastParams.new()
+losParams.FilterType = Enum.RaycastFilterType.Exclude
+losParams.IgnoreWater = true
 
+local CAM_DIST, CAM_UP, PIVOT_UP = 8.5, 3.2, 2.2
 local lastDir = Vector3.new(0, 0, -1)
 local waitTime, camMiss = 0, 0
 
@@ -1225,12 +1218,12 @@ local function aimPoint(char, mode, rootPart)
     return t and t.Position or (rootPart.Position + Vector3.new(0, 0.5, 0))
 end
 
-local function nearestPlayer()
+local function nearestEnemy()
     local root = getParts()
     if not root then return nil end
     local best, bestD = nil, math.huge
     for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= player then
+        if plr ~= player and not isAlly(plr) then
             local c = plr.Character
             local r = c and c:FindFirstChild("HumanoidRootPart")
             local h = c and c:FindFirstChildOfClass("Humanoid")
@@ -1244,7 +1237,7 @@ local function nearestPlayer()
     end
     return best
 end
-UI.nearestPlayer = nearestPlayer
+UI.nearestEnemy = nearestEnemy
 
 local function camStep(dt)
     if not S.lockMode then
@@ -1280,14 +1273,23 @@ local function camStep(dt)
         dir = lastDir
     end
 
+    if S.wallCheck then
+        losParams.FilterDescendantsInstances = { player.Character, tChar }
+        local hit = Workspace:Raycast(cam.CFrame.Position,
+            tRoot.Position - cam.CFrame.Position, losParams)
+        UI.setStatus(hit and "Objetivo tras pared" or lockStatus())
+    end
+
     if not camHeld then
         camHeld = true
         camPrev = cam.CameraType
     end
     if cam.CameraType ~= Enum.CameraType.Scriptable then cam.CameraType = Enum.CameraType.Scriptable end
-
     if hum and hum.AutoRotate then hum.AutoRotate = false end
-    root.CFrame = CFrame.lookAt(root.Position, root.Position + dir)
+
+    if not S.fly and not S.tpFollow then
+        root.CFrame = CFrame.lookAt(root.Position, root.Position + dir)
+    end
 
     local focus = aimPoint(tChar, S.lockMode, tRoot)
     local pivot = root.Position + Vector3.new(0, PIVOT_UP, 0)
@@ -1300,16 +1302,14 @@ local function camStep(dt)
         if hit then
             local back = (pivot - hit.Position).Unit
             want = hit.Position + back * 0.35
-            if (want - pivot).Magnitude < 1.2 then
-                want = pivot + back * 1.2
-            end
+            if (want - pivot).Magnitude < 1.2 then want = pivot + back * 1.2 end
         end
     end
 
     cam.CFrame = CFrame.lookAt(want, focus)
 end
 
-local function lockStatus()
+function lockStatus()
     if not S.lockMode then return "Cam Lock desactivado" end
     local where = (S.lockMode == "head") and "cabeza" or "pecho"
     if S.target then return "Objetivo: @" .. S.target.Name .. " (" .. where .. ")" end
@@ -1327,7 +1327,9 @@ end
 local noclipPrev = false
 local setNoclip
 
-local function setLockMode(mode)
+function setLockMode(mode)
+    if busyLock then return end
+    busyLock = true
     local wasLocked = S.lockMode ~= nil
     S.lockMode = mode
     if not mode then
@@ -1339,14 +1341,9 @@ local function setLockMode(mode)
         noclipPrev = S.noclip
         setNoclip(true)
         if UI.noclipToggle then UI.noclipToggle.Set(true, true) end
-
         if not S.target or S.target.Parent ~= Players then
-            local pick = nearestPlayer()
-            if pick then
-                S.target = pick
-            else
-                notify("No hay jugadores cerca, esperando")
-            end
+            local pick = nearestEnemy()
+            if pick then S.target = pick else notify("Sin jugadores cerca") end
         end
     elseif not mode and wasLocked then
         setNoclip(noclipPrev)
@@ -1355,9 +1352,10 @@ local function setLockMode(mode)
 
     syncLock()
     if not mode then pcall(releaseCamera) end
+    busyLock = false
 end
 
-local function selectTarget(plr)
+function selectTarget(plr)
     if not plr or plr.Parent ~= Players then
         notify("Jugador no disponible")
         return
@@ -1369,10 +1367,7 @@ local function selectTarget(plr)
 end
 
 track(RunService.Heartbeat:Connect(function(dt)
-    if not S.lockMode then
-        camMiss = 0
-        return
-    end
+    if not S.lockMode then return end
     local t = S.target
     local tChar = t and t.Character
     local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
@@ -1388,7 +1383,7 @@ track(RunService.Heartbeat:Connect(function(dt)
     if camMiss < 1.2 then return end
     camMiss = 0
 
-    local pick = nearestPlayer()
+    local pick = nearestEnemy()
     if pick and pick ~= t then
         S.target = pick
         syncLock()
@@ -1433,7 +1428,7 @@ do
         if not on then restore() end
     end
 
-    track(RunService.Stepped:Connect(function()
+    track(RunService.Heartbeat:Connect(function()
         if not S.noclip then return end
         local now = os.clock()
         if now >= refreshAt then
@@ -1462,7 +1457,7 @@ do
 end
 
 --==================================================
--- SALTO INFINITO Y POWER JUMP
+-- SALTO
 --==================================================
 track(UserInputService.JumpRequest:Connect(function()
     local _, hum = getParts()
@@ -1470,7 +1465,7 @@ track(UserInputService.JumpRequest:Connect(function()
     if S.infJump then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
 end))
 
-track(RunService.Stepped:Connect(function()
+track(RunService.Heartbeat:Connect(function()
     if not S.powerJump then return end
     local _, hum = getParts()
     if hum and hum.JumpPower ~= CONFIG.JUMP_BOOST then
@@ -1484,17 +1479,16 @@ end))
 --==================================================
 local flyBV, flyBG
 
-local function clearFlyFlags()
-    S.flyUp = false
-    S.flyDown = false
-end
-
 local function stopFly()
     if flyBV then flyBV:Destroy() flyBV = nil end
     if flyBG then flyBG:Destroy() flyBG = nil end
     local _, hum = getParts()
     if hum then hum.PlatformStand = false end
-    clearFlyFlags()
+    S.flyUp, S.flyDown = false, false
+    if S.noclip and not S.flyNoclipPrev then
+        setNoclip(false)
+        if UI.noclipToggle then UI.noclipToggle.Set(false, true) end
+    end
     S.fly = false
 end
 
@@ -1505,17 +1499,19 @@ local function startFly()
         return false
     end
     stopFly()
-    clearFlyFlags()
+    S.flyNoclipPrev = S.noclip
+    if not S.noclip then
+        setNoclip(true)
+        if UI.noclipToggle then UI.noclipToggle.Set(true, true) end
+    end
 
     flyBV = Instance.new("BodyVelocity")
-    flyBV.Name = "DestroyaFly"
     flyBV.MaxForce = Vector3.new(1, 1, 1) * 100000
     flyBV.P = 1250
     flyBV.Velocity = Vector3.zero
     flyBV.Parent = root
 
     flyBG = Instance.new("BodyGyro")
-    flyBG.Name = "DestroyaFlyGyro"
     flyBG.MaxTorque = Vector3.new(1, 1, 1) * 100000
     flyBG.P = 3000
     flyBG.CFrame = root.CFrame
@@ -1544,15 +1540,13 @@ track(RunService.RenderStepped:Connect(function()
         if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir -= Vector3.yAxis end
 
         flyBV.Velocity = dir.Magnitude > 0 and dir.Unit * S.flySpeed or Vector3.zero
-        if cam then
-            flyBG.CFrame = CFrame.lookAt(root.Position, root.Position + cam.CFrame.LookVector)
-        end
+        if cam then flyBG.CFrame = CFrame.lookAt(root.Position, root.Position + cam.CFrame.LookVector) end
     end)
     if not ok then warn("[DestroyaHub] fly: " .. tostring(err)) end
 end))
 
 track(player.CharacterAdded:Connect(function()
-    clearFlyFlags()
+    S.flyUp, S.flyDown = false, false
     if S.fly then
         task.wait(1.5)
         if S.fly then startFly() end
@@ -1573,9 +1567,7 @@ local function setFullbright(on)
             Lighting.FogStart, Lighting.GlobalShadows = FB.FogStart, FB.Shadows
             Lighting.Ambient, Lighting.OutdoorAmbient = FB.Ambient, FB.Outdoor
         end)
-        for a, v in pairs(atmos) do
-            pcall(function() a.Density = v end)
-        end
+        for a, v in pairs(atmos) do pcall(function() a.Density = v end) end
         atmos = {}
         return
     end
@@ -1591,23 +1583,6 @@ local function setFullbright(on)
         end
     end
 end
-
-task.spawn(function()
-    while Screen.Parent do
-        task.wait(0.6)
-        if S.full then
-            pcall(function()
-                Lighting.Brightness = 2.5
-                Lighting.ClockTime = 14
-                Lighting.FogEnd = 100000
-                Lighting.FogStart = 100000
-                Lighting.GlobalShadows = false
-                Lighting.Ambient = Color3.fromRGB(190, 190, 190)
-                Lighting.OutdoorAmbient = Color3.fromRGB(190, 190, 190)
-            end)
-        end
-    end
-end)
 
 print("[DestroyaHub] parte 6 lista")
 --==================================================
@@ -1628,7 +1603,7 @@ do
         Atmosphere = "atmo", SurfaceAppearance = "sa", Explosion = "boom",
     }
 
-    local function isCharacter(inst)
+    local function esPersonaje(inst)
         local m = inst:FindFirstAncestorOfClass("Model")
         return m ~= nil and Players:GetPlayerFromCharacter(m) ~= nil
     end
@@ -1646,22 +1621,21 @@ do
                 saved = { Enabled = inst.Enabled }
                 inst.Enabled = false
             elseif kind == "tex" then
-                if isCharacter(inst) then return end
+                if esPersonaje(inst) then return end
                 saved = { Transparency = inst.Transparency }
                 inst.Transparency = 1
             elseif kind == "atmo" then
                 saved = { Density = inst.Density, Haze = inst.Haze }
-                inst.Density = 0
-                inst.Haze = 0
+                inst.Density, inst.Haze = 0, 0
             elseif kind == "sa" then
-                if isCharacter(inst) then return end
+                if esPersonaje(inst) then return end
                 saved = { Parent = inst.Parent }
                 inst.Parent = nil
             elseif kind == "boom" then
                 saved = { Visible = inst.Visible }
                 inst.Visible = false
             else
-                if isCharacter(inst) then return end
+                if esPersonaje(inst) then return end
                 saved = { Material = inst.Material, Reflectance = inst.Reflectance, CastShadow = inst.CastShadow }
                 inst.Material = Enum.Material.SmoothPlastic
                 inst.Reflectance = 0
@@ -1683,66 +1657,63 @@ do
         end
     end
 
-    local function applyGlobal()
+    local function aplicarGlobal()
         pcall(function()
-            glob.Quality = settings().Rendering.QualityLevel
+            glob.Q = settings().Rendering.QualityLevel
             settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
         end)
         pcall(function()
-            glob.Mesh = settings().Rendering.MeshPartDetailLevel
+            glob.M = settings().Rendering.MeshPartDetailLevel
             settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level04
         end)
         pcall(function()
-            glob.Shadows = Lighting.GlobalShadows
+            glob.S = Lighting.GlobalShadows
             Lighting.GlobalShadows = false
-        end)
-        pcall(function()
-            glob.Soft = Lighting.ShadowSoftness
+            glob.So = Lighting.ShadowSoftness
             Lighting.ShadowSoftness = 0
         end)
         pcall(function()
-            glob.EnvD, glob.EnvS = Lighting.EnvironmentDiffuseScale, Lighting.EnvironmentSpecularScale
+            glob.E1, glob.E2 = Lighting.EnvironmentDiffuseScale, Lighting.EnvironmentSpecularScale
             Lighting.EnvironmentDiffuseScale = 0
             Lighting.EnvironmentSpecularScale = 0
         end)
     end
 
-    local function restoreGlobal()
-        pcall(function() if glob.Quality then settings().Rendering.QualityLevel = glob.Quality end end)
-        pcall(function() if glob.Mesh then settings().Rendering.MeshPartDetailLevel = glob.Mesh end end)
-        pcall(function() if glob.Shadows ~= nil then Lighting.GlobalShadows = glob.Shadows end end)
-        pcall(function() if glob.Soft ~= nil then Lighting.ShadowSoftness = glob.Soft end end)
+    local function restaurarGlobal()
+        pcall(function() if glob.Q then settings().Rendering.QualityLevel = glob.Q end end)
+        pcall(function() if glob.M then settings().Rendering.MeshPartDetailLevel = glob.M end end)
         pcall(function()
-            if glob.EnvD then
-                Lighting.EnvironmentDiffuseScale = glob.EnvD
-                Lighting.EnvironmentSpecularScale = glob.EnvS
+            if glob.S ~= nil then Lighting.GlobalShadows = glob.S end
+            if glob.So ~= nil then Lighting.ShadowSoftness = glob.So end
+        end)
+        pcall(function()
+            if glob.E1 then
+                Lighting.EnvironmentDiffuseScale = glob.E1
+                Lighting.EnvironmentSpecularScale = glob.E2
             end
         end)
         glob = {}
     end
 
-    setFpsBoost = function(enabled)
-        if not enabled then
+    setFpsBoost = function(on)
+        if not on then
             S.boost = false
             token += 1
-            if conn then
-                conn:Disconnect()
-                conn = nil
-            end
+            if conn then conn:Disconnect() conn = nil end
             for inst, saved in pairs(orig) do
                 pcall(function()
                     for prop, value in pairs(saved) do inst[prop] = value end
                 end)
             end
             table.clear(orig)
-            restoreGlobal()
+            restaurarGlobal()
             return
         end
         if S.boost then return end
         S.boost = true
         token += 1
         local myToken = token
-        applyGlobal()
+        aplicarGlobal()
         if conn then conn:Disconnect() end
         conn = Workspace.DescendantAdded:Connect(function(inst)
             if S.boost then task.defer(boost, inst) end
@@ -1756,6 +1727,9 @@ do
     end
 end
 
+--==================================================
+-- PAREDES CON LÍMITE DE ESTRUCTURAS
+--==================================================
 local setWalls
 do
     local saved = {}
@@ -1763,6 +1737,36 @@ do
     local params = OverlapParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
     params.MaxParts = 4000
+
+    local function esPiso(part, yRef)
+        local sz = part.Size
+        local minA = math.min(sz.X, sz.Y, sz.Z)
+        local maxA = math.max(sz.X, sz.Y, sz.Z)
+        if minA < 2 and maxA > 5 and sz.Y == minA then
+            return part.Position.Y < yRef - 1.5
+        end
+        return false
+    end
+
+    local function contarEstructuras(root, lista)
+        local n = 0
+        for _, p in ipairs(lista) do
+            if p:IsA("BasePart") and p.Parent and p.Transparency < 0.95 then
+                local deco = p:FindFirstChildOfClass("SpecialMesh")
+                    or p:FindFirstChildOfClass("Decal")
+                    or p:FindFirstChildOfClass("Texture")
+                if p:IsA("WedgePart") or p:IsA("TrussPart") or deco then
+                    n += 1
+                elseif not esPiso(p, root.Position.Y) then
+                    local sz = p.Size
+                    local minA = math.min(sz.X, sz.Y, sz.Z)
+                    local maxA = math.max(sz.X, sz.Y, sz.Z)
+                    if maxA > 5 and minA < 4 then n += 1 end
+                end
+            end
+        end
+        return n
+    end
 
     local function restore(part)
         local t = saved[part]
@@ -1779,20 +1783,27 @@ do
 
     local function cycle()
         local root = getParts()
-        if not root then return end
+        if not root then return true end
         params.FilterDescendantsInstances = { player.Character }
         local hits = Workspace:GetPartBoundsInRadius(root.Position, CONFIG.WALL_RADIUS, params)
-        local seen = {}
 
+        local n = contarEstructuras(root, hits)
+        if n > CONFIG.STRUCT_LIMIT then
+            restoreAll()
+            S.walls = false
+            if UI.wallsToggle then UI.wallsToggle.Set(false, true) end
+            notify("Paredes: " .. n .. " estructuras, límite " .. CONFIG.STRUCT_LIMIT)
+            UI.setStatus("Paredes apagadas por exceso de estructuras")
+            return false
+        end
+
+        local seen = {}
         for _, part in ipairs(hits) do
             if part:IsA("BasePart") and part.Parent then
                 seen[part] = true
-                if saved[part] == nil then
-                    local t = part.Transparency
-                    if t < 0.6 then
-                        saved[part] = t
-                        pcall(function() part.Transparency = CONFIG.WALL_ALPHA end)
-                    end
+                if saved[part] == nil and part.Transparency < 0.6 then
+                    saved[part] = part.Transparency
+                    pcall(function() part.Transparency = CONFIG.WALL_ALPHA end)
                 end
             end
         end
@@ -1802,6 +1813,7 @@ do
                 if part.Parent then restore(part) else saved[part] = nil end
             end
         end
+        return true
     end
 
     setWalls = function(on)
@@ -1816,9 +1828,9 @@ do
         running = true
         task.spawn(function()
             while S.walls and Screen.Parent do
-                local ok = cycle()
-                if not ok then break end
-                task.wait(0.35)
+                local ok, cont = pcall(cycle)
+                if not ok or not cont then break end
+                task.wait(0.4)
             end
             running = false
             restoreAll()
@@ -1828,257 +1840,114 @@ end
 
 print("[DestroyaHub] parte 7 lista")
 --==================================================
--- ► PARTE 8 — SKINS
+-- ► PARTE 8 — TP
 --==================================================
 
-local skinKeys = { "Owned", "Unlocked", "IsOwned", "Bought", "Purchased", "Obtained" }
-local skinPatched = {}
+local Sel = { list = {}, set = {} }
 
-local function markSkinTable(tbl, depth)
-    if type(tbl) ~= "table" or depth > 4 then return end
-    for k, v in pairs(tbl) do
-        if type(v) == "boolean" then
-            tbl[k] = true
-        elseif type(v) == "table" then
-            markSkinTable(v, depth + 1)
-        end
+local cancelBtn
+local tpAcc = 0
+
+local function mostrarCancelar()
+    if not cancelBtn then
+        cancelBtn = Instance.new("TextButton")
+        cancelBtn.Size = UDim2.fromOffset(126, 44)
+        cancelBtn.Position = UDim2.new(0, 14, 0.5, 90)
+        cancelBtn.BackgroundColor3 = Color3.fromRGB(150, 32, 52)
+        cancelBtn.BackgroundTransparency = 0.1
+        cancelBtn.Text = "DEJAR DE SEGUIR"
+        cancelBtn.TextColor3 = Color3.new(1, 1, 1)
+        cancelBtn.Font = F.head
+        cancelBtn.TextSize = 10
+        cancelBtn.AutoButtonColor = false
+        cancelBtn.Visible = false
+        cancelBtn.ZIndex = 10
+        cancelBtn.Parent = Screen
+        corner(cancelBtn, 12)
+        stroke(cancelBtn, "Acc2", 1.2, 0.5)
+        squish(cancelBtn, 0.9)
+        cancelBtn.Activated:Connect(function() stopTP() end)
     end
+    cancelBtn.Visible = true
 end
 
-local function patchSkinModule(mod)
-    if not mod or skinPatched[mod] then return end
-    skinPatched[mod] = true
-    local ok, data = pcall(require, mod)
-    if not ok or type(data) ~= "table" then return end
-    for _, key in ipairs(skinKeys) do
-        if data[key] ~= nil then data[key] = true end
-    end
-    markSkinTable(data, 0)
+function stopTP()
+    S.tpFollow = false
+    S.tpTarget = nil
+    if cancelBtn then cancelBtn.Visible = false end
+    UI.setStatus("Seguimiento detenido")
 end
 
-local function unlockAllSkins()
-    UI.setStatus("Aplicando skins...")
-    local mods, remotes = 0, 0
-
-    for _, d in ipairs(ReplicatedStorage:GetDescendants()) do
-        local name = string.lower(d.Name)
-        if string.find(name, "skin", 1, true) or string.find(name, "camo", 1, true)
-            or string.find(name, "finisher", 1, true) or string.find(name, "weapon", 1, true) then
-            if d:IsA("ModuleScript") then
-                patchSkinModule(d)
-                mods += 1
-            end
-            for _, key in ipairs(skinKeys) do
-                pcall(function() d:SetAttribute(key, true) end)
-            end
-        end
-    end
-
-    for _, key in ipairs({ "AllSkins", "SkinsUnlocked", "UnlockedAll", "AllFinishers" }) do
-        pcall(function() player:SetAttribute(key, true) end)
-    end
-
-    for _, d in ipairs(ReplicatedStorage:GetDescendants()) do
-        if d:IsA("RemoteEvent") or d:IsA("RemoteFunction") then
-            local name = string.lower(d.Name)
-            if string.find(name, "skin", 1, true) or string.find(name, "unlock", 1, true)
-                or string.find(name, "camo", 1, true) or string.find(name, "finisher", 1, true) then
-                pcall(function()
-                    if d:IsA("RemoteEvent") then
-                        d:FireServer("All")
-                        d:FireServer()
-                    else
-                        d:InvokeServer("All")
-                    end
-                end)
-                remotes += 1
-            end
-        end
-    end
-
-    UI.setStatus("Skins: " .. mods .. " módulos, " .. remotes .. " remotos")
-    notify("Skins: " .. mods .. " módulos")
-    return mods
+local function tpDetras(plr)
+    local myRoot = getParts()
+    local tRoot = plr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+    if not myRoot or not tRoot then return false end
+    local pos = tRoot.Position - tRoot.CFrame.LookVector * CONFIG.TP_OFFSET + Vector3.new(0, 1.5, 0)
+    myRoot.CFrame = CFrame.new(pos, tRoot.Position)
+    return true
 end
 
-local function refreshSkins()
-    local char = player.Character
-    if not char then return end
-    for _, tool in ipairs(char:GetChildren()) do
-        if tool:IsA("Tool") then tool.Parent = char end
-    end
-    notify("Personaje refrescado")
-end
-
-print("[DestroyaHub] parte 8 lista")
---==================================================
--- ► PARTE 9 — CÍRCULO Y BOT
---==================================================
-
-local Ring = Instance.new("Frame")
-Ring.Name = "KillRing"
-Ring.AnchorPoint = Vector2.new(0.5, 0.5)
-Ring.Position = UDim2.fromScale(0.5, 0.5)
-Ring.Size = UDim2.fromOffset(200, 200)
-Ring.BackgroundTransparency = 1
-Ring.BorderSizePixel = 0
-Ring.Visible = false
-Ring.ZIndex = 9
-Ring.Parent = Screen
-corner(Ring, 999)
-
-local RingStroke = Instance.new("UIStroke")
-RingStroke.Color = Color3.fromRGB(120, 230, 255)
-RingStroke.Thickness = 2
-RingStroke.Transparency = 0.1
-RingStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-RingStroke.Parent = Ring
-
-local RingGlow = Instance.new("UIStroke")
-RingGlow.Color = Color3.fromRGB(120, 230, 255)
-RingGlow.Thickness = 7
-RingGlow.Transparency = 0.85
-RingGlow.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-RingGlow.Parent = Ring
-
-local RingDot = Instance.new("Frame")
-RingDot.AnchorPoint = Vector2.new(0.5, 0.5)
-RingDot.Position = UDim2.fromScale(0.5, 0.5)
-RingDot.Size = UDim2.fromOffset(5, 5)
-RingDot.BackgroundColor3 = Color3.fromRGB(120, 230, 255)
-RingDot.BackgroundTransparency = 0.25
-RingDot.BorderSizePixel = 0
-RingDot.ZIndex = 10
-RingDot.Parent = Ring
-corner(RingDot, 3)
-
-local function pxRadius(dist)
-    local cam = getCamera()
-    if not cam then return 60 end
-    local fov = math.rad(cam.FieldOfView)
-    return (S.radius * (cam.ViewportSize.Y / 2)) / math.max(dist * math.tan(fov / 2), 1)
-end
-
-local function enemiesInArea()
-    local root = getParts()
-    local cam = getCamera()
-    if not root or not cam then return {} end
-
-    local center = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
-    local out = {}
-
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= player and not isAlly(plr) then
-            local char = plr.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            local head = char and char:FindFirstChild("Head")
-            local hum = char and char:FindFirstChildOfClass("Humanoid")
-            if hrp and head and hum and hum.Health > 0 then
-                local flat = (Vector3.new(hrp.Position.X, root.Position.Y, hrp.Position.Z) - root.Position).Magnitude
-                if flat <= S.radius then
-                    local sp, onScreen = cam:WorldToViewportPoint(head.Position)
-                    if onScreen and sp.Z > 0 then
-                        local r = pxRadius(sp.Z)
-                        if (Vector2.new(sp.X, sp.Y) - center).Magnitude <= r then
-                            out[#out + 1] = { head = head, dist = flat }
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    table.sort(out, function(a, b) return a.dist < b.dist end)
-    return out
-end
-
-local lastHit = 0
-
-local function circleStep(dt)
-    local active = S.bot or S.circle
-    local root = getParts()
-    Ring.Visible = active and root ~= nil
-    if not active then return end
-
-    local cam = getCamera()
-    if not root or not cam then return end
-
-    local list = enemiesInArea()
-    local near = list[1]
-
-    if not near then
-        RingStroke.Transparency = 0.45
-        RingGlow.Transparency = 0.9
+function seguir(plr)
+    if not plr or plr.Parent ~= Players or not alive(plr) then
+        notify("Jugador no disponible")
         return
     end
+    S.tpTarget = plr
+    S.tpFollow = true
+    tpDetras(plr)
+    mostrarCancelar()
+    UI.setStatus("Siguiendo a @" .. plr.Name)
+end
 
-    RingStroke.Transparency = 0.05
-    RingGlow.Transparency = 0.6
-
-    local sp = cam:WorldToViewportPoint(near.head.Position)
-    local r = math.clamp(pxRadius(sp.Z), 18, 460)
-    Ring.Size = UDim2.fromOffset(r * 2, r * 2)
-
-    if not S.bot or not S.autoHit then return end
-
-    local tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
-    if not tool then return end
-
-    if S.aimAt then
-        local goal = CFrame.lookAt(cam.CFrame.Position, near.head.Position)
-        cam.CFrame = cam.CFrame:Lerp(goal, math.clamp(dt * 9, 0, 1))
+local function tpStep(dt)
+    if not S.tpFollow or not S.tpTarget then return end
+    if not alive(S.tpTarget) then
+        stopTP()
+        return
     end
+    tpAcc += dt
+    if tpAcc < CONFIG.TP_TICK then return end
+    tpAcc = 0
 
-    if os.clock() - lastHit >= CONFIG.HIT_CD then
-        lastHit = os.clock()
-        pcall(function() tool:Activate() end)
+    local myRoot = getParts()
+    local tRoot = S.tpTarget.Character:FindFirstChild("HumanoidRootPart")
+    if not myRoot or not tRoot then return end
+
+    local pos = tRoot.Position - tRoot.CFrame.LookVector * CONFIG.TP_OFFSET + Vector3.new(0, 1.5, 0)
+    if (myRoot.Position - pos).Magnitude > 2 then
+        myRoot.CFrame = myRoot.CFrame:Lerp(CFrame.new(pos, tRoot.Position), 0.7)
     end
 end
 
 track(RunService.Heartbeat:Connect(function(dt)
-    local ok, err = pcall(circleStep, dt)
-    if not ok then warn("[DestroyaHub] círculo: " .. tostring(err)) end
+    if not S.tpFollow then return end
+    local ok, err = pcall(tpStep, dt)
+    if not ok then warn("[DestroyaHub] tp: " .. tostring(err)) end
 end))
 
-print("[DestroyaHub] parte 9 lista")
+local function autoEspalda()
+    if not S.autoBack then return end
+    task.delay(2.2, function()
+        if not S.autoBack or not alive then return end
+        local pick = nearestEnemy()
+        if pick then
+            tpDetras(pick)
+            UI.setStatus("TP automático a @" .. pick.Name)
+        end
+    end)
+end
+
+track(player.CharacterAdded:Connect(autoEspalda))
+
+print("[DestroyaHub] parte 8 lista")
 --==================================================
--- ► PARTE 10 — FUNCIONES
+-- ► PARTE 9 — MOVIMIENTO
 --==================================================
 
-local FunctionPage = addTab("Funciones", function(page)
-    createSection(page, "Jugadores")
-    do
-        local grid = createGrid(page)
-        UI.espToggle = createButton(grid, "ESP Player", "Cian enemigo, violeta aliado", function(v)
-            S.esp = v
-            if v then
-                for _, plr in ipairs(Players:GetPlayers()) do applyESP(plr) end
-                verify("ESP", function() return next(espObjects) ~= nil end, 0.4)
-            else
-                clearESP()
-                notify("ESP apagado")
-            end
-        end)
-        UI.headToggle = createButton(grid, "Cam Lock Cabeza", "Apunta a la cabeza", function(v)
-            setLockMode(v and "head" or nil)
-            if v then verify("Cam Lock cabeza", function() return S.lockMode == "head" end) end
-        end)
-        UI.chestToggle = createButton(grid, "Cam Lock Pecho", "Apunta al pecho", function(v)
-            setLockMode(v and "chest" or nil)
-            if v then verify("Cam Lock pecho", function() return S.lockMode == "chest" end) end
-        end)
-        UI.noclipToggle = createButton(grid, "Noclip", "Atraviesa paredes", function(v)
-            setNoclip(v)
-            verify("Noclip", function() return S.noclip == v end, 0.15)
-        end)
-    end
-
+local MovPage = addTab("Movimiento", function(page)
     createSection(page, "Salto")
     do
         local grid = createGrid(page)
-        createButton(grid, "Infinite Jump", "Salta sin parar", function(v)
-            S.infJump = v
-        end)
         UI.powerToggle = createButton(grid, "Power Jump", "Salto muy alto", function(v)
             S.powerJump = v
             local _, hum = getParts()
@@ -2090,6 +1959,9 @@ local FunctionPage = addTab("Funciones", function(page)
                 local _, h = getParts()
                 return v and h and h.JumpPower == CONFIG.JUMP_BOOST
             end, 0.25)
+        end)
+        createButton(grid, "Salto infinito", "Salta sin parar", function(v)
+            S.infJump = v
         end)
     end
 
@@ -2106,15 +1978,15 @@ local FunctionPage = addTab("Funciones", function(page)
                 notify("Fly apagado")
             end
         end)
-        createButton(grid, "Noclip al volar", "Evita trabarte", function(v)
-            S.noclip = v
-            if UI.noclipToggle then UI.noclipToggle.Set(v, true) end
+        UI.noclipToggle = createButton(grid, "Noclip", "Atraviesa paredes", function(v)
+            setNoclip(v)
+            verify("Noclip", function() return S.noclip == v end, 0.15)
         end)
     end
 
     do
         local row = Instance.new("Frame")
-        row.Size = UDim2.new(1, -4, 0, 30)
+        row.Size = UDim2.new(1, -4, 0, 32)
         row.BackgroundTransparency = 1
         row.LayoutOrder = nextOrder()
         row.Parent = page
@@ -2146,54 +2018,108 @@ local FunctionPage = addTab("Funciones", function(page)
     createSlider(page, "Velocidad de vuelo", 20, 300, CONFIG.FLY_SPEED,
         function(v) return string.format("%d", math.floor(v + 0.5)) end,
         function(v) S.flySpeed = v end)
+end)
 
-    createSection(page, "Skins")
+print("[DestroyaHub] parte 9 lista")
+--==================================================
+-- ► PARTE 10 — CÁMARA Y ESP
+--==================================================
+
+local CamPage = addTab("Cámara", function(page)
+    createSection(page, "Cam Lock")
     do
         local grid = createGrid(page)
-        createButton(grid, "Desbloquear todo", "Todas las armas y finalizadores", function()
-            local n = unlockAllSkins()
-            verify("Skins · " .. tostring(n) .. " módulos", function() return (n or 0) > 0 end, 0.1)
+        UI.headToggle = createButton(grid, "Lock cabeza", "Apunta a la cabeza", function(v)
+            setLockMode(v and "head" or nil)
+            if v then verify("Cam Lock cabeza", function() return S.lockMode == "head" end) end
         end)
-        createButton(grid, "Reaplicar skins", "Refresca el personaje", function()
-            refreshSkins()
+        UI.chestToggle = createButton(grid, "Lock pecho", "Apunta al pecho", function(v)
+            setLockMode(v and "chest" or nil)
+            if v then verify("Cam Lock pecho", function() return S.lockMode == "chest" end) end
+        end)
+        createButton(grid, "Chequeo de pared", "No apunta tras muros", function(v)
+            S.wallCheck = v
+        end).Set(true, true)
+        createButton(grid, "Soltar cámara", "Vuelve a la normal", function()
+            setLockMode(nil)
+            notify("Cam Lock apagado")
         end)
     end
 
-    createSection(page, "Bot")
+    createSection(page, "Funciona con")
+    local nota = plain(page, "El cam lock trabaja junto al TP y al vuelo: no se pelean por la cámara.", 10, F.body, C.Gray,
+        nil, UDim2.new(1, -4, 0, 22))
+    nota.LayoutOrder = nextOrder()
+end)
+
+local EspPage = addTab("ESP", function(page)
+    createSection(page, "Jugadores")
     do
         local grid = createGrid(page)
-        UI.botToggle = createButton(grid, "I'm Bot", "Círculo + golpe automático", function(v)
-            S.bot = v
-            S.circle = v
-            if UI.circleToggle then UI.circleToggle.Set(v, true) end
-            verify("Bot", function() return Ring.Visible end, 0.3)
-            notify(v and "Bot activado" or "Bot desactivado")
+        UI.espToggle = createButton(grid, "Activar ESP", "Cian enemigo, violeta aliado", function(v)
+            S.esp = v
+            if v then
+                for _, plr in ipairs(Players:GetPlayers()) do applyESP(plr) end
+                verify("ESP", function() return next(espObjects) ~= nil end, 0.4)
+            else
+                clearESP()
+                notify("ESP apagado")
+            end
         end)
-        UI.circleToggle = createButton(grid, "Solo círculo", "Muestra el área sin golpear", function(v)
-            S.circle = v
-            if not v then S.bot = false end
-            verify("Círculo", function() return Ring.Visible end, 0.3)
+        createButton(grid, "Incluir aliados", "Muestra también el equipo", function(v)
+            S.espTeam = v
         end)
-        createButton(grid, "Fijar cámara", "Mira al objetivo", function(v)
-            S.aimAt = v
-        end).Set(true, true)
-        createButton(grid, "Golpe automático", "Ataca dentro del área", function(v)
-            S.autoHit = v
-        end).Set(true, true)
     end
 
-    createSlider(page, "Radio del círculo", 8, 90, CONFIG.CIRCLE_R,
+    createSection(page, "Alcance")
+    createSlider(page, "Distancia", 30, CONFIG.ESP_MAX, S.espDist,
         function(v) return string.format("%d m", math.floor(v + 0.5)) end,
-        function(v) S.radius = v end)
+        function(v) S.espDist = v end)
+    local nota = plain(page, "Máximo " .. CONFIG.MAX_TARGETS ..
+        " jugadores a la vez, los más cercanos.", 10, F.body, C.Gray,
+        nil, UDim2.new(1, -4, 0, 20))
+    nota.LayoutOrder = nextOrder()
 end)
 
 print("[DestroyaHub] parte 10 lista")
 --==================================================
--- ► PARTE 11 — LISTA Y SELECCIONADOS
+-- ► PARTE 11 — TP Y LISTA
 --==================================================
 
+local TpPage = addTab("TP", function(page)
+    createSection(page, "Seguimiento")
+    do
+        local grid = createGrid(page)
+        createButton(grid, "Seguir objetivo", "Pega al jugador elegido", function()
+            if S.tpTarget then seguir(S.tpTarget) else notify("Elige uno en la lista") end
+        end)
+        createButton(grid, "Detener", "Corta el seguimiento", function()
+            stopTP()
+        end)
+    end
+
+    createSection(page, "Ajustes")
+    createSlider(page, "Distancia de escolta", 2, 20, CONFIG.TP_OFFSET,
+        function(v) return string.format("%d st", math.floor(v + 0.5)) end,
+        function(v) CONFIG.TP_OFFSET = v end)
+    do
+        local grid = createGrid(page)
+        createButton(grid, "TP a la espalda", "Una sola vez", function()
+            if S.tpTarget then
+                if tpDetras(S.tpTarget) then notify("TP a @" .. S.tpTarget.Name) end
+            else
+                notify("Elige uno en la lista")
+            end
+        end)
+        createButton(grid, "TP automático", "Al iniciar partida", function(v)
+            S.autoBack = v
+            notify(v and "TP automático activo" or "TP automático apagado")
+        end).Set(true, true)
+    end
+end)
+
 local ListPage = addTab("Lista", function(page)
-    createSection(page, "Buscar jugador")
+    createSection(page, "Buscar")
 
     local search = Instance.new("TextBox")
     search.Size = UDim2.new(1, -4, 0, 34)
@@ -2217,7 +2143,7 @@ local ListPage = addTab("Lista", function(page)
         if UI.refreshLists then UI.refreshLists() end
     end)
 
-    createSection(page, "Jugadores conectados")
+    createSection(page, "Conectados")
 
     local container = Instance.new("Frame")
     container.Size = UDim2.new(1, -4, 0, 0)
@@ -2225,10 +2151,10 @@ local ListPage = addTab("Lista", function(page)
     container.AutomaticSize = Enum.AutomaticSize.Y
     container.LayoutOrder = nextOrder()
     container.Parent = page
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 8)
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Parent = container
+    local lay = Instance.new("UIListLayout")
+    lay.Padding = UDim.new(0, 8)
+    lay.SortOrder = Enum.SortOrder.LayoutOrder
+    lay.Parent = container
 
     UI.refreshList = function()
         for _, c in ipairs(container:GetChildren()) do
@@ -2238,8 +2164,7 @@ local ListPage = addTab("Lista", function(page)
         for _, plr in ipairs(Players:GetPlayers()) do
             if plr ~= player and (UI.filter == "" or string.find(string.lower(plr.Name), UI.filter, 1, true)) then
                 n += 1
-                local isTarget = S.target == plr
-                local isSel = Sel.set[plr] == true
+                local isTarget = S.tpTarget == plr
 
                 local btn = Instance.new("TextButton")
                 btn.LayoutOrder = n
@@ -2252,36 +2177,26 @@ local ListPage = addTab("Lista", function(page)
                 corner(btn, 10)
                 squish(btn, 0.96)
 
-                local accent = Instance.new("Frame")
-                accent.AnchorPoint = Vector2.new(0, 0.5)
-                accent.Position = UDim2.fromScale(0, 0.5)
-                accent.Size = UDim2.fromOffset(3, isTarget and 20 or 0)
-                accent.BackgroundColor3 = C.Acc2
-                accent.BorderSizePixel = 0
-                accent.Parent = btn
-                corner(accent, 2)
-
                 plain(btn, "@" .. plr.Name, 13, F.head, C.White,
-                    UDim2.fromOffset(12, 0), UDim2.new(1, -66, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
+                    UDim2.fromOffset(12, 0), UDim2.new(1, -70, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
 
-                if isTarget then
-                    plain(btn, "OBJETIVO", 9, F.section, C.Acc2, UDim2.new(1, -104, 0, 0),
-                        UDim2.fromOffset(46, 34), Enum.TextXAlignment.Right)
-                end
+                local go = Instance.new("TextButton")
+                go.Size = UDim2.fromOffset(26, 22)
+                go.AnchorPoint = Vector2.new(1, 0.5)
+                go.Position = UDim2.new(1, -8, 0.5, 0)
+                go.BackgroundColor3 = C.Acc
+                go.BackgroundTransparency = 0.3
+                go.Text = "GO"
+                go.TextColor3 = C.Dark
+                go.Font = F.head
+                go.TextSize = 9
+                go.AutoButtonColor = false
+                go.Parent = btn
+                corner(go, 6)
+                squish(go, 0.9)
 
-                local plus = createMiniButton(btn, "plus", 24)
-                plus.AnchorPoint = Vector2.new(1, 0.5)
-                plus.Position = UDim2.new(1, -8, 0.5, 0)
-                plus.BackgroundTransparency = isSel and 0.72 or 0.2
-
-                btn.Activated:Connect(safe(function() selectTarget(plr) end, "lista"))
-                plus.Activated:Connect(safe(function()
-                    if selAdd(plr) then
-                        notify("@" .. plr.Name .. " en Seleccionados")
-                    else
-                        notify("Ya está en la lista")
-                    end
-                end, "agregar"))
+                btn.Activated:Connect(safe(function() seguir(plr) end, "seguir"))
+                go.Activated:Connect(safe(function() seguir(plr) end, "go"))
             end
         end
         if n == 0 then
@@ -2294,76 +2209,8 @@ local ListPage = addTab("Lista", function(page)
     UI.refreshList()
 end)
 
-local SelPage = addTab("Seleccionados", function(page)
-    createSection(page, "Seleccionados")
-    local hint = plain(page, "Agrega jugadores con el + de la Lista.", 10, F.body, C.Gray,
-        nil, UDim2.new(1, -4, 0, 22))
-    hint.LayoutOrder = nextOrder()
-
-    local selContainer = Instance.new("Frame")
-    selContainer.Size = UDim2.new(1, -4, 0, 0)
-    selContainer.BackgroundTransparency = 1
-    selContainer.AutomaticSize = Enum.AutomaticSize.Y
-    selContainer.LayoutOrder = nextOrder()
-    selContainer.Parent = page
-    local sl = Instance.new("UIListLayout")
-    sl.Padding = UDim.new(0, 10)
-    sl.SortOrder = Enum.SortOrder.LayoutOrder
-    sl.Parent = selContainer
-
-    UI.refreshSel = function()
-        for _, c in ipairs(selContainer:GetChildren()) do
-            if c:IsA("GuiObject") then c:Destroy() end
-        end
-        local vivos = {}
-        for _, plr in ipairs(Sel.list) do
-            if plr.Parent == Players then vivos[#vivos + 1] = plr end
-        end
-        Sel.list = vivos
-        if #vivos == 0 then
-            local e = plain(selContainer, "Aún no hay jugadores seleccionados", 11, F.body, C.Gray,
-                nil, UDim2.new(1, 0, 0, 30), Enum.TextXAlignment.Center)
-            e.LayoutOrder = 1
-            return
-        end
-        for i, plr in ipairs(vivos) do
-            local isTarget = S.target == plr
-
-            local entry = Instance.new("Frame")
-            entry.LayoutOrder = i
-            entry.Size = UDim2.new(1, 0, 0, 34)
-            entry.BackgroundTransparency = 1
-            entry.Parent = selContainer
-
-            local nameBtn = Instance.new("TextButton")
-            nameBtn.Size = UDim2.new(1, -38, 0, 34)
-            nameBtn.BackgroundColor3 = isTarget and C.RowOn or C.Row
-            nameBtn.BackgroundTransparency = 0.55
-            nameBtn.Text = ""
-            nameBtn.AutoButtonColor = false
-            nameBtn.Parent = entry
-            corner(nameBtn, 10)
-            squish(nameBtn, 0.96)
-
-            plain(nameBtn, "@" .. plr.Name, 13, F.head, C.White,
-                UDim2.fromOffset(12, 0), UDim2.new(1, -100, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
-
-            nameBtn.Activated:Connect(safe(function() selectTarget(plr) end, "seleccionado"))
-
-            local minus = createMiniButton(entry, "minus", 30)
-            minus.Position = UDim2.new(1, -30, 0, 2)
-            minus.Activated:Connect(safe(function()
-                if selRemove(plr) then notify("@" .. plr.Name .. " quitado") end
-            end, "quitar"))
-        end
-    end
-
-    UI.refreshSel()
-end)
-
 UI.refreshLists = debounced(function()
     if UI.refreshList then UI.refreshList() end
-    if UI.refreshSel then UI.refreshSel() end
 end)
 
 track(Players.PlayerAdded:Connect(safe(function(plr)
@@ -2373,18 +2220,11 @@ end, "PlayerAdded")))
 
 track(Players.PlayerRemoving:Connect(safe(function(plr)
     removeESP(plr)
-    if Sel.set[plr] then
-        selRemove(plr)
-        notify("@" .. plr.Name .. " salió y se quitó de la lista")
-    end
+    unhookPlayer(plr)
+    if S.tpTarget == plr then stopTP() end
     if S.target == plr then
-        S.target = nearestPlayer()
-        if S.target then
-            syncLock()
-        else
-            setLockMode(nil)
-            UI.setStatus("El objetivo salió del juego")
-        end
+        S.target = nearestEnemy()
+        if not S.target then setLockMode(nil) end
     end
     task.delay(0.25, UI.refreshLists)
 end, "PlayerRemoving")))
@@ -2395,14 +2235,28 @@ print("[DestroyaHub] parte 11 lista")
 --==================================================
 
 local DecoPage = addTab("Decoración", function(page)
-    createSection(page, "Decoración del juego")
+    createSection(page, "Rendimiento")
     do
         local grid = createGrid(page)
         createButton(grid, "Anti lag", "Baja detalles del mapa", function(v)
             setFpsBoost(v)
             notify(v and "Anti lag activado" or "Anti lag desactivado")
         end)
-        createButton(grid, "Cielo nocturno", "Noche con estrellas", function(v)
+        UI.wallsToggle = createButton(grid, "Paredes claras", "Transparencia a " .. CONFIG.WALL_RADIUS .. " m", function(v)
+            setWalls(v)
+            notify(v and "Paredes transparentes" or "Paredes normales")
+        end)
+    end
+
+    local aviso = plain(page, "Si hay más de " .. CONFIG.STRUCT_LIMIT ..
+        " estructuras en el radio, las paredes no se cargan y el botón se apaga solo. Los pisos no cuentan.", 10, F.body, C.Gray,
+        nil, UDim2.new(1, -4, 0, 26))
+    aviso.LayoutOrder = nextOrder()
+
+    createSection(page, "Cielo")
+    do
+        local grid = createGrid(page)
+        createButton(grid, "Noche estrellada", "Cielo nocturno", function(v)
             if v then
                 Lighting.ClockTime = 0
                 Lighting.Brightness = 0.7
@@ -2422,10 +2276,6 @@ local DecoPage = addTab("Decoración", function(page)
                 local sky = Lighting:FindFirstChild("DestroyaSky")
                 if sky then sky:Destroy() end
             end
-        end)
-        createButton(grid, "Paredes claras", "Atraviesa muros visualmente", function(v)
-            setWalls(v)
-            notify(v and "Paredes transparentes" or "Paredes normales")
         end)
         UI.fullToggle = createButton(grid, "Fullbright", "Todo iluminado", function(v)
             setFullbright(v)
@@ -2449,7 +2299,7 @@ local DecoPage = addTab("Decoración", function(page)
         createButton(grid, "Quitar niebla", "Visión total", function()
             Lighting.FogEnd = 100000
         end)
-        createButton(grid, "Restaurar luz", "Vuelve a la normalidad", function()
+        createButton(grid, "Restaurar luz", "Vuelve a lo normal", function()
             if S.full then
                 S.full = false
                 if UI.fullToggle then UI.fullToggle.Set(false, true) end
@@ -2471,16 +2321,14 @@ print("[DestroyaHub] parte 12 lista")
 -- ► PARTE 13 — CONFIGURACIÓN, DH Y FPS
 --==================================================
 
-local SettingsPage = addTab("Configuración", function(page)
+local CfgPage = addTab("Configuración", function(page)
     createSection(page, "Estilo")
-
-    createSlider(page, "Tamaño del menú", 0.6, 1.3, 1,
+    createSlider(page, "Tamaño del menú", 0.6, CONFIG.MAX_SIZE, 1,
         function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
         function(v)
             UI.size = v
             if UI.open then MenuScale.Scale = v end
         end)
-
     createSlider(page, "Transparencia", 0, 0.85, MENU_T,
         function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
         setMenuTransparency)
@@ -2508,7 +2356,7 @@ local SettingsPage = addTab("Configuración", function(page)
         end)
     end
 
-    createSection(page, "Botón del menú")
+    createSection(page, "Botón")
     do
         local grid = createGrid(page)
         createButton(grid, "Girar DH cada 15 s", "Animación del botón", function(v)
@@ -2517,39 +2365,31 @@ local SettingsPage = addTab("Configuración", function(page)
     end
 end)
 
---==================================================
--- BOTÓN DH
---==================================================
 local Toggle = Instance.new("TextButton")
-Toggle.Name = "MenuButton"
-Toggle.Size = UDim2.fromOffset(54, 54)
-Toggle.Position = UDim2.new(0, 14, 0.5, -27)
+Toggle.Size = UDim2.fromOffset(56, 56)
+Toggle.Position = UDim2.new(0, 14, 0.5, -28)
 Toggle.BackgroundColor3 = Color3.fromRGB(14, 40, 50)
-Toggle.BackgroundTransparency = 0.25
+Toggle.BackgroundTransparency = 0.2
 Toggle.Text = ""
 Toggle.AutoButtonColor = false
 Toggle.ZIndex = 10
 Toggle.Parent = Screen
-corner(Toggle, 16)
+corner(Toggle, 17)
+local toggleStroke = stroke(Toggle, "Acc", 2, 0.25)
 squish(Toggle, 0.88)
 
-local ring = Instance.new("UIStroke")
-ring.Color = GLOW
-ring.Thickness = 2.4
-ring.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-ring.Parent = Toggle
-local ringPulse = TweenService:Create(ring,
+local ringPulse = TweenService:Create(toggleStroke,
     TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-    { Transparency = 0.55 })
+    { Transparency = 0.65 })
 ringPulse:Play()
 
-local dhText = plain(Toggle, "DH", 18, F.head, Color3.fromRGB(235, 252, 255),
+local dhText = plain(Toggle, "DH", 19, F.head, Color3.fromRGB(235, 252, 255),
     UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), Enum.TextXAlignment.Center)
 dhText.ZIndex = 11
 
 local spinAcc = 0
 track(RunService.Heartbeat:Connect(function(dt)
-    if not S.spin or not UI.anim or UI.low then return end
+    if not S.spin or not UI.anim or lowFx() then return end
     spinAcc += dt
     if spinAcc >= 15 then
         spinAcc = 0
@@ -2562,13 +2402,18 @@ local function setOpen(v)
     UI.open = v
     if v then
         Main.Position = HOME
+        Shadow.Position = HOME
         MenuScale.Scale = UI.size * 0.8
         Main.Visible = true
+        Shadow.Visible = true
         tween(MenuScale, { Scale = UI.size }, 0.32, Enum.EasingStyle.Back)
     else
         tween(MenuScale, { Scale = UI.size * 0.8 }, 0.16)
         task.delay(0.18, function()
-            if not UI.open then Main.Visible = false end
+            if not UI.open then
+                Main.Visible = false
+                Shadow.Visible = false
+            end
         end)
     end
 end
@@ -2576,119 +2421,14 @@ end
 Toggle.Activated:Connect(function() setOpen(not UI.open) end)
 HideBtn.Activated:Connect(function() setOpen(false) end)
 
---==================================================
--- BOTÓN FLOTANTE DE CÁMARA
---==================================================
-local function floatButton(y, label, tint1, tint2, lineColor)
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.fromOffset(120, 42)
-    b.Position = UDim2.new(0, 14, 0.5, y)
-    b.BackgroundColor3 = Color3.new(1, 1, 1)
-    b.BackgroundTransparency = 0.45
-    b.Text = ""
-    b.AutoButtonColor = false
-    b.Visible = false
-    b.ZIndex = 10
-    b.Parent = Screen
-    corner(b, 13)
-
-    local g = Instance.new("UIGradient")
-    g.Color = ColorSequence.new(tint1, tint2)
-    g.Rotation = 90
-    g.Parent = b
-
-    local sc = Instance.new("UIScale")
-    sc.Scale = 0
-    sc.Parent = b
-
-    local st = Instance.new("UIStroke")
-    st.Color = lineColor
-    st.Thickness = 2
-    st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    st.Parent = b
-
-    local box = Instance.new("Frame")
-    box.Position = UDim2.fromOffset(8, 9)
-    box.Size = UDim2.fromOffset(24, 24)
-    box.BackgroundColor3 = lineColor
-    box.BackgroundTransparency = 0.25
-    box.BorderSizePixel = 0
-    box.ZIndex = 11
-    box.Parent = b
-    corner(box, 12)
-    for _, rot in ipairs({ 45, -45 }) do
-        local f = Instance.new("Frame")
-        f.AnchorPoint = Vector2.new(0.5, 0.5)
-        f.Position = UDim2.fromScale(0.5, 0.5)
-        f.Size = UDim2.fromOffset(12, 2)
-        f.Rotation = rot
-        f.BackgroundColor3 = Color3.fromRGB(240, 253, 255)
-        f.BorderSizePixel = 0
-        f.ZIndex = 12
-        f.Parent = box
-        corner(f, 1)
-    end
-
-    local l1 = plain(b, "DESACTIVAR", 14, F.head, C.White, UDim2.fromOffset(40, 6), UDim2.fromOffset(76, 17))
-    l1.ZIndex = 11
-    local l2 = plain(b, label, 9, F.section, Color3.fromRGB(200, 245, 255), UDim2.fromOffset(40, 24), UDim2.fromOffset(76, 12))
-    l2.ZIndex = 11
-
-    b.InputBegan:Connect(function(i)
-        if isPointer(i) then tween(sc, { Scale = 0.9 }, 0.08) end
-    end)
-    b.InputEnded:Connect(function(i)
-        if isPointer(i) then tween(sc, { Scale = 1 }, 0.2, Enum.EasingStyle.Back) end
-    end)
-
-    return b, sc, st
-end
-
-local CamStop, StopScale, StopStroke = floatButton(34, "CAM LOCK",
-    Color3.fromRGB(30, 110, 135), Color3.fromRGB(8, 30, 40), GLOW)
-
-local stopPulse
-
-UI.showCamStop = function(v)
-    if v then
-        CamStop.Visible = true
-        tween(StopScale, { Scale = 1 }, 0.32, Enum.EasingStyle.Back)
-        if not stopPulse then
-            stopPulse = TweenService:Create(StopStroke,
-                TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-                { Transparency = 0.7 })
-            stopPulse:Play()
-        end
-    else
-        if stopPulse then
-            stopPulse:Cancel()
-            stopPulse = nil
-            StopStroke.Transparency = 0
-        end
-        tween(StopScale, { Scale = 0 }, 0.18)
-        task.delay(0.2, function()
-            if not S.lockMode then CamStop.Visible = false end
-        end)
-    end
-end
-
-CamStop.Activated:Connect(safe(function()
-    setLockMode(nil)
-    notify("Cam Lock desactivado")
-end, "camstop"))
-
---==================================================
--- FPS
---==================================================
 local FpsText = Instance.new("TextButton")
-FpsText.Name = "FpsText"
-FpsText.Size = UDim2.fromOffset(190, 54)
-FpsText.Position = UDim2.new(0.5, -95, 0, 2)
+FpsText.Size = UDim2.fromOffset(200, 56)
+FpsText.Position = UDim2.new(0.5, -100, 0, 2)
 FpsText.BackgroundTransparency = 1
 FpsText.AutoButtonColor = false
 FpsText.Text = "FPS --"
 FpsText.TextColor3 = C.Acc2
-FpsText.TextSize = 36
+FpsText.TextSize = 38
 FpsText.Font = F.head
 FpsText.ZIndex = 10
 FpsText.Parent = Screen
@@ -2717,7 +2457,6 @@ end)
 
 do
     local frames, fpsAcc, lowStreak, recover = 0, 0, 0, 0
-
     track(RunService.Heartbeat:Connect(function(dt)
         frames += 1
         fpsAcc += dt
@@ -2725,22 +2464,20 @@ do
             local fps = math.floor(frames / fpsAcc + 0.5)
             FpsText.Text = "FPS " .. fps
             frames, fpsAcc = 0, 0
-
+            if S.perf then return end
             if fps < 26 then
                 lowStreak += 1
                 recover = 0
-                if lowStreak >= 4 and not UI.low then
-                    UI.low = true
+                if lowStreak >= 4 and not UI.autoLow then
+                    UI.autoLow = true
                     shineTween:Pause()
-                    if stopPulse then stopPulse:Pause() end
                 end
             elseif fps > 40 then
                 lowStreak = 0
                 recover += 1
-                if recover >= 8 and UI.low then
-                    UI.low = false
+                if recover >= 8 and UI.autoLow then
+                    UI.autoLow = false
                     shineTween:Play()
-                    if stopPulse then stopPulse:Play() end
                 end
             end
         end
@@ -2752,7 +2489,7 @@ print("[DestroyaHub] parte 13 lista")
 -- ► PARTE 14 — ARRANQUE Y CIERRE
 --==================================================
 
-showPage("Funciones")
+showPage("Movimiento")
 UI.setStatus("Listo. Botón DH para ocultar.")
 
 local closing = false
@@ -2764,6 +2501,7 @@ local function destroyHub()
     pcall(function()
         tween(MenuScale, { Scale = 0.5 }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In)
         tween(Main, { BackgroundTransparency = 1 }, 0.2)
+        tween(Shadow, { BackgroundTransparency = 1 }, 0.2)
     end)
     task.delay(0.22, function()
         if Screen.Parent then Screen:Destroy() end
@@ -2779,7 +2517,7 @@ do
             return
         end
         confirmUntil = now + 2.5
-        notify("Toca la X otra vez para destruir todo")
+        notify("Toca la X otra vez para destruir")
         tween(DestroyBtn, { BackgroundColor3 = Color3.fromRGB(255, 30, 55) }, 0.15)
         task.delay(2.5, function()
             if DestroyBtn.Parent then
@@ -2793,24 +2531,29 @@ Screen.Destroying:Connect(function()
     alive = false
     pcall(releaseCamera)
     pcall(stopFly)
+    pcall(stopTP)
     pcall(setNoclip, false)
     pcall(setFpsBoost, false)
     pcall(setWalls, false)
     pcall(setFullbright, false)
     pcall(clearESP)
-    Ring.Visible = false
-
     S.esp, S.infJump, S.powerJump = false, false, false
     S.lockMode, S.target = nil, nil
-    S.noclip, S.walls, S.bot, S.circle = false, false, false, false
-    S.fly, S.flyUp, S.flyDown, S.full, S.boost = false, false, false, false, false
-
+    S.noclip, S.walls, S.full, S.boost, S.tpFollow = false, false, false, false, false
+    S.fly, S.flyUp, S.flyDown = false, false, false
     pcall(function() RunService.Stepped:Wait() end)
-    for _, c in ipairs(conns) do
-        pcall(function() c:Disconnect() end)
-    end
+    for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
     pcall(function() RunService:UnbindFromRenderStep("DestroyaCam") end)
 end)
 
+if player.Character then
+    task.delay(2.5, function()
+        if S.autoBack and alive then
+            local p = nearestEnemy()
+            if p then tpDetras(p) end
+        end
+    end)
+end
+
 notify("Destroya Hub cargado")
-print("DESTROYA HUB v7.8 CARGADO")
+print("DESTROYA HUB v8.1 CARGADO")
