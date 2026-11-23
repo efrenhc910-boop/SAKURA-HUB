@@ -1,0 +1,2292 @@
+--===========================================================
+--  ██████  DESTROYA HUB · v7.7 · SAKURA EDITION
+--  RIVALS · GameId 6035872082 · PlaceId 17625359962
+--  Paleta fija · Lista con búsqueda · Menú rehecho
+--===========================================================
+
+print("[DESTROYA] Iniciando v7.7")
+
+--_______________________
+-- Servicios
+-------------------------
+local Players		= game:GetService("Players")
+local RunService	= game:GetService("RunService")
+local UIS			= game:GetService("UserInputService")
+local TweenService	= game:GetService("TweenService")
+local RS			= game:GetService("ReplicatedStorage")
+local WS			= Workspace
+local Lighting		= game:GetService("Lighting")
+local Stats			= game:GetService("Stats")
+local Teleport		= game:GetService("TeleportService")
+local VU			= game:GetService("VirtualUser")
+local CoreGui		= game:GetService("CoreGui")
+
+local LP	= Players.LocalPlayer
+local Cam	= WS.CurrentCamera
+
+print("[DESTROYA] Servicios listos")
+
+--_______________________
+-- Candado de juego
+-------------------------
+do
+	local ok = pcall(function()
+		return game.GameId == 6035872082 or game.PlaceId == 17625359962
+	end)
+	if not ok then
+		warn("[DESTROYA] Este hub es para RIVALS.")
+	end
+end
+
+--_______________________
+-- Declaraciones adelantadas
+-------------------------
+local unlockAllSkins, forceSkinRefresh
+local clearESP, espStep
+local restoreWalls, flushWalls, wallSweep
+local circleStep, pixelRadius
+local stopTP, tpTo, showCancel, tpStep
+local startFly, stopFly, flyStep, noclipStep
+local startAntiAfk, stopAntiAfk
+local aimStep, hitboxStep, clearHitbox
+local applyPerf, toggleHide, rebuildList, refreshStatus
+
+local espObjs		= {}
+local wallMap		= setmetatable({}, { __mode = "k" })
+local hitOrig		= setmetatable({}, { __mode = "k" })
+local circleRing, ringStroke, ringGlow
+local lastHit		= 0
+local fpsVal		= 60
+
+--_______________________
+-- Config
+-------------------------
+local CFG = {
+	ESP			= false,
+	ESPTeam		= false,
+	ESPDist		= 170,
+	ESPHealth	= true,
+	ESPName		= true,
+	ESPBox		= true,
+	Walls		= false,
+	WallsDist	= 170,
+	Bot			= false,
+	BotAttack	= true,
+	Circle		= false,
+	CircleRadius = 26,
+	CircleAim	= true,
+	CircleRate	= 0.14,
+	WalkSpeed	= 30,
+	JumpPower	= 60,
+	PowerJump	= false,
+	PowerJumpH	= 190,
+	InfJump		= false,
+	Fly			= false,
+	FlySpeed	= 70,
+	Noclip		= false,
+	AntiAfk		= false,
+	Aim			= false,
+	AimFov		= 220,
+	AimSmooth	= 0.22,
+	AimFire		= true,
+	Hitbox		= 1.8,
+	HitboxOn	= false,
+	FOV			= 70,
+	TPFollow	= false,
+	TPOffset	= 7,
+	TPTarget	= nil,
+	Night		= false,
+	Fullbright	= false,
+	FPS			= true,
+	PerfMode	= false,
+	Skins		= false,
+}
+
+print("[DESTROYA] Config cargada")
+
+--_______________________
+-- Paleta fija
+-------------------------
+local T = {
+	Bg		= Color3.fromRGB(7, 9, 14),
+	Panel	= Color3.fromRGB(13, 17, 25),
+	Panel2	= Color3.fromRGB(18, 24, 34),
+	Panel3	= Color3.fromRGB(23, 30, 43),
+	Stroke	= Color3.fromRGB(38, 51, 70),
+	Glow	= Color3.fromRGB(30, 130, 165),
+	Accent	= Color3.fromRGB(34, 230, 255),
+	Accent2	= Color3.fromRGB(0, 158, 212),
+	Accent3	= Color3.fromRGB(120, 110, 255),
+	Text	= Color3.fromRGB(234, 248, 255),
+	Muted	= Color3.fromRGB(112, 131, 156),
+	On		= Color3.fromRGB(34, 230, 255),
+	Off		= Color3.fromRGB(44, 58, 77),
+	ESP		= Color3.fromRGB(0, 235, 255),
+	ESPFill	= Color3.fromRGB(0, 205, 255),
+	Ally		= Color3.fromRGB(186, 118, 255),
+	Bad		= Color3.fromRGB(255, 92, 112),
+	Good	= Color3.fromRGB(90, 240, 170),
+}
+--===========================================================
+--  ██████  UTILIDADES
+--===========================================================
+
+--_______________________
+-- Registro de conexiones
+-------------------------
+local Reg = { conns = {} }
+local function reg(c)
+	Reg.conns[#Reg.conns + 1] = c
+	return c
+end
+
+--_______________________
+-- Crear instancia
+-------------------------
+local function new(class, props, parent)
+	local o = Instance.new(class)
+	for k, v in pairs(props or {}) do
+		if k ~= "Parent" then o[k] = v end
+	end
+	if parent then o.Parent = parent end
+	return o
+end
+
+--_______________________
+-- Formas
+-------------------------
+local function corner(o, r)
+	return new("UICorner", { CornerRadius = UDim.new(0, r or 6) }, o)
+end
+
+local function stroke(o, c, th, trans)
+	return new("UIStroke", {
+		Color = c or T.Stroke,
+		Thickness = th or 1,
+		Transparency = trans or 0,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+	}, o)
+end
+
+local function grad(o, c1, c2, rot)
+	return new("UIGradient", {
+		Color = ColorSequence.new(c1, c2),
+		Rotation = rot or 90,
+	}, o)
+end
+
+local function pad(o, n)
+	return new("UIPadding", {
+		PaddingTop = UDim.new(0, n), PaddingBottom = UDim.new(0, n),
+		PaddingLeft = UDim.new(0, n), PaddingRight = UDim.new(0, n),
+	}, o)
+end
+
+--_______________________
+-- Animación
+-------------------------
+local function tween(o, t, props, style, dir)
+	local tw = TweenService:Create(o, TweenInfo.new(t, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props)
+	tw:Play()
+	return tw
+end
+
+local function squish(btn)
+	local base = btn.Size
+	local function scale(m)
+		tween(btn, 0.09, {
+			Size = UDim2.new(base.X.Scale * m, base.X.Offset * m, base.Y.Scale * m, base.Y.Offset * m),
+		}, Enum.EasingStyle.Quad)
+	end
+	reg(btn.InputBegan:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			scale(0.95)
+		end
+	end))
+	reg(btn.InputEnded:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			scale(1)
+		end
+	end))
+end
+
+--_______________________
+-- Utilidades de personaje
+-------------------------
+local function char()
+	return LP.Character
+end
+
+local function hum()
+	local c = char()
+	return c and c:FindFirstChildOfClass("Humanoid")
+end
+
+local function root()
+	local c = char()
+	return c and c:FindFirstChild("HumanoidRootPart")
+end
+
+local function alive(p)
+	local c = p and p.Character
+	if not c then return false end
+	local h = c:FindFirstChildOfClass("Humanoid")
+	return h and h.Health > 0 and c:FindFirstChild("HumanoidRootPart")
+end
+
+local function equipped()
+	local c = char()
+	return c and c:FindFirstChildOfClass("Tool")
+end
+
+local function dist(a, b)
+	return (a.Position - b.Position).Magnitude
+end
+
+print("[DESTROYA] Utilidades cargadas")
+--===========================================================
+--  ██████  INTERFAZ · ESTRUCTURA
+--===========================================================
+
+print("[DESTROYA] Construyendo interfaz...")
+
+--_______________________
+-- Limpieza previa
+-------------------------
+local old = CoreGui:FindFirstChild("DESTROYA_SAKURA")
+if old then old:Destroy() end
+
+local gui = new("ScreenGui", {
+	Name = "DESTROYA_SAKURA",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+})
+gui.Parent = CoreGui
+
+--_______________________
+-- Sombra
+-------------------------
+local shadow = new("Frame", {
+	Size = UDim2.fromOffset(572, 412),
+	Position = UDim2.new(0.5, -282, 0.5, -202),
+	BackgroundColor3 = Color3.new(0, 0, 0),
+	BackgroundTransparency = 0.5,
+	BorderSizePixel = 0,
+	ZIndex = 1,
+}, gui)
+corner(shadow, 16)
+
+--_______________________
+-- Ventana
+-------------------------
+local win = new("Frame", {
+	Size = UDim2.fromOffset(560, 400),
+	Position = UDim2.new(0.5, -280, 0.5, -200),
+	BackgroundColor3 = T.Bg,
+	BorderSizePixel = 0,
+	ZIndex = 2,
+	ClipsDescendants = true,
+}, gui)
+corner(win, 14)
+stroke(win, T.Glow, 1.5, 0.2)
+grad(win, Color3.fromRGB(14, 19, 29), Color3.fromRGB(6, 8, 13), 90)
+
+--_______________________
+-- Cabecera
+-------------------------
+local head = new("Frame", {
+	Size = UDim2.new(1, 0, 0, 50),
+	BackgroundColor3 = T.Panel,
+	BorderSizePixel = 0,
+	ZIndex = 3,
+}, win)
+grad(head, Color3.fromRGB(24, 33, 48), Color3.fromRGB(11, 15, 23), 90)
+new("Frame", {
+	Size = UDim2.new(1, 0, 0, 1),
+	Position = UDim2.new(0, 0, 1, -1),
+	BackgroundColor3 = T.Accent,
+	BackgroundTransparency = 0.4,
+	BorderSizePixel = 0,
+	ZIndex = 4,
+}, head)
+
+--_______________________
+-- Logo
+-------------------------
+local logo = new("Frame", {
+	Size = UDim2.fromOffset(34, 34),
+	Position = UDim2.fromOffset(8, 8),
+	BackgroundColor3 = T.Panel3,
+	BorderSizePixel = 0,
+	ZIndex = 5,
+}, head)
+corner(logo, 9)
+stroke(logo, T.Accent, 1.3, 0.25)
+grad(logo, T.Accent2, T.Accent3, 45)
+local dhLabel = new("TextLabel", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundTransparency = 1,
+	Text = "DH",
+	TextColor3 = Color3.new(1, 1, 1),
+	Font = Enum.Font.GothamBlack,
+	TextSize = 14,
+	ZIndex = 6,
+}, logo)
+
+--_______________________
+-- Título
+-------------------------
+local title = new("TextLabel", {
+	Size = UDim2.new(0, 220, 0, 18),
+	Position = UDim2.fromOffset(50, 8),
+	BackgroundTransparency = 1,
+	Text = "DESTROYA · SAKURA",
+	TextColor3 = T.Text,
+	Font = Enum.Font.GothamBlack,
+	TextSize = 14,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 5,
+}, head)
+grad(title, T.Accent, T.Text, 0)
+
+local sub = new("TextLabel", {
+	Size = UDim2.new(0, 220, 0, 13),
+	Position = UDim2.fromOffset(50, 27),
+	BackgroundTransparency = 1,
+	Text = "v7.7 · RIVALS",
+	TextColor3 = T.Muted,
+	Font = Enum.Font.Gotham,
+	TextSize = 10,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 5,
+}, head)
+
+--_______________________
+-- Chip de FPS
+-------------------------
+local fpsChip = new("Frame", {
+	Size = UDim2.fromOffset(58, 22),
+	Position = UDim2.new(1, -130, 0, 14),
+	BackgroundColor3 = T.Panel2,
+	BorderSizePixel = 0,
+	ZIndex = 5,
+}, head)
+corner(fpsChip, 5)
+stroke(fpsChip, T.Accent, 1, 0.6)
+local fpsLbl = new("TextLabel", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundTransparency = 1,
+	Text = "— FPS",
+	TextColor3 = T.Accent,
+	Font = Enum.Font.GothamBold,
+	TextSize = 10,
+	ZIndex = 6,
+}, fpsChip)
+
+--_______________________
+-- Botón ocultar
+-------------------------
+local hide = new("TextButton", {
+	Size = UDim2.fromOffset(32, 22),
+	Position = UDim2.new(1, -66, 0, 14),
+	BackgroundColor3 = T.Panel2,
+	BorderSizePixel = 0,
+	Text = "—",
+	TextColor3 = T.Text,
+	Font = Enum.Font.GothamBold,
+	TextSize = 12,
+	AutoButtonColor = false,
+	ZIndex = 5,
+}, head)
+corner(hide, 5)
+stroke(hide, T.Stroke, 1)
+
+--_______________________
+-- Sidebar con desplazamiento
+-------------------------
+local side = new("ScrollingFrame", {
+	Size = UDim2.new(0, 128, 1, -80),
+	Position = UDim2.new(0, 10, 0, 56),
+	BackgroundColor3 = T.Panel,
+	BorderSizePixel = 0,
+	ZIndex = 3,
+	ScrollBarThickness = 2,
+	ScrollBarImageColor3 = T.Accent,
+	CanvasSize = UDim2.new(),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	ScrollingDirection = Enum.ScrollingDirection.Y,
+}, win)
+corner(side, 10)
+stroke(side, T.Stroke, 1, 0.35)
+new("UIListLayout", {
+	Padding = UDim.new(0, 4),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, side)
+pad(side, 6)
+
+--_______________________
+-- Contenido
+-------------------------
+local content = new("Frame", {
+	Size = UDim2.new(1, -158, 1, -80),
+	Position = UDim2.new(0, 148, 0, 56),
+	BackgroundColor3 = T.Panel,
+	BackgroundTransparency = 0.4,
+	BorderSizePixel = 0,
+	ZIndex = 3,
+}, win)
+corner(content, 10)
+stroke(content, T.Stroke, 1, 0.5)
+pad(content, 8)
+
+--_______________________
+-- Barra inferior
+-------------------------
+local footer = new("Frame", {
+	Size = UDim2.new(1, 0, 0, 20),
+	Position = UDim2.new(0, 0, 1, -20),
+	BackgroundColor3 = T.Panel,
+	BorderSizePixel = 0,
+	ZIndex = 4,
+}, win)
+new("Frame", {
+	Size = UDim2.new(1, 0, 0, 1),
+	Position = UDim2.new(0, 0, 0, 0),
+	BackgroundColor3 = T.Accent,
+	BackgroundTransparency = 0.7,
+	BorderSizePixel = 0,
+	ZIndex = 5,
+}, footer)
+local statusLbl = new("TextLabel", {
+	Size = UDim2.new(1, -12, 1, 0),
+	Position = UDim2.fromOffset(10, 0),
+	BackgroundTransparency = 1,
+	Text = "Listo",
+	TextColor3 = T.Muted,
+	Font = Enum.Font.Gotham,
+	TextSize = 9,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 5,
+}, footer)
+
+function refreshStatus()
+	statusLbl.Text = string.format("Jugadores %d · Ping %d ms · %.0f FPS",
+		#Players:GetPlayers(),
+		math.floor((pcall(function() return Stats.Network.ServerStatsItem["Data Ping"]:GetValue() end) and Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) or 0),
+		fpsVal)
+end
+
+--_______________________
+-- Arrastre
+-------------------------
+do
+	local drag, startPos, startIn
+	reg(head.InputBegan:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			drag = true
+			startPos = win.Position
+			startIn = i.Position
+		end
+	end))
+	reg(UIS.InputChanged:Connect(function(i)
+		if drag and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+			local d = i.Position - startIn
+			win.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+		end
+	end))
+	reg(UIS.InputEnded:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			drag = false
+		end
+	end))
+end
+
+--_______________________
+-- Giro del logo cada 15 s
+-------------------------
+local spinAcc = 0
+reg(RunService.Heartbeat:Connect(function(dt)
+	if not win.Visible then return end
+	spinAcc += dt
+	if spinAcc >= 15 then
+		spinAcc = 0
+		tween(dhLabel, 1.15, { Rotation = dhLabel.Rotation + 360 }, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
+	end
+end))
+
+print("[DESTROYA] Estructura lista")
+--===========================================================
+--  ██████  INTERFAZ · CONTROLES
+--===========================================================
+
+print("[DESTROYA] Creando controles...")
+
+local Pages = {}
+local Tabs = {}
+
+--_______________________
+-- Página
+-------------------------
+local function page(name)
+	local p = new("ScrollingFrame", {
+		Name = name,
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 2,
+		ScrollBarImageColor3 = T.Accent,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		Visible = false,
+		ZIndex = 4,
+	}, content)
+	new("UIListLayout", {
+		Padding = UDim.new(0, 6),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, p)
+	Pages[name] = p
+	return p
+end
+
+--_______________________
+-- Rejilla
+-------------------------
+local function grid(parent, cols)
+	local f = new("Frame", {
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+	}, parent)
+	new("UIGridLayout", {
+		CellPadding = UDim2.fromOffset(5, 5),
+		CellSize = UDim2.new(1 / cols, -4, 0, 26),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, f)
+	return f
+end
+
+--_______________________
+-- Texto
+-------------------------
+local function label(parent, text, size, color, bold)
+	return new("TextLabel", {
+		Size = UDim2.new(1, 0, 0, size or 16),
+		BackgroundTransparency = 1,
+		Text = text,
+		TextColor3 = color or T.Muted,
+		Font = bold and Enum.Font.GothamBold or Enum.Font.Gotham,
+		TextSize = 11,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextWrapped = true,
+		ZIndex = 5,
+	}, parent)
+end
+
+--_______________________
+-- Botón
+-------------------------
+local function button(parent, text, cb, style)
+	local b = new("TextButton", {
+		Size = UDim2.new(1, 0, 0, 26),
+		BackgroundColor3 = style == "on" and T.Accent2 or T.Panel2,
+		BorderSizePixel = 0,
+		Text = text,
+		TextColor3 = style == "on" and Color3.new(1, 1, 1) or T.Text,
+		Font = Enum.Font.GothamMedium,
+		TextSize = 11,
+		AutoButtonColor = false,
+		ZIndex = 5,
+	}, parent)
+	corner(b, 6)
+	local s = stroke(b, style == "on" and T.Accent or T.Stroke, 1, style == "on" and 0.3 or 0.55)
+	squish(b)
+	local state = style == "on" and true or false
+
+	local function paint(v)
+		state = v
+		tween(b, 0.14, { BackgroundColor3 = v and T.Accent2 or T.Panel2 })
+		s.Color = v and T.Accent or T.Stroke
+		s.Transparency = v and 0.3 or 0.55
+		b.TextColor3 = v and Color3.new(1, 1, 1) or T.Text
+	end
+
+	reg(b.MouseButton1Click:Connect(function()
+		paint(not state)
+		if cb then cb(state) end
+	end))
+
+	b.set = paint
+	return b
+end
+
+--_______________________
+-- Deslizador
+-------------------------
+local function slider(parent, text, min, max, def, suffix, cb)
+	local row = new("Frame", {
+		Size = UDim2.new(1, 0, 0, 34),
+		BackgroundColor3 = T.Panel2,
+		BorderSizePixel = 0,
+		ZIndex = 5,
+	}, parent)
+	corner(row, 6)
+	stroke(row, T.Stroke, 1, 0.55)
+
+	new("TextLabel", {
+		Size = UDim2.new(0.6, 0, 0, 14),
+		Position = UDim2.fromOffset(8, 3),
+		BackgroundTransparency = 1,
+		Text = text,
+		TextColor3 = T.Text,
+		Font = Enum.Font.Gotham,
+		TextSize = 10,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 6,
+	}, row)
+
+	local val = new("TextLabel", {
+		Size = UDim2.new(0.35, -10, 0, 14),
+		Position = UDim2.new(0.65, 0, 0, 3),
+		BackgroundTransparency = 1,
+		Text = tostring(def) .. (suffix or ""),
+		TextColor3 = T.Accent,
+		Font = Enum.Font.GothamBold,
+		TextSize = 10,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		ZIndex = 6,
+	}, row)
+
+	local track = new("Frame", {
+		Size = UDim2.new(1, -16, 0, 4),
+		Position = UDim2.new(0, 8, 0, 23),
+		BackgroundColor3 = T.Off,
+		BorderSizePixel = 0,
+		ZIndex = 6,
+	}, row)
+	corner(track, 2)
+
+	local fill = new("Frame", {
+		Size = UDim2.new((def - min) / (max - min), 0, 1, 0),
+		BackgroundColor3 = T.Accent,
+		BorderSizePixel = 0,
+		ZIndex = 7,
+	}, track)
+	corner(fill, 2)
+	grad(fill, T.Accent, T.Accent2, 0)
+
+	local knob = new("Frame", {
+		Size = UDim2.fromOffset(8, 8),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(1, 0, 0.5, 0),
+		BackgroundColor3 = T.Text,
+		BorderSizePixel = 0,
+		ZIndex = 8,
+	}, fill)
+	corner(knob, 4)
+	stroke(knob, T.Accent, 1.5)
+
+	local v = def
+	local function set(n)
+		v = math.clamp(n, min, max)
+		fill.Size = UDim2.new((v - min) / (max - min), 0, 1, 0)
+		val.Text = tostring(math.floor(v + 0.5)) .. (suffix or "")
+		if cb then cb(v) end
+	end
+
+	local dragging = false
+	local function fromX(x)
+		local rel = (x - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1)
+		set(min + (max - min) * math.clamp(rel, 0, 1))
+	end
+
+	reg(track.InputBegan:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			fromX(i.Position.X)
+		end
+	end))
+	reg(UIS.InputChanged:Connect(function(i)
+		if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+			fromX(i.Position.X)
+		end
+	end))
+	reg(UIS.InputEnded:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end))
+
+	row.set = set
+	return row
+end
+
+--_______________________
+-- Título de sección
+-------------------------
+local function section(parent, text)
+	local f = new("Frame", {
+		Size = UDim2.new(1, 0, 0, 22),
+		BackgroundTransparency = 1,
+		ZIndex = 5,
+	}, parent)
+
+	new("Frame", {
+		Size = UDim2.new(0, 3, 0, 12),
+		Position = UDim2.new(0, 0, 0, 2),
+		BackgroundColor3 = T.Accent,
+		BorderSizePixel = 0,
+		ZIndex = 6,
+	}, f)
+
+	new("TextLabel", {
+		Size = UDim2.new(1, -12, 0, 14),
+		Position = UDim2.fromOffset(9, 0),
+		BackgroundTransparency = 1,
+		Text = string.upper(text),
+		TextColor3 = T.Accent,
+		Font = Enum.Font.GothamBlack,
+		TextSize = 11,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 6,
+	}, f)
+
+	new("Frame", {
+		Size = UDim2.new(1, -12, 0, 1),
+		Position = UDim2.fromOffset(9, 16),
+		BackgroundColor3 = T.Accent,
+		BackgroundTransparency = 0.7,
+		BorderSizePixel = 0,
+		ZIndex = 6,
+	}, f)
+
+	return f
+end
+
+--_______________________
+-- Caja de búsqueda
+-------------------------
+local function searchBox(parent, placeholder, onChange)
+	local box = new("Frame", {
+		Size = UDim2.new(1, 0, 0, 28),
+		BackgroundColor3 = T.Panel2,
+		BorderSizePixel = 0,
+		ZIndex = 5,
+	}, parent)
+	corner(box, 6)
+	stroke(box, T.Stroke, 1, 0.5)
+
+	local icon = new("TextLabel", {
+		Size = UDim2.fromOffset(22, 28),
+		BackgroundTransparency = 1,
+		Text = "⌕",
+		TextColor3 = T.Muted,
+		Font = Enum.Font.GothamBold,
+		TextSize = 15,
+		ZIndex = 6,
+	}, box)
+
+	local input = new("TextBox", {
+		Size = UDim2.new(1, -34, 1, 0),
+		Position = UDim2.fromOffset(22, 0),
+		BackgroundTransparency = 1,
+		Text = "",
+		PlaceholderText = placeholder,
+		PlaceholderColor3 = T.Muted,
+		TextColor3 = T.Text,
+		Font = Enum.Font.Gotham,
+		TextSize = 11,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ClearTextOnFocus = false,
+		ZIndex = 6,
+	}, box)
+
+	reg(input:GetPropertyChangedSignal("Text"):Connect(function()
+		icon.TextColor3 = input.Text ~= "" and T.Accent or T.Muted
+		if onChange then onChange(input.Text) end
+	end))
+
+	box.input = input
+	return box
+end
+
+--_______________________
+-- Pestaña con icono
+-------------------------
+local function tab(name, icon, display, order)
+	local b = new("TextButton", {
+		Size = UDim2.new(1, 0, 0, 27),
+		BackgroundColor3 = T.Panel2,
+		BackgroundTransparency = 0.45,
+		BorderSizePixel = 0,
+		Text = "",
+		AutoButtonColor = false,
+		LayoutOrder = order or 0,
+		ZIndex = 5,
+	}, side)
+	corner(b, 6)
+
+	new("TextLabel", {
+		Size = UDim2.fromOffset(16, 27),
+		Position = UDim2.fromOffset(6, 0),
+		BackgroundTransparency = 1,
+		Text = icon,
+		TextColor3 = T.Muted,
+		Font = Enum.Font.GothamBold,
+		TextSize = 11,
+		ZIndex = 6,
+	}, b)
+
+	local txt = new("TextLabel", {
+		Size = UDim2.new(1, -26, 1, 0),
+		Position = UDim2.fromOffset(24, 0),
+		BackgroundTransparency = 1,
+		Text = display,
+		TextColor3 = T.Muted,
+		Font = Enum.Font.GothamMedium,
+		TextSize = 10,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 6,
+	}, b)
+
+	local s = stroke(b, T.Stroke, 1, 0.6)
+	local bar = new("Frame", {
+		Size = UDim2.new(0, 2, 0.55, 0),
+		Position = UDim2.new(0, 0, 0.22, 0),
+		BackgroundColor3 = T.Accent,
+		BorderSizePixel = 0,
+		Visible = false,
+		ZIndex = 7,
+	}, b)
+	corner(bar, 1)
+
+	squish(b)
+	Tabs[name] = { btn = b, bar = bar, stroke = s, txt = txt }
+
+	reg(b.MouseButton1Click:Connect(function()
+		for n, t in pairs(Tabs) do
+			t.btn.BackgroundTransparency = 0.45
+			t.txt.TextColor3 = T.Muted
+			t.bar.Visible = false
+			t.stroke.Transparency = 0.6
+			if Pages[n] then Pages[n].Visible = false end
+		end
+		b.BackgroundTransparency = 0
+		txt.TextColor3 = T.Text
+		bar.Visible = true
+		s.Transparency = 0.2
+		if Pages[name] then Pages[name].Visible = true end
+	end))
+
+	return b
+end
+
+print("[DESTROYA] Controles listos")
+--===========================================================
+--  ██████  PÁGINAS · LOCKER Y JUGADOR
+--===========================================================
+
+print("[DESTROYA] Construyendo LOCKER y JUGADOR")
+
+--_______________________
+-- LOCKER
+-------------------------
+local locker = page("Locker")
+do
+	section(locker, "Skins")
+	label(locker, "Desbloquea todas las skins de todas las armas. Sin buscador, sin elegir.", 26)
+
+	local g = grid(locker, 2)
+	button(g, "DESBLOQUEAR TODO", function() unlockAllSkins() end, "on")
+	button(g, "Reaplicar", function() forceSkinRefresh() end)
+
+	section(locker, "Estado")
+	local st = label(locker, "Sin aplicar.", 26)
+	_G.DH_STATUS = function(t, c)
+		st.Text = t
+		st.TextColor3 = c or T.Muted
+	end
+end
+
+--_______________________
+-- JUGADOR
+-------------------------
+local jug = page("Jugador")
+do
+	section(jug, "Velocidad")
+	slider(jug, "WalkSpeed", 16, 120, CFG.WalkSpeed, " st/s", function(v)
+		CFG.WalkSpeed = v
+		local h = hum()
+		if h then h.WalkSpeed = v end
+	end)
+
+	section(jug, "Salto")
+	slider(jug, "JumpPower", 50, 200, CFG.JumpPower, "", function(v)
+		CFG.JumpPower = v
+		local h = hum()
+		if h then h.JumpPower = v h.UseJumpPower = true end
+	end)
+
+	local g = grid(jug, 2)
+	button(g, "Power Jump", function(on)
+		CFG.PowerJump = on
+		local h = hum()
+		if h then h.JumpPower = on and CFG.PowerJumpH or CFG.JumpPower end
+	end)
+	button(g, "Salto infinito", function(on)
+		CFG.InfJump = on
+		if not on then return end
+		task.spawn(function()
+			while CFG.InfJump do
+				local h = hum()
+				if h and h:GetState() ~= Enum.HumanoidStateType.Jumping then
+					h:ChangeState(Enum.HumanoidStateType.Jumping)
+				end
+				task.wait(0.35)
+			end
+		end)
+	end)
+
+	section(jug, "Altura de Power Jump")
+	slider(jug, "Altura", 90, 320, CFG.PowerJumpH, "", function(v)
+		CFG.PowerJumpH = v
+		if CFG.PowerJump then
+			local h = hum()
+			if h then h.JumpPower = v end
+		end
+	end)
+
+	section(jug, "Refresco")
+	button(jug, "Reaplicar al personaje", function()
+		local h = hum()
+		if h then
+			h.WalkSpeed = CFG.WalkSpeed
+			h.JumpPower = CFG.PowerJump and CFG.PowerJumpH or CFG.JumpPower
+			h.UseJumpPower = true
+		end
+	end)
+end
+
+print("[DESTROYA] LOCKER y JUGADOR listos")
+--===========================================================
+--  ██████  PÁGINAS · MOVIMIENTO Y AIMBOT
+--===========================================================
+
+print("[DESTROYA] Construyendo MOVIMIENTO y AIMBOT")
+
+--_______________________
+-- MOVIMIENTO
+-------------------------
+local mov = page("Movimiento")
+do
+	section(mov, "Vuelo")
+	local g = grid(mov, 2)
+	button(g, "Activar vuelo", function(on)
+		CFG.Fly = on
+		if on then startFly() else stopFly() end
+	end)
+	button(g, "Noclip", function(on) CFG.Noclip = on end)
+
+	section(mov, "Velocidad de vuelo")
+	slider(mov, "FlySpeed", 20, 300, CFG.FlySpeed, " st/s", function(v) CFG.FlySpeed = v end)
+	label(mov, "W/A/S/D para moverte, Espacio sube, Ctrl baja. Con el joystick del celular también responde.", 30)
+
+	section(mov, "Hitbox")
+	local g2 = grid(mov, 2)
+	button(g2, "Ampliar hitbox", function(on)
+		CFG.HitboxOn = on
+		if not on then clearHitbox() end
+	end)
+	button(g2, "Limpiar", function() clearHitbox() end)
+	slider(mov, "Multiplicador", 1.2, 4, CFG.Hitbox, "x", function(v)
+		CFG.Hitbox = v
+		if CFG.HitboxOn then clearHitbox() end
+	end)
+end
+
+--_______________________
+-- AIMBOT
+-------------------------
+local aim = page("Aimbot")
+do
+	section(aim, "General")
+	local g = grid(aim, 2)
+	button(g, "Activar aimbot", function(on) CFG.Aim = on end)
+	button(g, "Disparo automático", function(on) CFG.AimFire = on end, "on")
+
+	section(aim, "Captura")
+	slider(aim, "Campo de captura", 60, 500, CFG.AimFov, " px", function(v) CFG.AimFov = v end)
+	slider(aim, "Suavizado", 5, 60, math.floor(CFG.AimSmooth * 100), " cs", function(v)
+		CFG.AimSmooth = v / 100
+	end)
+
+	section(aim, "Cámara")
+	slider(aim, "Campo de visión", 50, 120, CFG.FOV, "°", function(v)
+		CFG.FOV = v
+		Cam.FieldOfView = v
+	end)
+	label(aim, "Toma al enemigo más centrado dentro del campo de captura. Si no quieres que dispare solo, apaga el disparo automático.", 30)
+end
+
+print("[DESTROYA] MOVIMIENTO y AIMBOT listos")
+--===========================================================
+--  ██████  PÁGINAS · ESP Y PAREDES
+--===========================================================
+
+print("[DESTROYA] Construyendo ESP y PAREDES")
+
+--_______________________
+-- ESP
+-------------------------
+local esp = page("ESP")
+do
+	section(esp, "General")
+	local g = grid(esp, 2)
+	button(g, "Activar ESP", function(on)
+		CFG.ESP = on
+		if not on then clearESP() end
+	end, "on")
+	button(g, "Incluir aliados", function(on) CFG.ESPTeam = on end)
+
+	section(esp, "Elementos")
+	local g2 = grid(esp, 3)
+	button(g2, "Cuerpo", function(on) CFG.ESPBox = on end, "on")
+	button(g2, "Nombre", function(on) CFG.ESPName = on end, "on")
+	button(g2, "Vida", function(on) CFG.ESPHealth = on end, "on")
+
+	section(esp, "Alcance")
+	slider(esp, "Distancia máxima", 50, 400, CFG.ESPDist, " m", function(v) CFG.ESPDist = v end)
+	label(esp, "Solo se dibujan los 8 enemigos más cercanos. Todo en cian; los aliados van en violeta.", 26)
+end
+
+--_______________________
+-- PAREDES
+-------------------------
+local paredes = page("Paredes")
+do
+	section(paredes, "Transparencia")
+	button(paredes, "Paredes transparentes", function(on)
+		CFG.Walls = on
+		if not on then restoreWalls() end
+	end, "on")
+
+	section(paredes, "Alcance")
+	slider(paredes, "Radio de efecto", 50, 300, CFG.WallsDist, " m", function(v)
+		CFG.WallsDist = v
+		flushWalls()
+	end)
+
+	section(paredes, "Notas")
+	label(paredes, "La caché es persistente: cada muro se aplica una vez y no se restaura en bucle, así deja de parpadear en PvP.", 40)
+	button(paredes, "Restaurar todo", function() restoreWalls() end)
+end
+
+print("[DESTROYA] ESP y PAREDES listos")
+--===========================================================
+--  ██████  PÁGINAS · BOT Y CÍRCULO
+--===========================================================
+
+print("[DESTROYA] Construyendo BOT y CÍRCULO")
+
+--_______________________
+-- BOT
+-------------------------
+local bot = page("Bot")
+do
+	section(bot, "I'm bot")
+	label(bot, "Anillo en el centro de la pantalla y golpe automático a quien esté dentro del área.", 26)
+
+	local g = grid(bot, 2)
+	button(g, "Activar bot", function(on)
+		CFG.Bot = on
+		CFG.Circle = on
+		circleRing.Visible = on
+	end, "on")
+	button(g, "Golpe automático", function(on) CFG.BotAttack = on end, "on")
+
+	section(bot, "Área")
+	slider(bot, "Radio del bot", 8, 80, CFG.CircleRadius, " st", function(v)
+		CFG.CircleRadius = v
+	end)
+
+	section(bot, "Comportamiento")
+	button(bot, "Fijar cámara al objetivo", function(on) CFG.CircleAim = on end, "on")
+	label(bot, "Solo golpea con arma en mano y con el enemigo dentro del anillo.", 26)
+end
+
+--_______________________
+-- CÍRCULO
+-------------------------
+local circ = page("Círculo")
+do
+	section(circ, "Manual")
+	local g = grid(circ, 2)
+	button(g, "Mostrar círculo", function(on)
+		CFG.Circle = on
+		circleRing.Visible = on
+	end, "on")
+	button(g, "Fijar cámara", function(on) CFG.CircleAim = on end, "on")
+
+	section(circ, "Área")
+	slider(circ, "Radio", 8, 80, CFG.CircleRadius, " st", function(v) CFG.CircleRadius = v end)
+
+	section(circ, "Cadencia")
+	slider(circ, "Intervalo de golpe", 5, 40, math.floor(CFG.CircleRate * 100), " cs", function(v)
+		CFG.CircleRate = v / 100
+	end)
+end
+
+--_______________________
+-- Anillo visual
+-------------------------
+circleRing = new("Frame", {
+	Size = UDim2.fromOffset(300, 300),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.new(0.5, 0, 0.5, 0),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	Visible = false,
+	ZIndex = 8,
+}, gui)
+new("UICorner", { CornerRadius = UDim.new(1, 0) }, circleRing)
+ringStroke = new("UIStroke", {
+	Color = T.ESP,
+	Thickness = 1.6,
+	Transparency = 0.15,
+	ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+}, circleRing)
+ringGlow = new("UIStroke", {
+	Color = T.ESP,
+	Thickness = 6,
+	Transparency = 0.82,
+	ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+}, circleRing)
+new("Frame", {
+	Size = UDim2.fromOffset(5, 5),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.5),
+	BackgroundColor3 = T.ESP,
+	BorderSizePixel = 0,
+	BackgroundTransparency = 0.3,
+}, circleRing)
+new("UICorner", { CornerRadius = UDim.new(1, 0) }, circleRing:FindFirstChildOfClass("Frame"))
+
+print("[DESTROYA] BOT y CÍRCULO listos")
+--===========================================================
+--  ██████  PÁGINAS · TP Y LISTA
+--===========================================================
+
+print("[DESTROYA] Construyendo TP y LISTA")
+
+--_______________________
+-- TP
+-------------------------
+local tp = page("TP")
+do
+	section(tp, "Seguimiento")
+	local g = grid(tp, 2)
+	button(g, "Seguir objetivo", function(on)
+		if on and CFG.TPTarget then
+			CFG.TPFollow = true
+			showCancel()
+		end
+	end, "on")
+	button(g, "Detener", function() stopTP() end)
+	slider(tp, "Distancia de escolta", 2, 25, CFG.TPOffset, " st", function(v) CFG.TPOffset = v end)
+
+	section(tp, "Objetivo actual")
+	local cur = label(tp, "Ninguno. Elige uno en LISTA.", 24)
+	_G.DH_TARGET = function(n)
+		cur.Text = n or "Ninguno. Elige uno en LISTA."
+		cur.TextColor3 = n and T.Accent or T.Muted
+	end
+end
+
+--_______________________
+-- LISTA
+-------------------------
+local lista = page("Lista")
+do
+	section(lista, "Buscar")
+	local box = searchBox(lista, "Nombre o parte del nombre...", function(txt)
+		if rebuildList then rebuildList(txt) end
+	end)
+
+	section(lista, "Jugadores")
+	local list = new("ScrollingFrame", {
+		Size = UDim2.new(1, 0, 0, 190),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 2,
+		ScrollBarImageColor3 = T.Accent,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ZIndex = 5,
+	}, lista)
+	new("UIListLayout", {
+		Padding = UDim.new(0, 4),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, list)
+
+	local counter = label(lista, "0 jugadores", 14)
+
+	--_______________________
+	-- Fila de jugador
+	-------------------------
+	local function row(p)
+		local myRoot = root()
+		local hrp = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+		local d = (myRoot and hrp) and math.floor(dist(myRoot, hrp)) or 0
+		local ally = p.Team == LP.Team
+
+		local f = new("Frame", {
+			Size = UDim2.new(1, 0, 0, 40),
+			BackgroundColor3 = T.Panel2,
+			BorderSizePixel = 0,
+			ZIndex = 5,
+		}, list)
+		corner(f, 6)
+		stroke(f, ally and T.Ally or T.Stroke, 1, 0.55)
+
+		new("Frame", {
+			Size = UDim2.new(0, 3, 0.7, 0),
+			Position = UDim2.new(0, 0, 0.15, 0),
+			BackgroundColor3 = ally and T.Ally or T.Accent,
+			BorderSizePixel = 0,
+			ZIndex = 6,
+		}, f)
+
+		new("TextLabel", {
+			Size = UDim2.new(1, -110, 0, 14),
+			Position = UDim2.fromOffset(9, 4),
+			BackgroundTransparency = 1,
+			Text = p.Name,
+			TextColor3 = T.Text,
+			Font = Enum.Font.GothamBold,
+			TextSize = 10,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			ZIndex = 6,
+		}, f)
+
+		local h = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+		local bg = new("Frame", {
+			Size = UDim2.new(0.55, 0, 0, 4),
+			Position = UDim2.fromOffset(9, 22),
+			BackgroundColor3 = T.Off,
+			BorderSizePixel = 0,
+			ZIndex = 6,
+		}, f)
+		corner(bg, 2)
+		local fill = new("Frame", {
+			Size = UDim2.fromScale(h and math.clamp(h.Health / h.MaxHealth, 0, 1) or 1, 1),
+			BackgroundColor3 = ally and T.Ally or T.Good,
+			BorderSizePixel = 0,
+			ZIndex = 7,
+		}, bg)
+		corner(fill, 2)
+
+		new("TextLabel", {
+			Size = UDim2.new(0, 40, 0, 12),
+			Position = UDim2.new(0.55, 16, 0, 21),
+			BackgroundTransparency = 1,
+			Text = d .. " m",
+			TextColor3 = T.Muted,
+			Font = Enum.Font.Gotham,
+			TextSize = 9,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 6,
+		}, f)
+
+		local function mini(txt, x, col, cb)
+			local b = new("TextButton", {
+				Size = UDim2.fromOffset(28, 18),
+				Position = UDim2.new(1, x, 0, 5),
+				BackgroundColor3 = T.Panel3,
+				BorderSizePixel = 0,
+				Text = txt,
+				TextColor3 = col or T.Text,
+				Font = Enum.Font.GothamBold,
+				TextSize = 9,
+				AutoButtonColor = false,
+				ZIndex = 7,
+			}, f)
+			corner(b, 4)
+			stroke(b, col or T.Stroke, 1, 0.5)
+			squish(b)
+			reg(b.MouseButton1Click:Connect(cb))
+			return b
+		end
+
+		mini("TP", -98, T.Accent, function()
+			CFG.TPTarget = p
+			if _G.DH_TARGET then _G.DH_TARGET(p.Name) end
+			tpTo(p)
+		end)
+		mini("SEG", -68, T.Good, function()
+			CFG.TPTarget = p
+			if _G.DH_TARGET then _G.DH_TARGET(p.Name) end
+			CFG.TPFollow = true
+			showCancel()
+		end)
+		mini("⧉", -38, T.Muted, function()
+			if setclipboard then setclipboard(p.Name) end
+		end)
+	end
+
+	--_______________________
+	-- Reconstruir
+	-------------------------
+	function rebuildList(txt)
+		for _, c in ipairs(list:GetChildren()) do
+			if c:IsA("Frame") then c:Destroy() end
+		end
+
+		local q = (txt or box.input.Text or ""):lower()
+		local found = 0
+		local myRoot = root()
+
+		local cands = {}
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= LP then
+				if q == "" or p.Name:lower():find(q, 1, true) then
+					local hrp = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+					cands[#cands + 1] = { p = p, d = (myRoot and hrp) and dist(myRoot, hrp) or 9999 }
+				end
+			end
+		end
+		table.sort(cands, function(a, b) return a.d < b.d end)
+
+		for _, c in ipairs(cands) do
+			row(c.p)
+			found += 1
+		end
+
+		counter.Text = found .. " jugador" .. (found == 1 and "" or "es")
+	end
+
+	reg(Players.PlayerAdded:Connect(function() task.wait(0.5) rebuildList() end))
+	reg(Players.PlayerRemoving:Connect(function() task.wait(0.2) rebuildList() end))
+	task.defer(function() rebuildList("") end)
+end
+
+print("[DESTROYA] TP y LISTA listos")
+--===========================================================
+--  ██████  PÁGINA · DECO
+--===========================================================
+
+print("[DESTROYA] Construyendo DECO")
+
+local deco = page("Deco")
+do
+	section(deco, "Cielo")
+	local g = grid(deco, 2)
+	button(g, "Cielo nocturno", function(on)
+		CFG.Night = on
+		if on then
+			Lighting.ClockTime = 0
+			Lighting.Brightness = 0.6
+			Lighting.Ambient = Color3.fromRGB(40, 46, 70)
+			Lighting.OutdoorAmbient = Color3.fromRGB(30, 34, 54)
+			if not Lighting:FindFirstChild("DH_STARS") then
+				local s = new("Sky", { Name = "DH_STARS" }, Lighting)
+				s.StarCount = 6000
+			end
+		else
+			Lighting.ClockTime = 14
+			Lighting.Brightness = 2
+			Lighting.Ambient = Color3.fromRGB(128, 128, 128)
+			Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+			local s = Lighting:FindFirstChild("DH_STARS")
+			if s then s:Destroy() end
+		end
+	end)
+	button(g, "Fullbright", function(on)
+		CFG.Fullbright = on
+		Lighting.Brightness = on and 3 or 2
+		Lighting.GlobalShadows = not on
+	end)
+
+	section(deco, "Hora")
+	slider(deco, "Hora del día", 0, 24, 14, " h", function(v) Lighting.ClockTime = v end)
+
+	section(deco, "Brillo")
+	slider(deco, "Brillo", 0, 5, 2, "", function(v) Lighting.Brightness = v end)
+
+	section(deco, "Niebla")
+	slider(deco, "Distancia de niebla", 100, 5000, 900, " st", function(v) Lighting.FogEnd = v end)
+	local g2 = grid(deco, 2)
+	button(g2, "Quitar niebla", function() Lighting.FogEnd = 100000 end)
+	button(g2, "Niebla densa", function() Lighting.FogEnd = 200 end)
+
+	section(deco, "Ambiente")
+	local g3 = grid(deco, 2)
+	button(g3, "Sombras", function(on) Lighting.GlobalShadows = on end, "on")
+	button(g3, "Restaurar luz", function()
+		Lighting.ClockTime = 14
+		Lighting.Brightness = 2
+		Lighting.FogEnd = 900
+		Lighting.GlobalShadows = true
+		Lighting.Ambient = Color3.fromRGB(128, 128, 128)
+		Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+		local s = Lighting:FindFirstChild("DH_STARS")
+		if s then s:Destroy() end
+	end)
+end
+
+print("[DESTROYA] DECO lista")
+--===========================================================
+--  ██████  PÁGINAS · SERVIDOR, STATS Y CONFIG
+--===========================================================
+
+print("[DESTROYA] Construyendo SERVIDOR, STATS y CONFIG")
+
+--_______________________
+-- SERVIDOR
+-------------------------
+local srv = page("Servidor")
+do
+	section(srv, "Reconexión")
+	local g = grid(srv, 2)
+	button(g, "Rejoin", function()
+		Teleport:Teleport(game.PlaceId, LP)
+	end)
+	button(g, "Salir", function() LP:Kick("Salida desde DESTROYA HUB") end)
+
+	section(srv, "Servidor actual")
+	local jid = label(srv, "JobId: " .. tostring(game.JobId), 22)
+	button(srv, "Copiar JobId", function()
+		if setclipboard then
+			setclipboard(game.JobId)
+			jid.TextColor3 = T.Accent
+		else
+			jid.TextColor3 = T.Bad
+		end
+	end)
+
+	section(srv, "Anti-AFK")
+	button(srv, "Mantener sesión activa", function(on)
+		CFG.AntiAfk = on
+		if on then startAntiAfk() else stopAntiAfk() end
+	end)
+end
+
+--_______________________
+-- STATS
+-------------------------
+local stt = page("Stats")
+do
+	section(stt, "Medidores")
+	local pingL = label(stt, "Ping: —", 18)
+	local memL = label(stt, "Memoria: —", 18)
+	local fpsL2 = label(stt, "FPS: —", 18)
+	local plL = label(stt, "Jugadores: —", 18)
+
+	reg(RunService.Heartbeat:Connect(function()
+		if not stt.Visible then return end
+		local okP, ping = pcall(function()
+			return Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+		end)
+		pingL.Text = "Ping: " .. (okP and math.floor(ping) .. " ms" or "—")
+		memL.Text = "Memoria: " .. math.floor(Stats:GetTotalMemoryUsageMB()) .. " MB"
+		fpsL2.Text = "FPS: " .. fpsVal
+		plL.Text = "Jugadores: " .. #Players:GetPlayers()
+	end))
+
+	section(stt, "Notas")
+	label(stt, "Si el ping pasa de 200 ms, el bot y el ESP se sienten trabados: es la red, no el hub.", 26)
+end
+
+--_______________________
+-- CONFIG
+-------------------------
+local cfgP = page("Config")
+do
+	section(cfgP, "Rendimiento")
+	local g = grid(cfgP, 2)
+	button(g, "Modo rendimiento", function(on)
+		CFG.PerfMode = on
+		applyPerf()
+	end)
+	button(g, "Mostrar FPS", function(on)
+		CFG.FPS = on
+		fpsChip.Visible = on
+	end, "on")
+
+	section(cfgP, "Paleta")
+	label(cfgP, "Cian fijo. Sin rueda de color, sin selectores.", 18)
+	local sw = new("Frame", {
+		Size = UDim2.new(1, 0, 0, 10),
+		BackgroundTransparency = 1,
+	}, cfgP)
+	new("UIListLayout", {
+		FillDirection = Enum.FillDirection.Horizontal,
+		Padding = UDim.new(0, 4),
+	}, sw)
+	for _, c in ipairs({ T.Accent, T.Accent2, T.Accent3, T.Text, T.Bad, T.Ally, T.Good }) do
+		local d = new("Frame", {
+			Size = UDim2.fromOffset(18, 10),
+			BackgroundColor3 = c,
+			BorderSizePixel = 0,
+		}, sw)
+		corner(d, 2)
+	end
+
+	section(cfgP, "Hub")
+	local g2 = grid(cfgP, 2)
+	button(g2, "Ocultar menú", function() toggleHide(true) end)
+	button(g2, "Reiniciar todo", function()
+		CFG.ESP = false
+		CFG.Walls = false
+		CFG.Bot = false
+		CFG.Circle = false
+		CFG.TPFollow = false
+		CFG.PowerJump = false
+		CFG.Aim = false
+		CFG.Fly = false
+		CFG.Noclip = false
+		CFG.HitboxOn = false
+		clearESP()
+		restoreWalls()
+		clearHitbox()
+		stopTP()
+		stopFly()
+		circleRing.Visible = false
+		Lighting.ClockTime = 14
+		local h = hum()
+		if h then h.WalkSpeed = 16 h.JumpPower = 50 end
+	end)
+
+	section(cfgP, "Atajos")
+	label(cfgP, "RightShift oculta o muestra el menú. El botón DH también lo oculta.", 22)
+end
+
+print("[DESTROYA] SERVIDOR, STATS y CONFIG listos")
+--===========================================================
+--  ██████  SISTEMA · SKINS
+--===========================================================
+
+print("[DESTROYA] Cargando sistema de skins")
+
+local skinKeys = { "Owned", "Unlocked", "IsOwned", "Bought", "Purchased", "Equipped" }
+local patched = {}
+
+local function markTable(tbl, depth)
+	if type(tbl) ~= "table" or depth > 4 then return end
+	for k, v in pairs(tbl) do
+		if type(v) == "boolean" then
+			tbl[k] = true
+		elseif type(v) == "table" then
+			markTable(v, depth + 1)
+		end
+	end
+end
+
+local function patchModule(mod)
+	if not mod or patched[mod] then return end
+	patched[mod] = true
+	local ok, data = pcall(require, mod)
+	if not ok or type(data) ~= "table" then return end
+	for _, key in ipairs(skinKeys) do
+		if data[key] ~= nil then data[key] = true end
+	end
+	markTable(data, 0)
+end
+
+function unlockAllSkins()
+	if _G.DH_STATUS then _G.DH_STATUS("Aplicando...", T.Accent) end
+	local n, fired = 0, 0
+
+	for _, d in ipairs(RS:GetDescendants()) do
+		local name = d.Name:lower()
+		if name:find("skin") or name:find("camo") or name:find("weapon") then
+			if d:IsA("ModuleScript") then
+				patchModule(d)
+				n += 1
+			end
+			for _, key in ipairs(skinKeys) do
+				pcall(function() d:SetAttribute(key, true) end)
+			end
+		end
+	end
+
+	for _, key in ipairs({ "AllSkins", "SkinsUnlocked", "UnlockedAll" }) do
+		pcall(function() LP:SetAttribute(key, true) end)
+	end
+
+	for _, d in ipairs(RS:GetDescendants()) do
+		if d:IsA("RemoteEvent") or d:IsA("RemoteFunction") then
+			local name = d.Name:lower()
+			if name:find("skin") or name:find("unlock") or name:find("camo") then
+				pcall(function()
+					if d:IsA("RemoteEvent") then
+						d:FireServer("All")
+						d:FireServer()
+					else
+						d:InvokeServer("All")
+					end
+				end)
+				fired += 1
+			end
+		end
+	end
+
+	CFG.Skins = true
+	print("[DESTROYA] Skins: " .. n .. " módulos, " .. fired .. " remotes")
+	if _G.DH_STATUS then
+		_G.DH_STATUS("Listo: " .. n .. " módulos, " .. fired .. " remotes.", T.Accent)
+	end
+end
+
+function forceSkinRefresh()
+	local c = char()
+	if not c then return end
+	for _, tool in ipairs(c:GetChildren()) do
+		if tool:IsA("Tool") then tool.Parent = c end
+	end
+	if _G.DH_STATUS then _G.DH_STATUS("Personaje refrescado.", T.Accent) end
+end
+
+print("[DESTROYA] Skins listas")
+--===========================================================
+--  ██████  SISTEMA · ESP Y PAREDES
+--===========================================================
+
+print("[DESTROYA] Cargando ESP y paredes")
+
+local function killESP(p)
+	local o = espObjs[p]
+	if not o then return end
+	espObjs[p] = nil
+	for _, inst in pairs(o) do
+		if typeof(inst) == "Instance" then pcall(function() inst:Destroy() end) end
+	end
+end
+
+function clearESP()
+	for p in pairs(espObjs) do killESP(p) end
+end
+
+local function buildESP(p, c, hrp)
+	local ally = p.Team == LP.Team
+	local col = ally and T.Ally or T.ESP
+	local o = {}
+
+	o.hl = new("Highlight", {
+		FillColor = col,
+		FillTransparency = 0.68,
+		OutlineColor = col,
+		OutlineTransparency = 0,
+		DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
+		Adornee = c,
+	}, c)
+
+	local bb = new("BillboardGui", {
+		Size = UDim2.fromOffset(110, 42),
+		StudsOffset = Vector3.new(0, 2.6, 0),
+		AlwaysOnTop = true,
+		MaxDistance = CFG.ESPDist + 25,
+		Adornee = hrp,
+	}, hrp)
+	o.bb = bb
+
+	local holder = new("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+	}, bb)
+
+	o.name = new("TextLabel", {
+		Size = UDim2.new(1, 0, 0, 13),
+		BackgroundTransparency = 1,
+		Text = p.Name,
+		TextColor3 = col,
+		Font = Enum.Font.GothamBold,
+		TextSize = 10,
+		TextStrokeTransparency = 0.35,
+		TextStrokeColor3 = Color3.new(0, 0, 0),
+	}, holder)
+
+	local bg = new("Frame", {
+		Size = UDim2.new(1, 0, 0, 5),
+		Position = UDim2.new(0, 0, 0, 15),
+		BackgroundColor3 = Color3.fromRGB(8, 12, 18),
+		BorderSizePixel = 0,
+	}, holder)
+	corner(bg, 2)
+	stroke(bg, col, 1, 0.3)
+
+	o.fill = new("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = col,
+		BorderSizePixel = 0,
+	}, bg)
+	corner(o.fill, 2)
+
+	o.dist = new("TextLabel", {
+		Size = UDim2.new(1, 0, 0, 12),
+		Position = UDim2.new(0, 0, 0, 22),
+		BackgroundTransparency = 1,
+		Text = "0 m",
+		TextColor3 = col,
+		Font = Enum.Font.Gotham,
+		TextSize = 9,
+		TextStrokeTransparency = 0.35,
+		TextStrokeColor3 = Color3.new(0, 0, 0),
+	}, holder)
+
+	local h = c:FindFirstChildOfClass("Humanoid")
+	if h then
+		o.hp = h.HealthChanged:Connect(function()
+			if o.fill then
+				o.fill.Size = UDim2.fromScale(math.clamp(h.Health / h.MaxHealth, 0, 1), 1)
+			end
+		end)
+		o.fill.Size = UDim2.fromScale(math.clamp(h.Health / h.MaxHealth, 0, 1), 1)
+	end
+
+	espObjs[p] = o
+end
+
+function espStep()
+	local myRoot = root()
+	if not myRoot then clearESP() return end
+	local myPos = myRoot.Position
+	local seen = {}
+	local cands = {}
+
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= LP and alive(p) then
+			local c = p.Character
+			local hrp = c:FindFirstChild("HumanoidRootPart")
+			local d = dist(myRoot, hrp)
+			if d <= CFG.ESPDist then
+				local ally = p.Team == LP.Team
+				if CFG.ESPTeam or not ally then
+					cands[#cands + 1] = { p = p, d = d, c = c, hrp = hrp }
+				end
+			end
+		end
+	end
+
+	table.sort(cands, function(a, b) return a.d < b.d end)
+	for i = 9, #cands do cands[i] = nil end
+
+	for _, e in ipairs(cands) do
+		seen[e.p] = true
+		local o = espObjs[e.p]
+		if not o then
+			buildESP(e.p, e.c, e.hrp)
+			o = espObjs[e.p]
+		end
+		if o then
+			o.name.Visible = CFG.ESPName
+			o.fill.Parent.Visible = CFG.ESPHealth
+			o.dist.Text = math.floor(e.d) .. " m"
+			o.hl.Enabled = CFG.ESPBox
+		end
+	end
+
+	for p in pairs(espObjs) do
+		if not seen[p] then killESP(p) end
+	end
+end
+
+--_______________________
+-- Paredes
+-------------------------
+local function isCharacterPart(part)
+	local m = part:FindFirstAncestorOfClass("Model")
+	while m do
+		if Players:GetPlayerFromCharacter(m) then return true end
+		m = m:FindFirstAncestorOfClass("Model")
+	end
+	return false
+end
+
+local function applyWallPart(part, myPos)
+	if not CFG.Walls then return end
+	if wallMap[part] then return end
+	if part.Transparency >= 0.98 then return end
+	if part:IsA("Terrain") then return end
+	if isCharacterPart(part) then return end
+	if (part.Position - myPos).Magnitude > CFG.WallsDist then return end
+	wallMap[part] = part.LocalTransparencyModifier
+	part.LocalTransparencyModifier = 0.72
+end
+
+function wallSweep()
+	local myRoot = root()
+	if not myRoot then return end
+	local myPos = myRoot.Position
+	for _, d in ipairs(WS:GetDescendants()) do
+		if d:IsA("BasePart") then applyWallPart(d, myPos) end
+	end
+end
+
+function flushWalls()
+	for part, orig in pairs(wallMap) do
+		pcall(function() part.LocalTransparencyModifier = orig end)
+		wallMap[part] = nil
+	end
+	if CFG.Walls then wallSweep() end
+end
+
+function restoreWalls()
+	CFG.Walls = false
+	for part, orig in pairs(wallMap) do
+		pcall(function() part.LocalTransparencyModifier = orig or 0 end)
+		wallMap[part] = nil
+	end
+end
+
+print("[DESTROYA] ESP y paredes listos")
+--===========================================================
+--  ██████  SISTEMA · COMBATE Y MOVILIDAD
+--===========================================================
+
+print("[DESTROYA] Cargando combate y movilidad")
+
+--_______________________
+-- Círculo
+-------------------------
+function pixelRadius(d)
+	local fov = math.rad(Cam.FieldOfView)
+	return (CFG.CircleRadius * (Cam.ViewportSize.Y / 2)) / math.max(d * math.tan(fov / 2), 1)
+end
+
+local function enemiesInArea()
+	local myRoot = root()
+	if not myRoot then return {} end
+	local myPos = myRoot.Position
+	local out = {}
+
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= LP and alive(p) and p.Team ~= LP.Team then
+			local c = p.Character
+			local hrp = c:FindFirstChild("HumanoidRootPart")
+			local hd = c:FindFirstChild("Head")
+			if hrp and hd then
+				local flat = (Vector3.new(hrp.Position.X, myPos.Y, hrp.Position.Z) - myPos).Magnitude
+				if flat <= CFG.CircleRadius then
+					local sp, on = Cam:WorldToViewportPoint(hd.Position)
+					if on and sp.Z > 0 then
+						local center = Vector2.new(Cam.ViewportSize.X / 2, Cam.ViewportSize.Y / 2)
+						if (Vector2.new(sp.X, sp.Y) - center).Magnitude <= pixelRadius(sp.Z) then
+							out[#out + 1] = { head = hd, dist = flat }
+						end
+					end
+				end
+			end
+		end
+	end
+
+	table.sort(out, function(a, b) return a.dist < b.dist end)
+	return out
+end
+
+function circleStep(dt)
+	local active = CFG.Circle or CFG.Bot
+	circleRing.Visible = active and win.Visible
+	if not active then return end
+	if not root() then return end
+
+	local list = enemiesInArea()
+	local near = list[1]
+
+	if not near then
+		ringStroke.Transparency = 0.45
+		ringGlow.Transparency = 0.9
+		return
+	end
+
+	ringStroke.Transparency = 0.05
+	ringGlow.Transparency = 0.6
+
+	local sp = Cam:WorldToViewportPoint(near.head.Position)
+	local r = math.clamp(pixelRadius(sp.Z), 20, 420)
+	circleRing.Size = UDim2.fromOffset(r * 2, r * 2)
+
+	if not equipped() then return end
+
+	if CFG.CircleAim then
+		local goal = CFrame.lookAt(Cam.CFrame.Position, near.head.Position)
+		Cam.CFrame = Cam.CFrame:Lerp(goal, math.clamp(dt * 9, 0, 1))
+	end
+
+	if os.clock() - lastHit >= CFG.CircleRate then
+		lastHit = os.clock()
+		local tool = equipped()
+		if tool then pcall(function() tool:Activate() end) end
+	end
+end
+
+--_______________________
+-- TP
+-------------------------
+local cancelBtn
+
+function showCancel()
+	if not cancelBtn then
+		cancelBtn = new("TextButton", {
+			Size = UDim2.fromOffset(104, 30),
+			Position = UDim2.new(1, -116, 0.5, 130),
+			BackgroundColor3 = T.Bad,
+			BorderSizePixel = 0,
+			Text = "DEJAR DE SEGUIR",
+			TextColor3 = Color3.new(1, 1, 1),
+			Font = Enum.Font.GothamBold,
+			TextSize = 9,
+			AutoButtonColor = false,
+			ZIndex = 9,
+		}, gui)
+		corner(cancelBtn, 8)
+		stroke(cancelBtn, Color3.new(1, 1, 1), 1, 0.5)
+		squish(cancelBtn)
+		reg(cancelBtn.MouseButton1Click:Connect(function() stopTP() end))
+	end
+	cancelBtn.Visible = true
+end
+
+function stopTP()
+	CFG.TPFollow = false
+	CFG.TPTarget = nil
+	if cancelBtn then cancelBtn.Visible = false end
+	if _G.DH_TARGET then _G.DH_TARGET(nil) end
+end
+
+function tpTo(p)
+	local myRoot = root()
+	local tRoot = p and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+	if not myRoot or not tRoot then return end
+	myRoot.CFrame = CFrame.new(tRoot.Position + Vector3.new(0, 1, 0))
+	CFG.TPTarget = p
+	showCancel()
+end
+
+local tpAcc = 0
+function tpStep(dt)
+	if not CFG.TPFollow or not CFG.TPTarget then return end
+	local p = CFG.TPTarget
+	if not alive(p) then stopTP() return end
+
+	tpAcc += dt
+	if tpAcc < 0.12 then return end
+	tpAcc = 0
+
+	local myRoot = root()
+	local tRoot = p.Character:FindFirstChild("HumanoidRootPart")
+	if not myRoot or not tRoot then return end
+
+	local target = tRoot.Position - tRoot.CFrame.LookVector * CFG.TPOffset + Vector3.new(0, 1, 0)
+	if (myRoot.Position - target).Magnitude > 2 then
+		myRoot.CFrame = myRoot.CFrame:Lerp(CFrame.new(target, target + tRoot.CFrame.LookVector), 0.6)
+	end
+end
+
+--_______________________
+-- Vuelo
+-------------------------
+local flyBV, flyBG
+
+function stopFly()
+	if flyBV then flyBV:Destroy() flyBV = nil end
+	if flyBG then flyBG:Destroy() flyBG = nil end
+	local h = hum()
+	if h then h.PlatformStand = false end
+end
+
+function startFly()
+	local hrp = root()
+	if not hrp then return end
+	stopFly()
+	flyBV = new("BodyVelocity", {
+		MaxForce = Vector3.new(1, 1, 1) * 100000,
+		P = 1250,
+		Velocity = Vector3.zero,
+	}, hrp)
+	flyBG = new("BodyGyro", {
+		MaxTorque = Vector3.new(1, 1, 1) * 100000,
+		P = 3000,
+		CFrame = hrp.CFrame,
+	}, hrp)
+	local h = hum()
+	if h then h.PlatformStand = true end
+end
+
+function flyStep()
+	if not (CFG.Fly and flyBV and flyBG) then return end
+	local cf = Cam.CFrame
+	local dir = Vector3.zero
+	if UIS:IsKeyDown(Enum.KeyCode.W) then dir += cf.LookVector end
+	if UIS:IsKeyDown(Enum.KeyCode.S) then dir -= cf.LookVector end
+	if UIS:IsKeyDown(Enum.KeyCode.A) then dir -= cf.RightVector end
+	if UIS:IsKeyDown(Enum.KeyCode.D) then dir += cf.RightVector end
+	if UIS:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.yAxis end
+	if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then dir -= Vector3.yAxis end
+	flyBV.Velocity = dir.Magnitude > 0 and dir.Unit * CFG.FlySpeed or Vector3.zero
+	flyBG.CFrame = cf
+end
+
+function noclipStep()
+	if not CFG.Noclip then return end
+	local c = char()
+	if not c then return end
+	for _, d in ipairs(c:GetDescendants()) do
+		if d:IsA("BasePart") then d.CanCollide = false end
+	end
+end
+
+--_______________________
+-- Aimbot
+-------------------------
+local function aimTarget()
+	local center = Vector2.new(Cam.ViewportSize.X / 2, Cam.ViewportSize.Y / 2)
+	local best, bestD = nil, CFG.AimFov
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= LP and alive(p) and p.Team ~= LP.Team then
+			local hd = p.Character:FindFirstChild("Head")
+			if hd then
+				local sp, on = Cam:WorldToViewportPoint(hd.Position)
+				if on and sp.Z > 0 then
+					local d = (Vector2.new(sp.X, sp.Y) - center).Magnitude
+					if d < bestD then best, bestD = hd, d end
+				end
+			end
+		end
+	end
+	return best
+end
+
+function aimStep(dt)
+	if not CFG.Aim then return end
+	local hd = aimTarget()
+	if not hd then return end
+
+	local goal = CFrame.lookAt(Cam.CFrame.Position, hd.Position)
+	Cam.CFrame = Cam.CFrame:Lerp(goal, math.clamp(dt / math.max(CFG.AimSmooth, 0.02), 0, 1))
+
+	if CFG.AimFire then
+		local tool = equipped()
+		if tool and os.clock() - lastHit >= 0.12 then
+			lastHit = os.clock()
+			pcall(function() tool:Activate() end)
+		end
+	end
+end
+
+--_______________________
+-- Hitbox
+-------------------------
+function clearHitbox()
+	for part, sz in pairs(hitOrig) do
+		pcall(function() part.Size = sz end)
+		hitOrig[part] = nil
+	end
+end
+
+function hitboxStep()
+	if not CFG.HitboxOn then return end
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= LP and p.Character then
+			for _, part in ipairs(p.Character:GetDescendants()) do
+				if part:IsA("BasePart") and not hitOrig[part] then
+					hitOrig[part] = part.Size
+					pcall(function() part.Size = part.Size * CFG.Hitbox end)
+				end
+			end
+		end
+	end
+end
+
+--_______________________
+-- Anti-AFK
+-------------------------
+local antiConn
+
+function startAntiAfk()
+	if antiConn then return end
+	antiConn = LP.Idled:Connect(function()
+		VU:CaptureController()
+		VU:ClickButton2(Vector2.new())
+	end)
+end
+
+function stopAntiAfk()
+	if antiConn then antiConn:Disconnect() antiConn = nil end
+end
+
+print("[DESTROYA] Combate y movilidad listos")
+--===========================================================
+--  ██████  ARRANQUE FINAL
+--===========================================================
+
+print("[DESTROYA] Cerrando arranque...")
+
+--_______________________
+-- FPS
+-------------------------
+local frames, fpsAcc = 0, 0
+local lowStreak = 0
+
+reg(RunService.RenderStepped:Connect(function(dt)
+	frames += 1
+	fpsAcc += dt
+	if fpsAcc >= 0.5 then
+		fpsVal = math.floor(frames / fpsAcc)
+		frames, fpsAcc = 0, 0
+		if CFG.FPS then
+			fpsLbl.Text = fpsVal .. " FPS"
+			fpsLbl.TextColor3 = fpsVal >= 45 and T.Accent or (fpsVal >= 28 and Color3.fromRGB(255, 200, 70) or T.Bad)
+		end
+		if not CFG.PerfMode then
+			if fpsVal < 26 then
+				lowStreak += 1
+				if lowStreak >= 4 then
+					CFG.PerfMode = true
+					applyPerf()
+				end
+			else
+				lowStreak = 0
+			end
+		end
+	end
+end))
+
+local espT, wallT = 0.12, 1.5
+
+function applyPerf()
+	espT = CFG.PerfMode and 0.4 or 0.12
+	wallT = CFG.PerfMode and 4 or 1.5
+	Lighting.GlobalShadows = not CFG.PerfMode
+end
+
+--_______________________
+-- Bucle maestro
+-------------------------
+local accEsp, accWall, accStatus = 0, 0, 0
+
+reg(RunService.Heartbeat:Connect(function(dt)
+	if not win.Visible then return end
+
+	accEsp += dt
+	if accEsp >= espT then
+		accEsp = 0
+		if CFG.ESP then espStep() elseif next(espObjs) then clearESP() end
+	end
+
+	accWall += dt
+	if accWall >= wallT then
+		accWall = 0
+		if CFG.Walls then wallSweep() end
+	end
+
+	accStatus += dt
+	if accStatus >= 1 then
+		accStatus = 0
+		refreshStatus()
+	end
+
+	tpStep(dt)
+	circleStep(dt)
+	flyStep()
+	noclipStep()
+	aimStep(dt)
+	hitboxStep()
+end))
+
+--_______________________
+-- Ocultar
+-------------------------
+local hidden = false
+local miniBtn
+
+function toggleHide(v)
+	hidden = v or not hidden
+	win.Visible = not hidden
+	shadow.Visible = not hidden
+	circleRing.Visible = (not hidden) and (CFG.Circle or CFG.Bot)
+	if hidden then
+		if not miniBtn then
+			miniBtn = new("TextButton", {
+				Size = UDim2.fromOffset(46, 46),
+				Position = UDim2.new(0, 16, 0.5, -23),
+				BackgroundColor3 = T.Panel,
+				BorderSizePixel = 0,
+				Text = "DH",
+				TextColor3 = T.Accent,
+				Font = Enum.Font.GothamBlack,
+				TextSize = 15,
+				AutoButtonColor = false,
+				ZIndex = 10,
+			}, gui)
+			corner(miniBtn, 23)
+			stroke(miniBtn, T.Accent, 1.4, 0.3)
+			squish(miniBtn)
+			reg(miniBtn.MouseButton1Click:Connect(function() toggleHide(false) end))
+		end
+		miniBtn.Visible = true
+	else
+		if miniBtn then miniBtn.Visible = false end
+	end
+end
+
+reg(hide.MouseButton1Click:Connect(function() toggleHide(true) end))
+
+reg(UIS.InputBegan:Connect(function(i, gp)
+	if gp then return end
+	if i.KeyCode == Enum.KeyCode.RightShift then toggleHide() end
+end))
+
+--_______________________
+-- Personaje
+-------------------------
+local function hookChar()
+	local h = hum()
+	if h then
+		h.WalkSpeed = CFG.WalkSpeed
+		h.JumpPower = CFG.PowerJump and CFG.PowerJumpH or CFG.JumpPower
+		h.UseJumpPower = true
+	end
+end
+
+reg(LP.CharacterAdded:Connect(function()
+	stopFly()
+	clearHitbox()
+	task.wait(1)
+	hookChar()
+	if CFG.Fly then startFly() end
+end))
+task.delay(1, hookChar)
+
+reg(Players.PlayerRemoving:Connect(function(p) killESP(p) end))
+
+--_______________________
+-- Pestañas
+-------------------------
+tab("Locker", "◈", "LOCKER", 1)
+tab("Jugador", "☻", "JUGADOR", 2)
+tab("Movimiento", "✈", "MOVIMIENTO", 3)
+tab("Aimbot", "◎", "AIMBOT", 4)
+tab("ESP", "◉", "ESP", 5)
+tab("Paredes", "▤", "PAREDES", 6)
+tab("Bot", "✦", "BOT", 7)
+tab("Círculo", "◯", "CÍRCULO", 8)
+tab("TP", "⇄", "TP", 9)
+tab("Lista", "☰", "LISTA", 10)
+tab("Deco", "☾", "DECO", 11)
+tab("Servidor", "⚑", "SERVIDOR", 12)
+tab("Stats", "▮", "STATS", 13)
+tab("Config", "⚙", "CONFIG", 14)
+
+Tabs["Locker"].btn.MouseButton1Click:Fire()
+
+--_______________________
+-- Cierre
+-------------------------
+applyPerf()
+circleRing.Visible = false
+fpsChip.Visible = true
+refreshStatus()
+
+print("[DESTROYA] 15 partes · v7.7 completa")
+print("Destroya hub cargado")
