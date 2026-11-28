@@ -2247,3 +2247,1937 @@ setFly = function(on)
         if hum then pcall(function() hum.PlatformStand = false end) end
     end
 end
+track(player.CharacterAdded:Connect(safe(function()
+    if S.fly then
+        flyBV, flyBG = nil, nil
+        task.wait(0.6)
+        if S.fly then setFly(true) end
+    end
+end, "flyRespawn", 13)))
+
+--═══ FIN DE LA PARTE 13 ═══
+local oroFolder, oroLight, oroT, oroPulse
+
+apagarOro = function()
+    S.oro = false
+    decoTicks.oro = nil
+    if oroPulse then
+        pcall(function() oroPulse:Cancel() end)
+        oroPulse = nil
+    end
+    if oroLight then
+        pcall(function() oroLight:Destroy() end)
+        oroLight = nil
+    end
+    if oroFolder then
+        pcall(function() oroFolder:Destroy() end)
+        oroFolder = nil
+    end
+end
+
+local function disco(parent, ancho, grosor, trans)
+    local p = Instance.new("Part")
+    p.Shape = Enum.PartType.Cylinder
+    p.Size = Vector3.new(grosor, ancho, ancho)
+    p.Material = Enum.Material.Neon
+    p.Color = C.Oro
+    p.Transparency = trans
+    p.CanCollide = false
+    p.CanTouch = false
+    p.CastShadow = false
+    p.Anchored = true
+    p.Parent = parent
+    return p
+end
+
+prenderOro = function()
+    local root = getParts()
+    if not root then return end
+    apagarOro()
+    S.oro = true
+    oroT = 0
+
+    oroFolder = Instance.new("Folder")
+    oroFolder.Name = "DestroyaOro"
+    oroFolder.Parent = Workspace
+
+    local externo = disco(oroFolder, 8.6, 0.16, 0.4)
+    local medio = disco(oroFolder, 6.4, 0.13, 0.58)
+    local interno = disco(oroFolder, 4.2, 0.1, 0.72)
+    local nucleo = disco(oroFolder, 2.2, 0.09, 0.85)
+
+    local marcas = {}
+    for i = 1, 8 do
+        local m = disco(oroFolder, 0.4, 0.16, 0.28)
+        m.Material = Enum.Material.SmoothPlastic
+        marcas[i] = m
+    end
+
+    oroLight = Instance.new("PointLight")
+    oroLight.Color = C.Oro
+    oroLight.Range = 22
+    oroLight.Brightness = 3.8
+    oroLight.Shadows = false
+    oroLight.Parent = root
+
+    local luzPiso = Instance.new("PointLight")
+    luzPiso.Color = C.OroClaro
+    luzPiso.Range = 17
+    luzPiso.Brightness = 2.8
+    luzPiso.Shadows = false
+    luzPiso.Parent = externo
+
+    pcall(function()
+        oroPulse = TweenService:Create(externo,
+            TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+            { Transparency = 0.72, Size = Vector3.new(0.16, 9.6, 9.6) })
+        oroPulse:Play()
+    end)
+
+    decoTicks.oro = safe(function(dt)
+        if not S.oro then return end
+        local r = getParts()
+        if not r or not oroFolder or not oroFolder.Parent then return end
+        oroT += dt
+
+        local base = CFrame.new(r.Position - Vector3.new(0, 2.75, 0))
+        externo.CFrame = base * CFrame.Angles(0, 0, math.rad(90)) * CFrame.Angles(0, oroT * 0.45, 0)
+        medio.CFrame = base * CFrame.Angles(0, 0, math.rad(90)) * CFrame.Angles(0, -oroT * 0.7, 0)
+        interno.CFrame = base * CFrame.Angles(0, 0, math.rad(90)) * CFrame.Angles(0, oroT * 1.0, 0)
+        nucleo.CFrame = base * CFrame.Angles(0, 0, math.rad(90)) * CFrame.Angles(0, -oroT * 1.4, 0)
+
+        for i, m in ipairs(marcas) do
+            local a = oroT * 0.8 + (i * math.pi / 4)
+            local rad = 6.3 + math.sin(oroT * 2 + i) * 0.3
+            m.CFrame = CFrame.new(r.Position + Vector3.new(math.cos(a) * rad, -2.6, math.sin(a) * rad))
+                * CFrame.Angles(0, 0, math.rad(90))
+        end
+
+        if oroLight and oroLight.Parent ~= r then oroLight.Parent = r end
+    end, "oroLoop", 14)
+end
+
+local auraFolder, auraSpark, auraHL, auraLight, auraPulse, auraT
+local auraOrbs, auraAnillos = {}, {}
+
+apagarAura = function()
+    S.aura = false
+    decoTicks.aura = nil
+    if auraPulse then
+        pcall(function() auraPulse:Cancel() end)
+        auraPulse = nil
+    end
+    if auraSpark then
+        pcall(function() auraSpark:Destroy() end)
+        auraSpark = nil
+    end
+    if auraHL then
+        pcall(function() auraHL:Destroy() end)
+        auraHL = nil
+    end
+    if auraLight then
+        pcall(function() auraLight:Destroy() end)
+        auraLight = nil
+    end
+    if auraFolder then
+        pcall(function() auraFolder:Destroy() end)
+        auraFolder = nil
+    end
+    table.clear(auraOrbs)
+    table.clear(auraAnillos)
+end
+
+prenderAura = function()
+    local root, hum, char = getParts()
+    if not root or not char then return end
+    apagarAura()
+    S.aura = true
+    auraT = 0
+
+    auraFolder = Instance.new("Folder")
+    auraFolder.Name = "DestroyaAura"
+    auraFolder.Parent = Workspace
+
+    for i = 1, 10 do
+        local orb = Instance.new("Part")
+        orb.Shape = Enum.PartType.Ball
+        orb.Size = Vector3.new(0.3, 0.3, 0.3)
+        orb.Material = Enum.Material.Neon
+        orb.Color = (i % 2 == 0) and C.Oro or C.OroClaro
+        orb.Transparency = 0.12
+        orb.CanCollide = false
+        orb.CanTouch = false
+        orb.CastShadow = false
+        orb.Anchored = true
+        orb.Parent = auraFolder
+        auraOrbs[i] = { parte = orb, anillo = (i <= 5) and 1 or 2, fase = i * 0.63 }
+    end
+
+    for i = 1, 3 do
+        auraAnillos[i] = disco(auraFolder, 2.6 + i * 0.5, 0.07, 0.45)
+    end
+
+    auraSpark = Instance.new("Sparkles")
+    auraSpark.SparkleColor = C.Oro
+    auraSpark.SparkleFrequency = 6
+    auraSpark.Parent = root
+
+    auraHL = Instance.new("Highlight")
+    auraHL.Name = "DestroyaAuraHL"
+    auraHL.Adornee = char
+    auraHL.FillColor = C.Oro
+    auraHL.FillTransparency = 0.88
+    auraHL.OutlineColor = C.OroClaro
+    auraHL.OutlineTransparency = 0
+    auraHL.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    auraHL.Parent = char
+
+    auraLight = Instance.new("PointLight")
+    auraLight.Color = C.OroClaro
+    auraLight.Range = 14
+    auraLight.Brightness = 2.4
+    auraLight.Shadows = false
+    auraLight.Parent = root
+
+    pcall(function()
+        auraPulse = TweenService:Create(auraHL,
+            TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+            { OutlineTransparency = 0.75, FillTransparency = 0.96 })
+        auraPulse:Play()
+    end)
+
+    decoTicks.aura = safe(function(dt)
+        if not S.aura then return end
+        local r = getParts()
+        if not r or not auraFolder or not auraFolder.Parent then return end
+        auraT += dt
+
+        for _, o in ipairs(auraOrbs) do
+            local orb = o.parte
+            if orb.Parent then
+                local rad = (o.anillo == 1) and 1.45 or 2.1
+                local a = auraT * (o.anillo == 1 and 1.8 or -1.3) + o.fase
+                local alto = (o.anillo == 1)
+                    and (0.4 + math.sin(auraT * 2.2 + o.fase) * 0.5)
+                    or (1.7 + math.cos(auraT * 1.9 + o.fase) * 0.6)
+                orb.CFrame = CFrame.new(r.Position + Vector3.new(math.cos(a) * rad, alto, math.sin(a) * rad))
+            end
+        end
+
+        for i, aro in ipairs(auraAnillos) do
+            if aro.Parent then
+                local giro = auraT * (i % 2 == 0 and -1.1 or 1.4) + i
+                aro.CFrame = CFrame.new(r.Position + Vector3.new(0, 1.05 + i * 0.12, 0))
+                    * CFrame.Angles(0, 0, math.rad(90))
+                    * CFrame.Angles(math.rad(math.sin(giro) * 12), giro, 0)
+            end
+        end
+
+        if auraSpark and auraSpark.Parent ~= r then auraSpark.Parent = r end
+        if auraLight and auraLight.Parent ~= r then auraLight.Parent = r end
+        if auraHL and auraHL.Adornee ~= r.Parent then auraHL.Adornee = r.Parent end
+    end, "auraLoop", 14)
+end
+
+--═══ FIN DE LA PARTE 14 ═══
+do
+    local orig = setmetatable({}, { __mode = "k" })
+    local glob, conn, token = {}, nil, 0
+
+    local KIND = {
+        ParticleEmitter = "fx", Trail = "fx", Smoke = "fx", Fire = "fx", Sparkles = "fx", Beam = "fx",
+        PointLight = "fx", SpotLight = "fx", SurfaceLight = "fx", Clouds = "fx",
+        BloomEffect = "fx", BlurEffect = "fx", ColorCorrectionEffect = "fx",
+        DepthOfFieldEffect = "fx", SunRaysEffect = "fx",
+        Decal = "tex", Texture = "tex",
+        Atmosphere = "atmo", SurfaceAppearance = "sa", Explosion = "boom",
+    }
+
+    local function isCharacter(inst)
+        local m = inst:FindFirstAncestorOfClass("Model")
+        return m ~= nil and Players:GetPlayerFromCharacter(m) ~= nil
+    end
+
+    local function boost(inst)
+        if not S.boost or not inst or not inst.Parent or orig[inst] then return end
+        local kind = KIND[inst.ClassName]
+        if not kind then
+            if not inst:IsA("BasePart") then return end
+            kind = "part"
+        end
+        local saved
+        pcall(function()
+            if kind == "fx" then
+                saved = { Enabled = inst.Enabled }
+                inst.Enabled = false
+            elseif kind == "tex" then
+                if isCharacter(inst) then return end
+                saved = { Transparency = inst.Transparency }
+                inst.Transparency = 1
+            elseif kind == "atmo" then
+                saved = { Density = inst.Density, Haze = inst.Haze }
+                inst.Density, inst.Haze = 0, 0
+            elseif kind == "sa" then
+                if isCharacter(inst) then return end
+                saved = { Parent = inst.Parent, Orig = inst }
+                inst.Parent = nil
+            elseif kind == "boom" then
+                saved = { Visible = inst.Visible }
+                inst.Visible = false
+            else
+                if isCharacter(inst) then return end
+                saved = { Material = inst.Material, Reflectance = inst.Reflectance, CastShadow = inst.CastShadow }
+                inst.Material = Enum.Material.SmoothPlastic
+                inst.Reflectance = 0
+                inst.CastShadow = false
+                if inst:IsA("MeshPart") then
+                    saved.TextureID = inst.TextureID
+                    saved.RenderFidelity = inst.RenderFidelity
+                    inst.TextureID = ""
+                    inst.RenderFidelity = Enum.RenderFidelity.Performance
+                end
+            end
+        end)
+        if saved then orig[inst] = saved end
+    end
+
+    local function sweep(list, myToken)
+        local t0 = os.clock()
+        for i = 1, #list do
+            if myToken ~= token or not S.boost then return end
+            boost(list[i])
+            if os.clock() - t0 > 0.008 then
+                RunService.Heartbeat:Wait()
+                if myToken ~= token or not S.boost then return end
+                t0 = os.clock()
+            end
+        end
+    end
+
+    local function applyGlobal()
+        pcall(function()
+            glob.Quality = settings().Rendering.QualityLevel
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        end)
+        pcall(function()
+            glob.Mesh = settings().Rendering.MeshPartDetailLevel
+            settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level04
+        end)
+        pcall(function()
+            glob.Shadows = Lighting.GlobalShadows
+            Lighting.GlobalShadows = false
+        end)
+        pcall(function()
+            glob.Soft = Lighting.ShadowSoftness
+            Lighting.ShadowSoftness = 0
+        end)
+        pcall(function()
+            glob.EnvD, glob.EnvS = Lighting.EnvironmentDiffuseScale, Lighting.EnvironmentSpecularScale
+            Lighting.EnvironmentDiffuseScale = 0
+            Lighting.EnvironmentSpecularScale = 0
+        end)
+        pcall(function()
+            local ms = game:GetService("MaterialService")
+            glob.Mat = ms.Use2022Materials
+            ms.Use2022Materials = false
+        end)
+        pcall(function()
+            local t = Workspace.Terrain
+            glob.Terrain = { WaterWaveSize = t.WaterWaveSize, WaterWaveSpeed = t.WaterWaveSpeed, WaterReflectance = t.WaterReflectance }
+            glob.Decoration = t.Decoration
+            t.WaterWaveSize, t.WaterWaveSpeed, t.WaterReflectance = 0, 0, 0
+            t.Decoration = false
+        end)
+        pcall(function()
+            if sethiddenproperty and gethiddenproperty then
+                glob.Tech = gethiddenproperty(Lighting, "Technology")
+                sethiddenproperty(Lighting, "Technology", Enum.Technology.Compatibility)
+            end
+        end)
+    end
+
+    local function restoreGlobal()
+        pcall(function() if glob.Quality then settings().Rendering.QualityLevel = glob.Quality end end)
+        pcall(function() if glob.Mesh then settings().Rendering.MeshPartDetailLevel = glob.Mesh end end)
+        pcall(function() if glob.Shadows ~= nil then Lighting.GlobalShadows = glob.Shadows end end)
+        pcall(function() if glob.Soft ~= nil then Lighting.ShadowSoftness = glob.Soft end end)
+        pcall(function()
+            if glob.EnvD then
+                Lighting.EnvironmentDiffuseScale = glob.EnvD
+                Lighting.EnvironmentSpecularScale = glob.EnvS
+            end
+        end)
+        pcall(function()
+            if glob.Mat ~= nil then game:GetService("MaterialService").Use2022Materials = glob.Mat end
+        end)
+        pcall(function()
+            if glob.Terrain then
+                for k, v in pairs(glob.Terrain) do Workspace.Terrain[k] = v end
+            end
+            if glob.Decoration ~= nil then Workspace.Terrain.Decoration = glob.Decoration end
+        end)
+        pcall(function()
+            if glob.Tech and sethiddenproperty then sethiddenproperty(Lighting, "Technology", glob.Tech) end
+        end)
+        glob = {}
+    end
+
+    local function restaurarTodo()
+        for inst, saved in pairs(orig) do
+            pcall(function()
+                for prop, value in pairs(saved) do
+                    if prop ~= "Parent" and prop ~= "Orig" then inst[prop] = value end
+                end
+                if saved.Parent and saved.Orig then saved.Orig.Parent = saved.Parent end
+            end)
+        end
+        table.clear(orig)
+        restoreGlobal()
+    end
+
+    setFpsBoost = function(enabled, forzar)
+        enabled = enabled and true or false
+        if enabled == S.boost and not forzar then return end
+        S.boost = enabled
+        token += 1
+        local myToken = token
+        if enabled then
+            applyGlobal()
+            if conn then pcall(function() conn:Disconnect() end) end
+            conn = Workspace.DescendantAdded:Connect(safe(function(inst)
+                if S.boost then task.defer(boost, inst) end
+            end, "boostNew", 15))
+            task.spawn(function()
+                sweep(Lighting:GetDescendants(), myToken)
+                local cam = Workspace.CurrentCamera
+                if cam then sweep(cam:GetDescendants(), myToken) end
+                sweep(Workspace:GetDescendants(), myToken)
+            end)
+        else
+            if conn then
+                pcall(function() conn:Disconnect() end)
+                conn = nil
+            end
+            restaurarTodo()
+        end
+    end
+end
+
+local WALL_RADIUS = CONFIG.WALL_RADIUS
+local WALL_ALPHA = CONFIG.WALL_ALPHA
+local LIMITE = CONFIG.STRUCT_LIMIT
+
+local function esPiso(part)
+    if not part then return true end
+    local sz = part.Size
+    if sz.Y <= 1.5 and (sz.X >= 8 or sz.Z >= 8) then return true end
+    local n = string.lower(part.Name)
+    return n:find("floor") ~= nil or n:find("piso") ~= nil
+        or n:find("ground") ~= nil or n:find("suelo") ~= nil or n:find("terrain") ~= nil
+end
+
+local function estructurasCerca(root)
+    local p = OverlapParams.new()
+    p.FilterType = TIPO_FILTRO
+    p.FilterDescendantsInstances = { player.Character }
+    p.MaxParts = 4000
+
+    local hits = Workspace:GetPartBoundsInRadius(root.Position, WALL_RADIUS, p)
+    local list = {}
+    for _, part in ipairs(hits) do
+        if part:IsA("BasePart") and part.Parent and part.Transparency < 0.6 and not esPiso(part) then
+            local c = part.ClassName
+            if c == "WedgePart" or c == "TrussPart" or c == "MeshPart" or c == "Part" then
+                list[#list + 1] = { part = part, d = (part.Position - root.Position).Magnitude }
+            end
+        end
+    end
+    table.sort(list, function(a, b) return a.d < b.d end)
+    return list
+end
+do
+    local saved = {}
+    local running = false
+    local lastPos, lastScan = nil, 0
+
+    local function restore(part)
+        local t = saved[part]
+        if t ~= nil then
+            saved[part] = nil
+            pcall(function() part.Transparency = t end)
+        end
+    end
+
+    local function restoreAll()
+        for part in pairs(saved) do restore(part) end
+        table.clear(saved)
+    end
+
+    local function apagar(aviso)
+        restoreAll()
+        S.walls = false
+        if UI.wallsToggle then UI.wallsToggle.Set(false, true) end
+        if UI.setStatus then UI.setStatus(aviso) end
+        notify(aviso)
+    end
+
+    local function debeEscanear(root)
+        local now = os.clock()
+        if now - lastScan < 0.5 then return false end
+        if lastPos and (root.Position - lastPos).Magnitude < 6 then return false end
+        lastScan = now
+        lastPos = root.Position
+        return true
+    end
+
+    local function cycle()
+        local root = getParts()
+        if not root then return true end
+        if not debeEscanear(root) then return true end
+
+        local list = estructurasCerca(root)
+        if #list > LIMITE then
+            apagar("Paredes apagadas: " .. #list .. " estructuras en " .. WALL_RADIUS .. " studs")
+            return false
+        end
+
+        local seen = {}
+        for i = 1, math.min(#list, LIMITE) do
+            local part = list[i].part
+            if part.Parent then
+                seen[part] = true
+                if saved[part] == nil then
+                    local t = part.Transparency
+                    if t < 0.6 then
+                        saved[part] = t
+                        pcall(function() part.Transparency = WALL_ALPHA end)
+                    end
+                end
+            end
+        end
+
+        for part in pairs(saved) do
+            if not seen[part] or not part.Parent then
+                if part.Parent then restore(part) else saved[part] = nil end
+            end
+        end
+        return true
+    end
+
+    setWalls = function(on, forzar)
+        on = on and true or false
+        if on == S.walls and not forzar then return end
+        S.walls = on
+        if on then
+            lastPos, lastScan = nil, 0
+            if running then return end
+            running = true
+            task.spawn(function()
+                while S.walls and alive() do
+                    local ok = cycle()
+                    if ok == false then break end
+                    task.wait(0.35)
+                end
+                running = false
+                restoreAll()
+            end)
+        else
+            restoreAll()
+        end
+    end
+end
+
+--═══ FIN DE LA PARTE 15 ═══
+local L_SNAP, skyObj
+
+local SKY_NOCHE = {
+    Bk = "rbxassetid://159454299", Dn = "rbxassetid://159454296",
+    Ft = "rbxassetid://159454293", Lf = "rbxassetid://159454286",
+    Rt = "rbxassetid://159454300", Up = "rbxassetid://159454288",
+}
+
+local function guardarLuz()
+    if L_SNAP then return end
+    L_SNAP = {
+        Brightness = Lighting.Brightness, ClockTime = Lighting.ClockTime,
+        Ambient = Lighting.Ambient, Outdoor = Lighting.OutdoorAmbient,
+        FogEnd = Lighting.FogEnd, FogStart = Lighting.FogStart,
+        FogColor = Lighting.FogColor,
+        Sky = Lighting:FindFirstChildOfClass("Sky"),
+    }
+end
+
+local function restaurarLuz()
+    if skyObj then
+        pcall(function() skyObj:Destroy() end)
+        skyObj = nil
+    end
+    if not L_SNAP then return end
+    pcall(function()
+        Lighting.Brightness, Lighting.ClockTime = L_SNAP.Brightness, L_SNAP.ClockTime
+        Lighting.Ambient, Lighting.OutdoorAmbient = L_SNAP.Ambient, L_SNAP.Outdoor
+        Lighting.FogEnd, Lighting.FogStart = L_SNAP.FogEnd, L_SNAP.FogStart
+        Lighting.FogColor = L_SNAP.FogColor
+    end)
+    if L_SNAP.Sky then
+        pcall(function() L_SNAP.Sky.Parent = Lighting end)
+    end
+    L_SNAP = nil
+end
+
+local function nuevoCielo(tabla)
+    local s = Instance.new("Sky")
+    for k, v in pairs(tabla) do pcall(function() s[k] = v end) end
+    s.Parent = Lighting
+    skyObj = s
+end
+
+local function setNoche(on, forzar)
+    on = on and true or false
+    if on == S.noche and not forzar then return end
+    if S.rosa then
+        S.rosa = false
+        if UI.rosaToggle then UI.rosaToggle.Set(false, true) end
+        restaurarLuz()
+    end
+
+    S.noche = on
+    if on then
+        guardarLuz()
+        local viejo = Lighting:FindFirstChildOfClass("Sky")
+        if viejo then pcall(function() viejo.Parent = nil end) end
+        nuevoCielo(SKY_NOCHE)
+        pcall(function()
+            Lighting.ClockTime = 0
+            Lighting.Brightness = 0.6
+            Lighting.Ambient = Color3.fromRGB(18, 24, 46)
+            Lighting.OutdoorAmbient = Color3.fromRGB(16, 20, 40)
+            Lighting.FogEnd = 600
+        end)
+    else
+        restaurarLuz()
+    end
+end
+
+local function setRosa(on, forzar)
+    on = on and true or false
+    if on == S.rosa and not forzar then return end
+    if S.noche then
+        S.noche = false
+        if UI.nocheToggle then UI.nocheToggle.Set(false, true) end
+        restaurarLuz()
+    end
+
+    S.rosa = on
+    if on then
+        guardarLuz()
+        pcall(function()
+            Lighting.ClockTime = 17.6
+            Lighting.Brightness = 1.8
+            Lighting.Ambient = Color3.fromRGB(255, 170, 200)
+            Lighting.OutdoorAmbient = Color3.fromRGB(255, 140, 180)
+            Lighting.FogEnd = 900
+            Lighting.FogColor = Color3.fromRGB(255, 175, 205)
+        end)
+        local atm = Lighting:FindFirstChildOfClass("Atmosphere")
+        if atm then
+            pcall(function()
+                atm.Color = Color3.fromRGB(255, 160, 195)
+                atm.Decay = Color3.fromRGB(255, 190, 220)
+                atm.Density = 0.42
+            end)
+        end
+    else
+        restaurarLuz()
+    end
+end
+
+local neonLight
+
+local function aplicarNeon()
+    local root = getParts()
+    if not root then return end
+    if neonLight then pcall(function() neonLight:Destroy() end) end
+    neonLight = Instance.new("PointLight")
+    neonLight.Name = "DestroyaNeon"
+    neonLight.Color = ESP_LINE
+    neonLight.Range = 34
+    neonLight.Brightness = 3
+    neonLight.Shadows = false
+    neonLight.Parent = root
+end
+
+local function setNeon(on, forzar)
+    if not forzar and (on and true or false) == S.neon then return end
+    S.neon = on and true or false
+    if S.neon then
+        pcall(aplicarNeon)
+    elseif neonLight then
+        pcall(function() neonLight:Destroy() end)
+        neonLight = nil
+    end
+end
+
+local glowHL
+
+local function aplicarGlow()
+    local char = player.Character
+    if not char or not char.Parent then return end
+    if glowHL then pcall(function() glowHL:Destroy() end) end
+    glowHL = Instance.new("Highlight")
+    glowHL.Name = "DestroyaGlow"
+    glowHL.Adornee = char
+    glowHL.FillColor = C.Oro
+    glowHL.FillTransparency = 0.72
+    glowHL.OutlineColor = C.Oro
+    glowHL.OutlineTransparency = 0
+    glowHL.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    glowHL.Parent = char
+end
+
+local function setGlow(on, forzar)
+    if not forzar and (on and true or false) == S.glow then return end
+    S.glow = on and true or false
+    if S.glow then
+        pcall(aplicarGlow)
+    elseif glowHL then
+        pcall(function() glowHL:Destroy() end)
+        glowHL = nil
+    end
+end
+
+track(player.CharacterAdded:Connect(safe(function()
+    task.wait(1)
+    if S.neon then pcall(aplicarNeon) end
+    if S.glow then pcall(aplicarGlow) end
+    if S.oro then pcall(prenderOro) end
+    if S.aura then pcall(prenderAura) end
+end, "decoRespawn", 16)))
+
+local tagGui, tagShine
+
+quitarTag = function()
+    if tagGui then
+        pcall(function() tagGui:Destroy() end)
+        tagGui = nil
+    end
+    if tagShine then
+        pcall(function() tagShine:Cancel() end)
+        tagShine = nil
+    end
+end
+
+aplicarTag = function()
+    local char = player.Character
+    if not char or not char.Parent or not S.tag then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum and hum.Health <= 0 then return end
+    quitarTag()
+
+    local head = char:FindFirstChild("Head")
+    if not head or not head.Parent then return end
+
+    tagGui = Instance.new("BillboardGui")
+    tagGui.Name = "DestroyaTag"
+    tagGui.Size = UDim2.fromOffset(200, 36)
+    tagGui.StudsOffset = Vector3.new(0, 5.6, 0)
+    tagGui.AlwaysOnTop = true
+    tagGui.LightInfluence = 0
+    tagGui.MaxDistance = 800
+    tagGui.Adornee = head
+    tagGui.Parent = head
+
+    if hideSaved[player] then tagGui.Enabled = false end
+
+    local marco = Instance.new("Frame")
+    marco.Size = UDim2.fromScale(1, 1)
+    marco.BackgroundColor3 = Color3.fromRGB(30, 6, 10)
+    marco.BackgroundTransparency = 0.15
+    marco.BorderSizePixel = 0
+    marco.Parent = tagGui
+    corner(marco, 9)
+
+    local borde = Instance.new("UIStroke")
+    borde.Color = Color3.fromRGB(255, 70, 90)
+    borde.Thickness = 1.8
+    borde.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    borde.Parent = marco
+
+    local brillo = Instance.new("UIGradient")
+    brillo.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(60, 8, 14)),
+        ColorSequenceKeypoint.new(0.45, Color3.fromRGB(200, 40, 60)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 190, 200)),
+        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(200, 40, 60)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(60, 8, 14)),
+    })
+    brillo.Offset = Vector2.new(-0.6, 0)
+    brillo.Parent = marco
+
+    pcall(function()
+        tagShine = TweenService:Create(brillo,
+            TweenInfo.new(1.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+            { Offset = Vector2.new(0.6, 0) })
+        tagShine:Play()
+    end)
+
+    local txt = Instance.new("TextLabel")
+    txt.Size = UDim2.fromScale(1, 1)
+    txt.BackgroundTransparency = 1
+    txt.Font = F.head
+    txt.TextSize = 12
+    txt.TextColor3 = Color3.fromRGB(255, 236, 238)
+    txt.Text = "discord.gg/ykHwgmQnD"
+    txt.Parent = marco
+
+    local boton = Instance.new("TextButton")
+    boton.Size = UDim2.fromScale(1, 1)
+    boton.BackgroundTransparency = 1
+    boton.Text = ""
+    boton.Parent = marco
+    boton.Activated:Connect(safe(function()
+        pcall(function() setclipboard(CONFIG.DISCORD) end)
+        notify("Enlace copiado")
+    end, "tag", 16))
+end
+
+--═══ FIN DE LA PARTE 16 ═══
+local FunctionPage = addTab("Funciones")
+local ListPage = addTab("Lista")
+local SelPage = addTab("Seleccionados")
+local SkinPage = addTab("Skins")
+local DecoPage = addTab("Decoración")
+local SettingsPage = addTab("Configuración")
+layoutTabs()
+
+createSection(FunctionPage, "Jugadores")
+do
+    local grid = createGrid(FunctionPage)
+
+    createButton(grid, "ESP Player", "Azul, 8 cercanos a 140", function(v)
+        S.esp = v
+        if v then
+            for _, plr in ipairs(Players:GetPlayers()) do pcall(applyESP, plr) end
+        else
+            clearESP()
+        end
+    end)
+
+    UI.botToggle = createButton(grid, "I'm bot", "El más cercano a 60", function(v)
+        setBot(v)
+    end)
+
+    createButton(grid, "Ocultar nombres", "400 studs a la redonda", function(v)
+        S.hideNames = v
+        if not v then restaurarTodos() end
+        notify(v and "Nombres ocultos a 400" or "Nombres visibles")
+    end)
+end
+
+createSection(FunctionPage, "Cámara y Noclip")
+do
+    local grid = createGrid(FunctionPage)
+
+    UI.noclipToggle = createButton(grid, "Noclip", "Atraviesa paredes", function(v)
+        setNoclip(v)
+    end)
+
+    createButton(grid, "TP a seleccionados", "Sigue al primero de la lista", function()
+        tpSeleccionados()
+    end)
+
+    createButton(grid, "Parar TP", "Corta el teletransporte", function()
+        if S.tp then stopTP() else notify("TP inactivo") end
+    end)
+end
+
+createSection(FunctionPage, "Movimiento")
+do
+    local grid = createGrid(FunctionPage)
+
+    createButton(grid, "Vuelo", "Pad SUBIR/BAJAR a la derecha", function(v)
+        setFly(v)
+        notify(v and "Vuelo activado" or "Vuelo apagado")
+    end)
+
+    createButton(grid, "Impulso de salto", "Brinca " .. CONFIG.JUMP_HEIGHT .. " studs", function(v)
+        setJumpPower(v)
+        notify(v and "Impulso activado" or "Impulso apagado")
+    end)
+
+    createButton(grid, "Salto infinito", "Salta sin parar", function(v)
+        S.infJump = v
+    end)
+end
+
+local refreshList
+do
+    createSection(ListPage, "Buscar jugador")
+
+    local search = Instance.new("TextBox")
+    search.Size = UDim2.new(1, -4, 0, 34)
+    search.BackgroundTransparency = 0.5
+    search.PlaceholderText = "Escribe un nombre..."
+    search.Text = ""
+    search.TextSize = 12
+    search.Font = F.bold
+    search.ClearTextOnFocus = false
+    search.LayoutOrder = nextOrder()
+    search.Parent = ListPage
+    bind(search, "BackgroundColor3", "Row")
+    bind(search, "TextColor3", "White")
+    bind(search, "PlaceholderColor3", "Gray")
+    corner(search, 10)
+    stroke(search, "Oro", 1, 0.5)
+
+    local sp = Instance.new("UIPadding")
+    sp.PaddingLeft = UDim.new(0, 10)
+    sp.PaddingRight = UDim.new(0, 10)
+    sp.Parent = search
+
+    UI.filter = ""
+    search:GetPropertyChangedSignal("Text"):Connect(safe(function()
+        UI.filter = string.lower(search.Text or "")
+        if UI.refreshLists then UI.refreshLists() end
+    end, "filtro", 17))
+
+    createSection(ListPage, "Jugadores conectados")
+
+    local container = Instance.new("Frame")
+container.Size = UDim2.new(1, -4, 0, 0)
+    container.BackgroundTransparency = 1
+    container.AutomaticSize = Enum.AutomaticSize.Y
+    container.LayoutOrder = nextOrder()
+    container.Parent = ListPage
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 8)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = container
+
+    refreshList = function()
+        if not container.Parent then return end
+        for _, c in ipairs(container:GetChildren()) do
+            if c:IsA("GuiObject") then c:Destroy() end
+        end
+        local n = 0
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= player and (UI.filter == "" or string.find(string.lower(plr.Name), UI.filter, 1, true)) then
+                n += 1
+                local isTarget = S.target == plr
+                local isSel = Sel.set[plr] == true
+
+                local btn = Instance.new("TextButton")
+                btn.LayoutOrder = n
+                btn.Size = UDim2.new(1, 0, 0, 34)
+                btn.BackgroundColor3 = isTarget and C.RowOn or C.Row
+                btn.BackgroundTransparency = 0.55
+                btn.Text = ""
+                btn.AutoButtonColor = false
+                btn.Parent = container
+                corner(btn, 10)
+                squish(btn, 0.96)
+
+                local accent = Instance.new("Frame")
+                accent.AnchorPoint = Vector2.new(0, 0.5)
+                accent.Position = UDim2.fromScale(0, 0.5)
+                accent.Size = UDim2.fromOffset(3, isTarget and 20 or 0)
+                accent.BackgroundColor3 = C.Oro
+                accent.BorderSizePixel = 0
+                accent.Parent = btn
+                corner(accent, 2)
+
+                plain(btn, "@" .. plr.Name, 13, F.head, C.White,
+                    UDim2.fromOffset(12, 0), UDim2.new(1, -108, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
+
+                if isTarget then
+                    plain(btn, "OBJETIVO", 9, F.section, C.OroClaro, UDim2.new(1, -140, 0, 0),
+                        UDim2.fromOffset(46, 34), Enum.TextXAlignment.Right)
+                end
+
+                local tp = Instance.new("TextButton")
+                tp.Size = UDim2.fromOffset(30, 24)
+                tp.Position = UDim2.new(1, -70, 0.5, -12)
+                tp.BackgroundColor3 = C.Tab
+                tp.BackgroundTransparency = 0.25
+                tp.Text = "TP"
+                tp.TextSize = 10
+                tp.Font = F.section
+                tp.TextColor3 = C.OroClaro
+                tp.AutoButtonColor = false
+                tp.Parent = btn
+                corner(tp, 7)
+                squish(tp, 0.9)
+
+                local plus = createMiniButton(btn, "plus", 24)
+                plus.AnchorPoint = Vector2.new(1, 0.5)
+                plus.Position = UDim2.new(1, -8, 0.5, 0)
+                plus.BackgroundTransparency = isSel and 0.72 or 0.2
+
+                btn.Activated:Connect(safe(function() selectTarget(plr) end, "lista", 17))
+                tp.Activated:Connect(safe(function() teletransportar(plr) end, "listaTP", 17))
+                plus.Activated:Connect(safe(function()
+                    if selAdd(plr) then
+                        notify("@" .. plr.Name .. " en Seleccionados")
+                        showPage("Seleccionados")
+                    else
+                        notify("Ya está en la lista")
+                    end
+                end, "agregar", 17))
+            end
+        end
+        if n == 0 then
+            local e = plain(container, "No hay jugadores", 11, F.body, C.Gray,
+                nil, UDim2.new(1, 0, 0, 30), Enum.TextXAlignment.Center)
+            e.LayoutOrder = 1
+        end
+    end
+end
+
+--═══ FIN DE LA PARTE 17 ═══
+local refreshSel
+do
+    createSection(SelPage, "Seleccionados")
+    local hint = plain(SelPage,
+        "Agrega con el + de la Lista. Toca un nombre y la cámara se fija hasta que la sueltes.",
+        10, F.body, C.Gray, nil, UDim2.new(1, -4, 0, 0))
+    hint.LayoutOrder = nextOrder()
+    hint.TextWrapped = true
+    hint.AutomaticSize = Enum.AutomaticSize.Y
+
+    local selContainer = Instance.new("Frame")
+    selContainer.Size = UDim2.new(1, -4, 0, 0)
+    selContainer.BackgroundTransparency = 1
+    selContainer.AutomaticSize = Enum.AutomaticSize.Y
+    selContainer.LayoutOrder = nextOrder()
+    selContainer.Parent = SelPage
+    local sl = Instance.new("UIListLayout")
+    sl.Padding = UDim.new(0, 10)
+    sl.SortOrder = Enum.SortOrder.LayoutOrder
+    sl.Parent = selContainer
+
+    refreshSel = function()
+        if not selContainer.Parent then return end
+        for _, c in ipairs(selContainer:GetChildren()) do
+            if c:IsA("GuiObject") then c:Destroy() end
+        end
+        if #Sel.list == 0 then
+            local e = plain(selContainer, "Aún no hay nadie seleccionado", 11, F.body, C.Gray,
+                nil, UDim2.new(1, 0, 0, 30), Enum.TextXAlignment.Center)
+            e.LayoutOrder = 1
+            return
+        end
+        for i, plr in ipairs(Sel.list) do
+            local esFijo = S.fijado == plr
+            local esTarget = S.target == plr and S.bot
+
+            local entry = Instance.new("Frame")
+            entry.LayoutOrder = i
+            entry.Size = UDim2.new(1, 0, 0, 34)
+            entry.BackgroundTransparency = 1
+            entry.Parent = selContainer
+
+            local nameBtn = Instance.new("TextButton")
+            nameBtn.Size = UDim2.new(1, -38, 0, 34)
+            nameBtn.BackgroundColor3 = esFijo and ESP_FILL or (esTarget and C.RowOn or C.Row)
+            nameBtn.BackgroundTransparency = esFijo and 0.45 or 0.55
+            nameBtn.Text = ""
+            nameBtn.AutoButtonColor = false
+            nameBtn.Parent = entry
+            corner(nameBtn, 10)
+            squish(nameBtn, 0.96)
+
+            local accent = Instance.new("Frame")
+            accent.AnchorPoint = Vector2.new(0, 0.5)
+            accent.Position = UDim2.fromScale(0, 0.5)
+            accent.Size = UDim2.fromOffset(3, (esFijo or esTarget) and 20 or 0)
+            accent.BackgroundColor3 = ESP_LINE
+            accent.BorderSizePixel = 0
+            accent.Parent = nameBtn
+            corner(accent, 2)
+
+            plain(nameBtn, "@" .. plr.Name, 13, F.head, C.White,
+                UDim2.fromOffset(12, 0), UDim2.new(1, -100, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
+            if esFijo then
+                plain(nameBtn, "FIJO", 10, F.section, ESP_LINE, UDim2.new(1, -86, 0, 0),
+                    UDim2.fromOffset(78, 34), Enum.TextXAlignment.Right)
+            elseif esTarget then
+                plain(nameBtn, "OBJETIVO", 10, F.section, ESP_LINE, UDim2.new(1, -86, 0, 0),
+                    UDim2.fromOffset(78, 34), Enum.TextXAlignment.Right)
+            end
+            nameBtn.Activated:Connect(safe(function() fijar(plr) end, "seleccionado", 18))
+
+            local minus = createMiniButton(entry, "minus", 30)
+            minus.Position = UDim2.new(1, -30, 0, 2)
+            minus.Activated:Connect(safe(function()
+                if S.fijado == plr then
+                    S.fijado = nil
+                    S.target = nil
+                    syncBot()
+                end
+                if selRemove(plr) then notify("@" .. plr.Name .. " fuera") end
+            end, "quitar", 18))
+        end
+    end
+end
+
+UI.refreshLists = debounced(function()
+    if refreshList then refreshList() end
+    if refreshSel then refreshSel() end
+end)
+
+track(Players.PlayerAdded:Connect(safe(function(plr)
+    hookPlayer(plr)
+    UI.refreshLists()
+end, "PlayerAdded", 18)))
+
+track(Players.PlayerRemoving:Connect(safe(function(plr)
+    removeESP(plr)
+    unhookPlayer(plr)
+    restaurarNombre(plr)
+    if S.tp and tpTarget == plr then stopTP() end
+    if Sel.set[plr] then
+        selRemove(plr)
+        notify("@" .. plr.Name .. " salió y se quitó")
+    end
+    if S.fijado == plr then
+        S.fijado = nil
+        S.target = nil
+        syncBot()
+        setStatusTemp("El fijo salió, cámara libre", 2.5)
+    elseif S.target == plr then
+        S.target = nil
+        syncBot()
+    end
+    task.delay(0.3, UI.refreshLists)
+end, "PlayerRemoving", 18)))
+
+do
+    local botonesSkin = {}
+
+    local function refrescarSkins()
+        for nombre, api in pairs(botonesSkin) do
+            api.Set(S.skin == nombre, true)
+        end
+    end
+
+    createSection(SkinPage, "Skin actual")
+    local actualL = plain(SkinPage, "Sin skin", 12, F.head, C.OroClaro,
+        UDim2.fromOffset(6, 0), UDim2.new(1, -12, 0, 20))
+    actualL.LayoutOrder = nextOrder()
+
+    local function pintarActual()
+        if actualL.Parent then
+            actualL.Text = S.skin and ("Puesta: " .. S.skin) or "Sin skin"
+        end
+    end
+
+    local gridQuitar = createGrid(SkinPage)
+    createButton(gridQuitar, "Quitar skin", "Devuelve tu ropa", function()
+        clearSkin()
+    end)
+    createButton(gridQuitar, "Reponer", "Vuelve a aplicar", function()
+        if S.skin then
+            local n = S.skin
+            S.skin = nil
+            setSkin(n)
+        else
+            notify("No hay skin puesta")
+        end
+    end)
+
+    for _, nombreCat in ipairs({ "Angelicales", "Demoniacas", "Militares", "Insanas" }) do
+        local barra = Instance.new("TextButton")
+        barra.Size = UDim2.new(1, -4, 0, 30)
+        barra.BackgroundColor3 = C.Tab
+        barra.BackgroundTransparency = 0.35
+        barra.Text = ""
+        barra.AutoButtonColor = false
+        barra.LayoutOrder = nextOrder()
+        barra.Parent = SkinPage
+        corner(barra, 8)
+        squish(barra, 0.97)
+
+        local rotulo = plain(barra, "▸  " .. nombreCat, 11, F.section, C.OroClaro,
+            UDim2.fromOffset(10, 0), UDim2.new(1, -20, 1, 0))
+        rotulo.TextTruncate = Enum.TextTruncate.AtEnd
+
+        local desliz = Instance.new("ScrollingFrame")
+        desliz.Size = UDim2.new(1, -4, 0, 0)
+        desliz.BackgroundTransparency = 1
+        desliz.BorderSizePixel = 0
+        desliz.ScrollBarThickness = 3
+        desliz.ScrollingDirection = Enum.ScrollingDirection.X
+        desliz.CanvasSize = UDim2.new()
+        desliz.AutomaticCanvasSize = Enum.AutomaticSize.X
+        desliz.LayoutOrder = nextOrder()
+        desliz.Parent = SkinPage
+        bind(desliz, "ScrollBarImageColor3", "Oro")
+
+        local listaH = Instance.new("UIListLayout")
+        listaH.FillDirection = Enum.FillDirection.Horizontal
+        listaH.Padding = UDim.new(0, 8)
+        listaH.SortOrder = Enum.SortOrder.LayoutOrder
+        listaH.Parent = desliz
+
+        local n = 0
+        for nombre, skin in pairs(SKINS) do
+            if skin.cat == nombreCat then
+                n += 1
+                local celda, fila = createButton(desliz, nombre,
+                    (#(skin.acc or {}) > 0) and "Accesorios" or "Solo ropa",
+                    function(v)
+                        if v then
+                            setSkin(nombre)
+                        else
+                            clearSkin()
+                        end
+                    end)
+                fila.Size = UDim2.fromOffset(CONFIG.CELL_W, CONFIG.CELL_H)
+                fila.LayoutOrder = n
+                celda.Set(false, true)
+                botonesSkin[nombre] = celda
+            end
+        end
+
+        barra.Activated:Connect(safe(function()
+            local abierto = desliz.Size.Y.Offset > 0
+            if abierto then
+                desliz.Size = UDim2.new(1, -4, 0, 0)
+                rotulo.Text = "▸  " .. nombreCat
+            else
+                desliz.Size = UDim2.new(1, -4, 0, CONFIG.CELL_H + 8)
+                rotulo.Text = "▾  " .. nombreCat
+            end
+        end, "categoria", 18))
+    end
+
+    UI.refrescarSkins = refrescarSkins
+    UI.pintarActual = pintarActual
+end
+
+--═══ FIN DE LA PARTE 18 ═══
+do
+    createSection(DecoPage, "Cielo")
+    local gridCielo = createGrid(DecoPage)
+
+    UI.nocheToggle = createButton(gridCielo, "Cielo nocturno", "Noche con estrellas", function(v)
+        setNoche(v)
+        notify(v and "Cielo nocturno" or "Cielo normal")
+    end)
+
+    UI.rosaToggle = createButton(gridCielo, "Cielo rosa", "Atardecer rosado", function(v)
+        setRosa(v)
+        notify(v and "Cielo rosa" or "Cielo normal")
+    end)
+
+    createSection(DecoPage, "Personaje")
+    local gridPersona = createGrid(DecoPage)
+
+    createButton(gridPersona, "Neón propio", "Luz azul que te alumbra", function(v)
+        setNeon(v)
+    end)
+
+    createButton(gridPersona, "Brillo propio", "Contorno dorado en ti", function(v)
+        setGlow(v)
+    end)
+
+    createButton(gridPersona, "Luz dorada", "Anillos girando en el piso", function(v)
+        if v then
+            prenderOro()
+            notify("Luz dorada puesta")
+        else
+            apagarOro()
+            notify("Luz dorada apagada")
+        end
+    end)
+
+    createButton(gridPersona, "Aura premium", "Orbes, aros y chispas", function(v)
+        if v then
+            prenderAura()
+            notify("Aura activada")
+        else
+            apagarAura()
+            notify("Aura apagada")
+        end
+    end)
+
+    createSection(DecoPage, "Entorno")
+    local gridEntorno = createGrid(DecoPage)
+
+    UI.wallsToggle = createButton(gridEntorno, "Transparent Walls",
+        "Claras hasta " .. LIMITE .. " estructuras", function(v)
+            setWalls(v)
+            notify(v and "Paredes transparentes" or "Paredes normales")
+        end)
+end
+
+do
+    createSection(SettingsPage, "Estilo")
+
+    createSlider(SettingsPage, "Tamaño del menú", 0.6, 1.2, 1,
+        function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
+        function(v)
+            UI.size = math.clamp(v, 0.6, 1.2)
+            aplicarEscala()
+        end)
+
+    createSection(SettingsPage, "Vista")
+
+    local cam0 = getCamera()
+    local fov0 = math.clamp((cam0 and cam0.FieldOfView) or 70, 40, 120)
+    createSlider(SettingsPage, "Campo de visión", 40, 120, fov0,
+        function(v) return tostring(math.floor(v + 0.5)) end,
+        function(v)
+            local c = getCamera()
+            if c then pcall(function() c.FieldOfView = math.clamp(v, 40, 120) end) end
+        end)
+
+    createSection(SettingsPage, "Rendimiento")
+    local grid = createGrid(SettingsPage)
+
+    createButton(grid, "FPS Boost", "Quita lag y detalles", function(v)
+        setFpsBoost(v)
+        UI.lowApplied = false
+        notify(v and "FPS Boost activado" or "FPS Boost desactivado")
+    end)
+
+    createButton(grid, "Animaciones", "Apágalas si hay lag", function(v)
+        UI.anim = v
+        if not v and titleShine then pcall(function() titleShine:Pause() end) end
+    end).Set(true, true)
+
+    createButton(grid, "Modo seguro (auto)", "FPS Boost si bajas de 24 FPS", function(v)
+        UI.autoLow = v
+        UI.lowApplied = false
+        notify(v and "Modo seguro activado" or "Modo seguro apagado")
+    end)
+
+    createSection(SettingsPage, "Reparar")
+    local gridRep = createGrid(SettingsPage)
+
+    createButton(gridRep, "Reparar sistema", "Reinicia cámara y estados", function()
+        pcall(releaseCamera)
+        pcall(function() setBot(false) end)
+        S.fijado = nil
+        pcall(function() setFly(false) end)
+        pcall(function() setNoclip(false) end)
+        pcall(function() setWalls(false, true) end)
+        colgar(Screen)
+        Main.Parent = Screen
+        Main.Position = HOME
+        Main.Visible = true
+        UI.open = true
+        ajustarEscala()
+        aplicarEscala()
+        notify("Sistema reparado")
+    end)
+
+    createButton(gridRep, "Reiniciar interfaz", "Vuelve la ventana al centro", function()
+        colgar(Screen)
+        Main.Parent = Screen
+        Main.Position = HOME
+        Main.Visible = true
+        UI.open = true
+        ajustarEscala()
+        aplicarEscala()
+        notify("Ventana recolocada")
+    end)
+
+    createSection(SettingsPage, "Discord")
+    local gridDiscord = createGrid(SettingsPage)
+
+    createButton(gridDiscord, "Copiar enlace", "discord.gg/ykHwgmQnD", function()
+        pcall(function() setclipboard(CONFIG.DISCORD) end)
+        notify("Enlace copiado")
+    end)
+
+    createButton(gridDiscord, "Etiqueta en la cabeza", "Cartel rojo animado", function(v)
+        S.tag = v
+        if v then
+pcall(aplicarTag)
+            notify("Etiqueta visible")
+        else
+            pcall(quitarTag)
+            notify("Etiqueta oculta")
+        end
+    end).Set(true, true)
+end
+
+--═══ FIN DE LA PARTE 19 ═══
+local Toggle = Instance.new("TextButton")
+Toggle.Name = "MenuButton"
+Toggle.AnchorPoint = Vector2.new(0, 0.5)
+Toggle.Size = UDim2.fromOffset(48, 48)
+Toggle.Position = UDim2.new(0, 14, 0.5, -24)
+Toggle.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+Toggle.BackgroundTransparency = 0.1
+Toggle.Text = ""
+Toggle.AutoButtonColor = false
+Toggle.ZIndex = 10
+Toggle.Parent = Screen
+corner(Toggle, 14)
+squish(Toggle, 0.9)
+
+local tGrad = Instance.new("UIGradient")
+tGrad.Rotation = 90
+tGrad.Color = ColorSequence.new(Color3.fromRGB(12, 12, 16), Color3.fromRGB(48, 36, 12))
+tGrad.Parent = Toggle
+
+local ToggleTxt = plain(Toggle, "DH", 17, F.title, C.Oro,
+    UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), Enum.TextXAlignment.Center)
+ToggleTxt.ZIndex = 11
+ToggleTxt.TextStrokeTransparency = 0.25
+ToggleTxt.TextStrokeColor3 = Color3.new(0, 0, 0)
+
+local ring = Instance.new("UIStroke")
+ring.Color = GLOW
+ring.Thickness = 2.2
+ring.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+ring.Parent = Toggle
+
+local FloatCol = Instance.new("Frame")
+FloatCol.AnchorPoint = Vector2.new(0, 0)
+FloatCol.Position = UDim2.new(0, 14, 0.5, 34)
+FloatCol.Size = UDim2.fromOffset(122, 0)
+FloatCol.AutomaticSize = Enum.AutomaticSize.Y
+FloatCol.BackgroundTransparency = 1
+FloatCol.ZIndex = 10
+FloatCol.Parent = Screen
+local fLayout = Instance.new("UIListLayout")
+fLayout.Padding = UDim.new(0, 8)
+fLayout.SortOrder = Enum.SortOrder.LayoutOrder
+fLayout.Parent = FloatCol
+
+local function acomodarFlotantes()
+    local cam = getCamera()
+    local ancho = cam and cam.ViewportSize.X or 1280
+    if ancho < 720 then
+        Toggle.AnchorPoint = Vector2.new(0.5, 1)
+        Toggle.Position = UDim2.new(0.5, 0, 1, -18)
+        FloatCol.Position = UDim2.new(1, -136, 0.5, 34)
+    else
+        Toggle.AnchorPoint = Vector2.new(0, 0.5)
+        Toggle.Position = UDim2.new(0, 14, 0.5, -24)
+        FloatCol.Position = UDim2.new(0, 14, 0.5, 34)
+    end
+end
+
+local tweenGiro
+local function girar()
+    if not Toggle.Parent then return end
+    if tweenGiro then pcall(function() tweenGiro:Cancel() end) end
+    Toggle.Rotation = 0
+    tweenGiro = tween(Toggle, { Rotation = 360 }, 0.55, Enum.EasingStyle.Quad)
+    task.delay(0.58, function()
+        if Toggle.Parent then Toggle.Rotation = 0 end
+    end)
+end
+
+local function setOpen(v)
+    if v == UI.open then return end
+    UI.open = v
+    Main.Visible = v
+    if v then
+        Main.Position = HOME
+        ajustarEscala()
+        aplicarEscala()
+    end
+end
+
+Toggle.Activated:Connect(safe(function()
+    girar()
+    setOpen(not UI.open)
+end, "toggle", 20))
+
+HideBtn.Activated:Connect(safe(function() setOpen(false) end, "hide", 20))
+
+local CamStop = Instance.new("TextButton")
+CamStop.LayoutOrder = 1
+CamStop.Size = UDim2.fromOffset(120, 42)
+CamStop.BackgroundColor3 = Color3.new(1, 1, 1)
+CamStop.BackgroundTransparency = 0.45
+CamStop.Text = ""
+CamStop.AutoButtonColor = false
+CamStop.Visible = false
+CamStop.ZIndex = 10
+CamStop.Parent = FloatCol
+corner(CamStop, 13)
+
+local camGrad = Instance.new("UIGradient")
+camGrad.Color = ColorSequence.new(Color3.fromRGB(30, 110, 135), Color3.fromRGB(8, 30, 40))
+camGrad.Rotation = 90
+camGrad.Parent = CamStop
+
+local StopScale = Instance.new("UIScale")
+StopScale.Scale = 0
+StopScale.Parent = CamStop
+
+local l1 = plain(CamStop, "DESACTIVAR", 14, F.head, C.White, UDim2.fromOffset(40, 6), UDim2.fromOffset(76, 17))
+l1.ZIndex = 11
+local l2 = plain(CamStop, "I'M BOT", 9, F.section, Color3.fromRGB(200, 245, 255), UDim2.fromOffset(40, 24), UDim2.fromOffset(76, 12))
+l2.ZIndex = 11
+
+UI.showCamStop = function(v)
+    if v then
+        CamStop.Visible = true
+        tween(StopScale, { Scale = 1 }, 0.32, Enum.EasingStyle.Back)
+    else
+        tween(StopScale, { Scale = 0 }, 0.18)
+        task.delay(0.2, function()
+            if not S.bot and not S.fijado then CamStop.Visible = false end
+        end)
+    end
+end
+
+CamStop.Activated:Connect(safe(function()
+    setBot(false)
+    if S.fijado then soltarFijo() end
+    notify("Cámara desactivada")
+end, "camstop", 20))
+
+local FijoStop = Instance.new("TextButton")
+FijoStop.LayoutOrder = 2
+FijoStop.Size = UDim2.fromOffset(120, 34)
+FijoStop.BackgroundColor3 = Color3.fromRGB(40, 20, 26)
+FijoStop.BackgroundTransparency = 0.25
+FijoStop.Text = "DEJAR FIJO"
+FijoStop.TextColor3 = C.Rojo
+FijoStop.Font = F.section
+FijoStop.TextSize = 10
+FijoStop.AutoButtonColor = false
+FijoStop.Visible = false
+FijoStop.ZIndex = 10
+FijoStop.Parent = FloatCol
+corner(FijoStop, 11)
+squish(FijoStop, 0.92)
+
+local FijoScale = Instance.new("UIScale")
+FijoScale.Scale = 0
+FijoScale.Parent = FijoStop
+
+UI.showFijoStop = function(v)
+    if v then
+        FijoStop.Visible = true
+        tween(FijoScale, { Scale = 1 }, 0.26, Enum.EasingStyle.Back)
+    else
+        tween(FijoScale, { Scale = 0 }, 0.16)
+        task.delay(0.18, function()
+            if not S.fijado then FijoStop.Visible = false end
+        end)
+    end
+end
+
+FijoStop.Activated:Connect(safe(function() soltarFijo() end, "fijostop", 20))
+
+local FpsText = plain(Screen, "FPS --", 36, F.head, Color3.new(1, 1, 1),
+    UDim2.new(0.5, -90, 0, 4), UDim2.fromOffset(180, 52), Enum.TextXAlignment.Center)
+FpsText.ZIndex = 10
+
+local UpBtn = Instance.new("TextButton")
+UpBtn.Size = UDim2.fromOffset(54, 54)
+UpBtn.Position = UDim2.new(1, -74, 0.5, -88)
+UpBtn.BackgroundColor3 = Color3.fromRGB(16, 46, 58)
+UpBtn.BackgroundTransparency = 0.25
+UpBtn.Text = "▲"
+UpBtn.TextColor3 = Color3.new(1, 1, 1)
+UpBtn.Font = F.head
+UpBtn.TextSize = 16
+UpBtn.AutoButtonColor = false
+UpBtn.Visible = false
+UpBtn.ZIndex = 10
+UpBtn.Parent = Screen
+corner(UpBtn, 27)
+
+local DownBtn = UpBtn:Clone()
+DownBtn.Position = UDim2.new(1, -74, 0.5, 24)
+DownBtn.Text = "▼"
+DownBtn.Parent = Screen
+
+local UpScale = Instance.new("UIScale")
+UpScale.Scale = 0
+UpScale.Parent = UpBtn
+local DownScale = Instance.new("UIScale")
+DownScale.Scale = 0
+DownScale.Parent = DownBtn
+
+local function padPulsar(escala, arriba, on)
+    if arriba then S.up = on else S.down = on end
+    tween(escala, { Scale = on and 0.88 or 1 }, 0.1, Enum.EasingStyle.Quad)
+end
+
+for _, par in ipairs({ { UpBtn, UpScale, true }, { DownBtn, DownScale, false } }) do
+    local b, esc, arriba = par[1], par[2], par[3]
+    b.InputBegan:Connect(safe(function(i)
+        if isPointer(i) then padPulsar(esc, arriba, true) end
+    end, "pad", 20))
+    b.InputEnded:Connect(safe(function(i)
+        if isPointer(i) then padPulsar(esc, arriba, false) end
+    end, "pad", 20))
+    b.MouseLeave:Connect(safe(function() padPulsar(esc, arriba, false) end, "pad", 20))
+end
+
+--═══ FIN DE LA PARTE 20 ═══
+local frames, fpsAcc, espAcc, tagAcc, hideAcc = 0, 0, 0, 0, 0
+local lastFly = false
+
+local function pasoEsp()
+    local lr = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    local cands = {}
+    if lr then
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= player then
+                local char = plr.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                if root and hum and hum.Health > 0 then
+                    local dist = math.floor((root.Position - lr.Position).Magnitude + 0.5)
+                    if dist <= ESP_MAX then
+                        cands[#cands + 1] = { plr = plr, char = char, root = root, hum = hum, dist = dist }
+                    end
+                end
+            end
+        end
+        table.sort(cands, function(a, b) return a.dist < b.dist end)
+    end
+
+    local shown = {}
+    for i = 1, math.min(#cands, CONFIG.MAX_TARGETS) do
+        shown[cands[i].plr] = cands[i]
+    end
+
+    for plr, d in pairs(espObjects) do
+        if not shown[plr] then
+            if d.bb and d.bb.Enabled then d.bb.Enabled = false end
+            if d.hl and d.hl.Enabled then d.hl.Enabled = false end
+        end
+    end
+
+    for plr, c in pairs(shown) do
+        local d = espObjects[plr]
+        if not d or d.char ~= c.char then
+            applyESP(plr)
+            d = espObjects[plr]
+        end
+        if d and d.bb and d.bb.Parent then
+            if not d.bb.Enabled then d.bb.Enabled = true end
+            if d.hl and not d.hl.Enabled then d.hl.Enabled = true end
+            local head = c.char:FindFirstChild("Head") or c.root
+            if head and d.bb.Adornee ~= head then d.bb.Adornee = head end
+            local hp = math.max(0, math.floor(c.hum.Health + 0.5))
+            local mx = math.max(1, math.floor(c.hum.MaxHealth + 0.5))
+            if d.hp ~= hp or d.mx ~= mx then
+                d.hp, d.mx = hp, mx
+                d.fill.Size = UDim2.fromScale(math.clamp(hp / mx, 0, 1), 1)
+                d.hpL.Text = hp .. " / " .. mx
+            end
+            if d.dist ~= c.dist then
+                d.dist = c.dist
+                d.distL.Text = c.dist .. " studs"
+            end
+            local esObj = (S.target == plr)
+            local alpha = esObj and 0 or 0.45
+            if d.hl and math.abs(d.hl.FillTransparency - alpha) > 0.02 then
+                d.hl.FillTransparency = alpha
+                d.hl.OutlineTransparency = alpha
+            end
+        end
+    end
+end
+
+local function pasoNombres()
+    local root = getParts()
+    local cerca = {}
+    if root then
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= player then
+                local c = plr.Character
+                local r = c and c:FindFirstChild("HumanoidRootPart")
+                if r and (r.Position - root.Position).Magnitude <= CONFIG.HIDE_RADIUS then
+                    cerca[plr] = true
+                    ocultarNombre(plr)
+                end
+            end
+        end
+    end
+    for plr in pairs(hideSaved) do
+        if not cerca[plr] then restaurarNombre(plr) end
+    end
+end
+
+local function pasoDeco(dt)
+    for _, f in pairs(decoTicks) do
+        if type(f) == "function" then pcall(f, dt) end
+    end
+end
+
+track(RunService.Heartbeat:Connect(safe(function(dt)
+    if not alive() then return end
+
+    frames += 1
+    fpsAcc += dt
+    if fpsAcc >= 0.5 then
+        local fps = math.floor(frames / fpsAcc + 0.5)
+        if FpsText.Parent then FpsText.Text = "FPS " .. fps end
+        frames, fpsAcc = 0, 0
+        if UI.autoLow and fps < 24 and not S.boost and not UI.lowApplied then
+            UI.lowApplied = true
+            pcall(function() setFpsBoost(true) end)
+            UI.setStatus("Modo seguro: FPS Boost automático")
+        elseif UI.autoLow and fps >= 45 then
+            UI.lowApplied = false
+        end
+        if UI.anim and ring.Parent then
+            ring.Transparency = (ring.Transparency > 0.2) and 0.05 or 0.4
+        end
+    end
+
+    pasoDeco(dt)
+
+    if S.fly then
+        local root, hum = getParts()
+        if root then
+            if not flyBV or flyBV.Parent ~= root or not flyBG or flyBG.Parent ~= root then
+                setFly(true)
+            else
+                local cam = getCamera()
+                local dir = cam and cam.CFrame.LookVector or Vector3.new(0, 0, -1)
+                local right = cam and cam.CFrame.RightVector or Vector3.new(1, 0, 0)
+                local move = Vector3.zero
+                if hum then
+                    local md = hum.MoveDirection
+                    if md.Magnitude > 0.05 then
+                        move = dir * md.Z + right * md.X
+                        move = Vector3.new(move.X, 0, move.Z)
+                    end
+                end
+                if S.up then move += Vector3.new(0, 1, 0) end
+                if S.down then move -= Vector3.new(0, 1, 0) end
+                flyBV.Velocity = move.Magnitude > 0.05 and (move.Unit * CONFIG.FLY_SPEED) or Vector3.zero
+                flyBG.CFrame = CFrame.new(root.Position, root.Position + dir)
+            end
+        end
+    end
+
+    if S.bot then
+        if S.fijado then
+            if S.fijado.Parent ~= Players then
+                S.fijado = nil
+                S.target = nil
+                syncBot()
+            elseif S.target ~= S.fijado then
+                S.target = S.fijado
+            end
+        else
+            local t = S.target
+            local tChar = t and t.Parent == Players and t.Character
+            local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
+            local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+            local root = getParts()
+            local lejos = ((tRoot and root) and (tRoot.Position - root.Position).Magnitude > CONFIG.BOT_RANGE) or false
+            local vivoT = t and t.Parent == Players and tRoot and (not tHum or tHum.Health > 0) and not lejos
+            if vivoT then
+                botMiss = 0
+            else
+                botMiss += dt
+                if botMiss >= 1.2 then
+                    botMiss = 0
+                    local pick = nearestPlayer()
+                    if pick and pick ~= t then
+                        S.target = pick
+                        syncBot()
+                        notify("Objetivo cambiado a @" .. pick.Name)
+                    elseif not pick then
+                        S.target = nil
+                        UI.setStatus("Sin jugadores a " .. CONFIG.BOT_RANGE .. " studs")
+                    end
+                end
+            end
+        end
+    end
+
+    if S.esp then
+        espAcc += dt
+        if espAcc >= ESP_TICK then
+            espAcc = 0
+            pcall(pasoEsp)
+        end
+    end
+
+    if S.hideNames then
+        hideAcc += dt
+        if hideAcc >= 0.6 then
+            hideAcc = 0
+            pcall(pasoNombres)
+        end
+    elseif next(hideSaved) then
+        restaurarTodos()
+    end
+
+    if lastFly ~= S.fly then
+        lastFly = S.fly
+        if S.fly then
+            UpBtn.Visible, DownBtn.Visible = true, true
+            tween(UpScale, { Scale = 1 }, 0.28, Enum.EasingStyle.Back)
+            tween(DownScale, { Scale = 1 }, 0.28, Enum.EasingStyle.Back)
+        else
+            S.up, S.down = false, false
+            tween(UpScale, { Scale = 0 }, 0.16)
+            tween(DownScale, { Scale = 0 }, 0.16)
+            task.delay(0.18, function()
+                if not S.fly then
+                    UpBtn.Visible, DownBtn.Visible = false, false
+                end
+            end)
+        end
+    end
+
+    tagAcc += dt
+    if tagAcc >= 0.5 then
+        tagAcc = 0
+        local char = player.Character
+        local head = char and char:FindFirstChild("Head")
+        if S.tag and head then
+            if not tagGui or tagGui.Parent ~= head then pcall(aplicarTag) end
+        elseif tagGui then
+            quitarTag()
+        end
+    end
+end, "motor", 21)))
+task.spawn(function()
+    task.wait(3)
+    while alive() do
+        task.wait(15)
+        if UI.anim and Toggle.Parent then
+            local base = Toggle.Position
+            local y = base.Y.Offset
+            for _ = 1, 4 do
+                tween(Toggle, { Position = UDim2.new(base.X.Scale, base.X.Offset, base.Y.Scale, y - 9) }, 0.25)
+                task.wait(0.25)
+                tween(Toggle, { Position = UDim2.new(base.X.Scale, base.X.Offset, base.Y.Scale, y + 9) }, 0.25)
+                task.wait(0.25)
+            end
+            tween(Toggle, { Position = base }, 0.2)
+        end
+    end
+end)
+
+local lastVs
+task.spawn(function()
+    while alive() do
+        task.wait(1)
+        if Screen.Parent == nil then pcall(function() colgar(Screen) end) end
+        if Main.Parent == nil then pcall(function() Main.Parent = Screen end) end
+        if not UI.closing then
+            if UI.open and not Main.Visible then pcall(function() Main.Visible = true end) end
+        end
+        local cam = getCamera()
+        local vs = cam and cam.ViewportSize.X or 0
+        if vs ~= lastVs then
+            lastVs = vs
+            ajustarEscala()
+            aplicarEscala()
+            acomodarFlotantes()
+        end
+        if not CurrentPage and Pages["Funciones"] then pcall(function() showPage("Funciones") end) end
+        if not TabBar.Visible and UI.tabsOpen then pcall(function() plegarPestanas(false) end) end
+        if UI.open and titleShine and UI.anim then
+            pcall(function() if titleShine.PlaybackState ~= Enum.PlaybackState.Playing then titleShine:Play() end end)
+        elseif not UI.open and titleShine then
+            pcall(function() titleShine:Pause() end)
+        end
+    end
+end)
+
+local closing = false
+
+local function destroyHub()
+    if closing then return end
+    closing = true
+    UI.closing = true
+    UI.open = false
+    pcall(function() RunService:UnbindFromRenderStep("DestroyaCam") end)
+    pcall(function()
+        tween(MenuScale, { Scale = 0.5 }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+    end)
+    task.delay(0.22, function()
+        if Screen.Parent then Screen:Destroy() end
+    end)
+end
+
+do
+    local confirmUntil = 0
+    DestroyBtn.Activated:Connect(safe(function()
+        local now = os.clock()
+        if now < confirmUntil then
+            destroyHub()
+            return
+        end
+        confirmUntil = now + 2.5
+        notify("Toca la X otra vez para destruir todo")
+        tween(DestroyBtn, { BackgroundColor3 = Color3.fromRGB(255, 30, 55) }, 0.15)
+        task.delay(2.5, function()
+            if DestroyBtn.Parent then
+                tween(DestroyBtn, { BackgroundColor3 = Color3.fromRGB(24, 84, 104) }, 0.3)
+            end
+        end)
+    end, "destruir", 21))
+end
+
+Screen.Destroying:Connect(function()
+    UI.dead = true
+    pcall(releaseCamera)
+    pcall(function() setNoclip(false) end)
+    pcall(function() setFly(false) end)
+    pcall(function() setFpsBoost(false, true) end)
+    pcall(function() setWalls(false, true) end)
+    pcall(setNeon, false, true)
+    pcall(setGlow, false, true)
+    pcall(setNoche, false, true)
+    pcall(setRosa, false, true)
+    pcall(apagarOro)
+    pcall(apagarAura)
+    pcall(quitarTag)
+    pcall(clearSkin, true)
+    pcall(clearESP)
+    pcall(restaurarTodos)
+    pcall(function() RunService:UnbindFromRenderStep("DestroyaCam") end)
+    for _, c in ipairs(conns) do
+        pcall(function() c:Disconnect() end)
+    end
+    table.clear(conns)
+end)
+
+verify("Screen colgado", function() return Screen.Parent ~= nil end)
+verify("Main en pantalla", function() return Main.Parent == Screen and Main.Visible end)
+verify("Escala viva", function() return MenuScale ~= nil and MenuScale.Parent == Main end)
+verify("Página activa", function() return CurrentPage ~= nil end)
+verify("Botón flotante", function() return Toggle.Parent == Screen end)
+verify("ESP", function() return type(applyESP) == "function" end)
+verify("Bot", function() return type(setBot) == "function" end)
+verify("Paredes", function() return type(setWalls) == "function" end)
+verify("Skin", function() return type(setSkin) == "function" end)
+verify("Vuelo", function() return type(setFly) == "function" end)
+verify("Noclip", function() return type(setNoclip) == "function" end)
+verify("Aura", function() return type(prenderAura) == "function" end)
+verify("Tag", function() return type(aplicarTag) == "function" end)
+verify("Cámara", function() return type(camStep) == "function" end)
+verify("Texturas", function() return type(applyTextureSafe) == "function" end)
+
+showPage("Funciones")
+ajustarEscala()
+MenuScale.Scale = UI.size * UI.fit
+Main.Visible = true
+Main.Position = HOME
+plegarPestanas(false)
+acomodarFlotantes()
+UI.refreshLists()
+syncBot()
+
+task.delay(0.8, function()
+    pcall(ajustarEscala)
+    aplicarEscala()
+end)
+
+notify("Destroya Hub v" .. CONFIG.VERSION .. " cargado")
+
+--═══ FIN DE LA PARTE 21 — FIN DEL SCRIPT ═══
