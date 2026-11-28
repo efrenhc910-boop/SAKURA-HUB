@@ -1,6 +1,6 @@
 --==================================================
 --            DESTROYA HUB  •  RIVALS
---            v1.3.0  (build limpio)
+--            v1.4.0
 --==================================================
 
 if not game:IsLoaded() then
@@ -69,53 +69,6 @@ Screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 local okParent = pcall(function() Screen.Parent = guiParent end)
 if not okParent then Screen.Parent = playerGui end
 
---##################################################
---# ► CONFIG, VALIDACIÓN, UTILS, ESTADO
---##################################################
-
-local CONFIG = {
-    VERSION       = "1.3.0",
-    ESP_MAX       = 150,
-    ESP_TICK      = 0.12,
-    MAX_TARGETS   = 8,
-    BOT_RANGE     = 60,
-    HIDE_RADIUS   = 400,
-    WALL_RADIUS   = 170,
-    WALL_ALPHA    = 0.62,
-    STRUCT_LIMIT  = 130,
-    JUMP_HEIGHT   = 17,
-    FLY_SPEED     = 70,
-    BTN_T         = 0.55,
-    BTN_T_ON      = 0.38,
-    CELL_H        = 34,
-    CELL_GAP      = 12,
-    CELL_W        = 150,
-    DISCORD       = "https://discord.gg/ykHwgmQnD",
-    IMAGEN_MENU   = 129242456244221,
-    IMAGEN_MENU2  = 127301015274297,
-    IMAGEN_BOTON  = 80949061281229,
-    IMAGEN_BOTON2 = 136392006111213,
-}
-
-local function num(v, def, min, max)
-    v = tonumber(v)
-    if not v or v ~= v then return def end
-    if min and v < min then v = min end
-    if max and v > max then v = max end
-    return v
-end
-
-CONFIG.ESP_MAX      = num(CONFIG.ESP_MAX, 150, 20, 500)
-CONFIG.ESP_TICK     = num(CONFIG.ESP_TICK, 0.12, 0.03, 1)
-CONFIG.MAX_TARGETS  = math.floor(num(CONFIG.MAX_TARGETS, 8, 1, 20))
-CONFIG.BOT_RANGE    = num(CONFIG.BOT_RANGE, 60, 10, 300)
-CONFIG.HIDE_RADIUS  = num(CONFIG.HIDE_RADIUS, 400, 50, 800)
-CONFIG.WALL_RADIUS  = num(CONFIG.WALL_RADIUS, 170, 30, 600)
-CONFIG.WALL_ALPHA   = num(CONFIG.WALL_ALPHA, 0.62, 0, 1)
-CONFIG.STRUCT_LIMIT = math.floor(num(CONFIG.STRUCT_LIMIT, 130, 10, 2000))
-CONFIG.JUMP_HEIGHT  = num(CONFIG.JUMP_HEIGHT, 17, 5, 120)
-CONFIG.FLY_SPEED    = num(CONFIG.FLY_SPEED, 70, 10, 400)
-
 local function pickFont(name, fallback)
     local ok, f = pcall(function() return Enum.Font[name] end)
     return (ok and f) or fallback
@@ -150,8 +103,8 @@ local S = {
     oro = false, aura = false, skin = nil, tag = true, hideNames = false,
 }
 
-local setNoclip, setWalls, setFpsBoost, setFly
 local conns = {}
+local setNoclip, setWalls, setFpsBoost, setFly
 
 local function alive()
     return not UI.dead and Screen ~= nil and Screen.Parent ~= nil
@@ -244,6 +197,225 @@ local function safe(fn, label)
         return ok
     end
 end
+
+-- Cargador forzado: insiste hasta que IsLoaded, y ahí se detiene solo.
+local function forzarImagen(label, urls, maxIntentos)
+    if not label or not urls or #urls == 0 then return end
+    maxIntentos = maxIntentos or 8
+    if label.IsLoaded then return end
+
+    local vivo, intentos, idx = true, 0, 1
+    local conn
+
+    local function parar()
+        if not vivo then return end
+        vivo = false
+        if conn then
+            pcall(function() conn:Disconnect() end)
+            conn = nil
+        end
+    end
+
+    conn = label:GetPropertyChangedSignal("IsLoaded"):Connect(function()
+        if label.IsLoaded then parar() end
+    end)
+
+    task.spawn(function()
+        while vivo and label.Parent and intentos < maxIntentos do
+            if label.IsLoaded then break end
+            intentos += 1
+            local url = urls[idx]
+            idx = idx % #urls + 1
+            pcall(function() label.Image = url end)
+            pcall(function() ContentProvider:PreloadAsync({ label }) end)
+            if label.IsLoaded then break end
+            task.wait(0.25 + intentos * 0.2)
+        end
+        parar()
+    end)
+end
+
+local BASE_W, BASE_H, HEADER_H = 480, 324, 46
+local HOME = UDim2.fromScale(0.5, 0.5)
+local GLOW = Color3.fromRGB(140, 232, 255)
+
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.AnchorPoint = Vector2.new(0.5, 0.5)
+Main.Size = UDim2.fromOffset(BASE_W, BASE_H)
+Main.Position = HOME
+Main.BackgroundColor3 = Color3.fromRGB(6, 16, 22)
+Main.BackgroundTransparency = 0
+Main.BorderSizePixel = 0
+Main.ClipsDescendants = true
+Main.Parent = Screen
+corner(Main, 12)
+stroke(Main, "Acc", 1.6, 0.1)
+
+local function urls(id)
+    return {
+        "rbxassetid://" .. id,
+        "rbxthumb://type=Asset&id=" .. id .. "&w=420&h=420",
+    }
+end
+
+local Backdrop = Instance.new("ImageLabel")
+Backdrop.Name = "Backdrop"
+Backdrop.Size = UDim2.fromScale(1, 1)
+Backdrop.BackgroundColor3 = Color3.fromRGB(6, 16, 22)
+Backdrop.BorderSizePixel = 0
+Backdrop.ImageTransparency = 0.12
+Backdrop.ScaleType = Enum.ScaleType.Crop
+Backdrop.ZIndex = 0
+Backdrop.Parent = Main
+corner(Backdrop, 12)
+
+local MENU_URLS = urls(129242456244221)
+for _, u in ipairs(urls(127301015274297)) do table.insert(MENU_URLS, u) end
+forzarImagen(Backdrop, MENU_URLS, 10)
+
+local BackdropTint = Instance.new("Frame")
+BackdropTint.Size = UDim2.fromScale(1, 1)
+BackdropTint.BackgroundColor3 = Color3.fromRGB(4, 12, 18)
+BackdropTint.BackgroundTransparency = 0.42
+BackdropTint.BorderSizePixel = 0
+BackdropTint.ZIndex = 2
+BackdropTint.Parent = Main
+corner(BackdropTint, 12)
+
+local MenuScale = Instance.new("UIScale")
+MenuScale.Scale = 0.8
+MenuScale.Parent = Main
+tween(MenuScale, { Scale = 1 }, 0.4, Enum.EasingStyle.Back)
+
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, HEADER_H)
+Header.BackgroundColor3 = Color3.new(1, 1, 1)
+Header.BackgroundTransparency = 0.35
+Header.BorderSizePixel = 0
+Header.ZIndex = 3
+Header.Parent = Main
+corner(Header, 12)
+
+local hGrad = Instance.new("UIGradient")
+hGrad.Parent = Header
+hGrad.Color = ColorSequence.new(C.Acc:Lerp(C.Dark, 0.72), C.Dark)
+hGrad.Transparency = NumberSequence.new(0.25, 0.75)
+
+local blood = Instance.new("Frame")
+blood.Position = UDim2.new(0, 0, 1, -2)
+blood.Size = UDim2.new(1, 0, 0, 2)
+blood.BorderSizePixel = 0
+blood.ZIndex = 4
+blood.Parent = Header
+bind(blood, "BackgroundColor3", "Acc2")
+local bg = Instance.new("UIGradient")
+bg.Transparency = NumberSequence.new({
+    NumberSequenceKeypoint.new(0, 0.1),
+    NumberSequenceKeypoint.new(0.6, 0.55),
+    NumberSequenceKeypoint.new(1, 1),
+})
+bg.Parent = blood
+
+local TITLE_X, TITLE_Y = 40, 4
+local titleW = 150
+pcall(function()
+    titleW = TextService:GetTextSize("DESTROYA HUB", 26, F.title, Vector2.new(500, 40)).X
+end)
+
+local TitleShadow = plain(Header, "DESTROYA HUB", 26, F.title, Color3.new(0, 0, 0),
+    UDim2.fromOffset(TITLE_X + 2, TITLE_Y + 2), UDim2.fromOffset(titleW + 24, 30))
+TitleShadow.TextTransparency = 0.5
+TitleShadow.ZIndex = 4
+
+local Title = plain(Header, "DESTROYA HUB", 26, F.title, Color3.new(1, 1, 1),
+    UDim2.fromOffset(TITLE_X, TITLE_Y), UDim2.fromOffset(titleW + 24, 30))
+Title.ZIndex = 5
+
+local CARBON = Color3.fromRGB(20, 20, 24)
+local CARBON_D = Color3.fromRGB(9, 9, 11)
+
+local TitleGrad = Instance.new("UIGradient")
+TitleGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, CARBON_D),
+    ColorSequenceKeypoint.new(0.34, CARBON),
+    ColorSequenceKeypoint.new(0.47, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(0.53, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(0.66, CARBON),
+    ColorSequenceKeypoint.new(1, CARBON_D),
+})
+TitleGrad.Offset = Vector2.new(-0.35, 0)
+TitleGrad.Parent = Title
+
+local TitleStroke = Instance.new("UIStroke")
+TitleStroke.Color = Color3.new(1, 1, 1)
+TitleStroke.Thickness = 1.4
+TitleStroke.Transparency = 0.25
+TitleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+TitleStroke.Parent = Title
+
+local ul = titleW * 0.95
+local underline = Instance.new("Frame")
+underline.AnchorPoint = Vector2.new(0.5, 0.5)
+underline.Position = UDim2.fromOffset(TITLE_X + ul / 2, 36)
+underline.Size = UDim2.fromOffset(ul, 2)
+underline.Rotation = -1
+underline.BorderSizePixel = 0
+underline.ZIndex = 5
+underline.Parent = Header
+bind(underline, "BackgroundColor3", "Acc2")
+
+pcall(function()
+    TweenService:Create(TitleGrad,
+        TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        { Offset = Vector2.new(1.35, 0) }):Play()
+end)
+
+--═══ FIN DEL BLOQUE 1 ═══
+--##################################################
+--# ► CONFIG VALIDADA
+--##################################################
+
+local CONFIG = {
+    VERSION       = "1.4.0",
+    ESP_MAX       = 150,
+    ESP_TICK      = 0.12,
+    MAX_TARGETS   = 8,
+    BOT_RANGE     = 60,
+    HIDE_RADIUS   = 400,
+    WALL_RADIUS   = 170,
+    WALL_ALPHA    = 0.62,
+    STRUCT_LIMIT  = 130,
+    JUMP_HEIGHT   = 17,
+    FLY_SPEED     = 70,
+    BTN_T         = 0.55,
+    BTN_T_ON      = 0.38,
+    CELL_H        = 34,
+    CELL_GAP      = 12,
+    CELL_W        = 150,
+    DISCORD       = "https://discord.gg/ykHwgmQnD",
+    IMAGEN_BOTON  = 80949061281229,
+    IMAGEN_BOTON2 = 136392006111213,
+}
+
+local function num(v, def, min, max)
+    v = tonumber(v)
+    if not v or v ~= v then return def end
+    if min and v < min then v = min end
+    if max and v > max then v = max end
+    return v
+end
+
+CONFIG.ESP_MAX      = num(CONFIG.ESP_MAX, 150, 20, 500)
+CONFIG.ESP_TICK     = num(CONFIG.ESP_TICK, 0.12, 0.03, 1)
+CONFIG.MAX_TARGETS  = math.floor(num(CONFIG.MAX_TARGETS, 8, 1, 20))
+CONFIG.BOT_RANGE    = num(CONFIG.BOT_RANGE, 60, 10, 300)
+CONFIG.HIDE_RADIUS  = num(CONFIG.HIDE_RADIUS, 400, 50, 800)
+CONFIG.WALL_RADIUS  = num(CONFIG.WALL_RADIUS, 170, 30, 600)
+CONFIG.WALL_ALPHA   = num(CONFIG.WALL_ALPHA, 0.62, 0, 1)
+CONFIG.STRUCT_LIMIT = math.floor(num(CONFIG.STRUCT_LIMIT, 130, 10, 2000))
+CONFIG.JUMP_HEIGHT  = num(CONFIG.JUMP_HEIGHT, 17, 5, 120)
+CONFIG.FLY_SPEED    = num(CONFIG.FLY_SPEED, 70, 10, 400)
 
 local function debounced(fn)
     local pending = false
@@ -357,10 +529,9 @@ end
 local function getCamera()
     return Workspace.CurrentCamera
 end
---═══ FIN DEL BLOQUE 1 ═══
 
 --##################################################
---# ► AVISO DE RIVALS (NO BLOQUEANTE) + VENTANA
+--# ► BANNER DE RIVALS (NO BLOQUEANTE)
 --##################################################
 
 local RIVALS_ID    = 6035872082
@@ -415,185 +586,9 @@ if not dentroDeRivals() then
     task.delay(3, viajar)
 end
 
-local BASE_W, BASE_H, HEADER_H = 480, 324, 46
-local HOME = UDim2.fromScale(0.5, 0.5)
-local GLOW = Color3.fromRGB(140, 232, 255)
-
-local Main = Instance.new("Frame")
-Main.Name = "Main"
-Main.AnchorPoint = Vector2.new(0.5, 0.5)
-Main.Size = UDim2.fromOffset(BASE_W, BASE_H)
-Main.Position = HOME
-Main.BackgroundColor3 = Color3.fromRGB(6, 16, 22)
-Main.BackgroundTransparency = 1
-Main.BorderSizePixel = 0
-Main.ClipsDescendants = true
-Main.Parent = Screen
-corner(Main, 12)
-stroke(Main, "Acc", 1.6, 0.1)
-
-local function fuenteImg(id)
-    return {
-        "rbxassetid://" .. id,
-        "rbxthumb://type=Asset&id=" .. id .. "&w=420&h=420",
-    }
-end
-
-local FONDOS = fuenteImg(CONFIG.IMAGEN_MENU)
-for _, v in ipairs(fuenteImg(CONFIG.IMAGEN_MENU2)) do table.insert(FONDOS, v) end
-local idxFondo = 1
-
-local Backdrop = Instance.new("ImageLabel")
-Backdrop.Name = "Backdrop"
-Backdrop.Size = UDim2.fromScale(1, 1)
-Backdrop.BackgroundColor3 = Color3.fromRGB(6, 16, 22)
-Backdrop.BorderSizePixel = 0
-Backdrop.Image = FONDOS[1]
-Backdrop.ImageTransparency = 0.12
-Backdrop.ScaleType = Enum.ScaleType.Crop
-Backdrop.ZIndex = 0
-Backdrop.Parent = Main
-corner(Backdrop, 12)
-
-task.spawn(function()
-    while alive() do
-        task.wait(1.6)
-        if not Backdrop.IsLoaded then
-            idxFondo = idxFondo % #FONDOS + 1
-            pcall(function() Backdrop.Image = FONDOS[idxFondo] end)
-        end
-    end
-end)
-
-local BackdropTint = Instance.new("Frame")
-BackdropTint.Size = UDim2.fromScale(1, 1)
-BackdropTint.BackgroundColor3 = Color3.fromRGB(4, 12, 18)
-BackdropTint.BackgroundTransparency = 0.42
-BackdropTint.BorderSizePixel = 0
-BackdropTint.ZIndex = 2
-BackdropTint.Parent = Main
-corner(BackdropTint, 12)
-
-local MenuScale = Instance.new("UIScale")
-MenuScale.Scale = 0.8
-MenuScale.Parent = Main
-tween(MenuScale, { Scale = 1 }, 0.4, Enum.EasingStyle.Back)
-
-local Header = Instance.new("Frame")
-Header.Size = UDim2.new(1, 0, 0, HEADER_H)
-Header.BackgroundColor3 = Color3.new(1, 1, 1)
-Header.BackgroundTransparency = 0.35
-Header.BorderSizePixel = 0
-Header.ZIndex = 3
-Header.Parent = Main
-corner(Header, 12)
-
-local hGrad = Instance.new("UIGradient")
-hGrad.Parent = Header
-hGrad.Color = ColorSequence.new(C.Acc:Lerp(C.Dark, 0.72), C.Dark)
-hGrad.Transparency = NumberSequence.new(0.25, 0.75)
-
-local hFill = Instance.new("Frame")
-hFill.Position = UDim2.new(0, 0, 1, -12)
-hFill.Size = UDim2.new(1, 0, 0, 12)
-hFill.BackgroundColor3 = Color3.new(1, 1, 1)
-hFill.BackgroundTransparency = 0.5
-hFill.BorderSizePixel = 0
-hFill.ZIndex = 3
-hFill.Parent = Header
-local hFillGrad = hGrad:Clone()
-hFillGrad.Parent = hFill
-
-local blood = Instance.new("Frame")
-blood.Position = UDim2.new(0, 0, 1, -2)
-blood.Size = UDim2.new(1, 0, 0, 2)
-blood.BorderSizePixel = 0
-blood.ZIndex = 4
-blood.Parent = Header
-bind(blood, "BackgroundColor3", "Acc2")
-local bg = Instance.new("UIGradient")
-bg.Transparency = NumberSequence.new({
-    NumberSequenceKeypoint.new(0, 0.1),
-    NumberSequenceKeypoint.new(0.6, 0.55),
-    NumberSequenceKeypoint.new(1, 1),
-})
-bg.Parent = blood
-
-local TITLE_X, TITLE_Y = 40, 4
-local titleW = 150
-pcall(function()
-    titleW = TextService:GetTextSize("DESTROYA HUB", 26, F.title, Vector2.new(500, 40)).X
-end)
-
-local TitleShadow = plain(Header, "DESTROYA HUB", 26, F.title, Color3.new(0, 0, 0),
-    UDim2.fromOffset(TITLE_X + 2, TITLE_Y + 2), UDim2.fromOffset(titleW + 24, 30))
-TitleShadow.TextTransparency = 0.5
-TitleShadow.ZIndex = 4
-
-local Title = plain(Header, "DESTROYA HUB", 26, F.title, Color3.new(1, 1, 1),
-    UDim2.fromOffset(TITLE_X, TITLE_Y), UDim2.fromOffset(titleW + 24, 30))
-Title.ZIndex = 5
-
-local CARBON = Color3.fromRGB(20, 20, 24)
-local CARBON_D = Color3.fromRGB(9, 9, 11)
-
-local TitleGrad = Instance.new("UIGradient")
-TitleGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, CARBON_D),
-    ColorSequenceKeypoint.new(0.34, CARBON),
-    ColorSequenceKeypoint.new(0.47, Color3.fromRGB(255, 255, 255)),
-    ColorSequenceKeypoint.new(0.53, Color3.fromRGB(255, 255, 255)),
-    ColorSequenceKeypoint.new(0.66, CARBON),
-    ColorSequenceKeypoint.new(1, CARBON_D),
-})
-TitleGrad.Offset = Vector2.new(-0.35, 0)
-TitleGrad.Parent = Title
-
-local TitleStroke = Instance.new("UIStroke")
-TitleStroke.Color = Color3.new(1, 1, 1)
-TitleStroke.Thickness = 1.4
-TitleStroke.Transparency = 0.25
-TitleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
-TitleStroke.Parent = Title
-
-local ul = titleW * 0.95
-local underline = Instance.new("Frame")
-underline.AnchorPoint = Vector2.new(0.5, 0.5)
-underline.Position = UDim2.fromOffset(TITLE_X + ul / 2, 36)
-underline.Size = UDim2.fromOffset(ul, 2)
-underline.Rotation = -1
-underline.BorderSizePixel = 0
-underline.ZIndex = 5
-underline.Parent = Header
-bind(underline, "BackgroundColor3", "Acc2")
-
-pcall(function()
-    TweenService:Create(TitleGrad,
-        TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-        { Offset = Vector2.new(1.35, 0) }):Play()
-end)
-
-local function playFx()
-    local base = UDim2.fromOffset(TITLE_X, TITLE_Y)
-    local baseSh = UDim2.fromOffset(TITLE_X + 2, TITLE_Y + 2)
-    for i = 1, 6 do
-        if not UI.open or not alive() then break end
-        local dx = (i % 2 == 0 and 1 or -1) * math.random(1, 2)
-        local dy = math.random(-1, 1)
-        Title.Position = UDim2.fromOffset(TITLE_X + dx, TITLE_Y + dy)
-        TitleShadow.Position = UDim2.fromOffset(TITLE_X + 2 - dx, TITLE_Y + 2 - dy)
-        task.wait(0.04)
-    end
-    if Title.Parent then Title.Position, TitleShadow.Position = base, baseSh end
-end
-
-task.spawn(function()
-    task.wait(2)
-    while alive() do
-        if UI.open and UI.anim then pcall(playFx) end
-        task.wait(12)
-    end
-end)
+--##################################################
+--# ► BOTONES DE CABECERA Y ARRASTRE
+--##################################################
 
 local function iconButton(kind, pos, bgColor)
     local b = Instance.new("TextButton")
@@ -647,6 +642,10 @@ DragZone.InputBegan:Connect(safe(function(input)
             startPos.Y.Scale, startPos.Y.Offset + d.Y)
     end)
 end, "dragMain"))
+
+--##################################################
+--# ► PESTAÑAS, CONTENIDO Y PIE
+--##################################################
 
 local TabReveal = Instance.new("TextButton")
 TabReveal.Position = UDim2.fromOffset(8, HEADER_H + 6)
@@ -842,11 +841,18 @@ TabReveal.Activated:Connect(safe(function()
     end
 end, "tabs"))
 
---═══ FIN DEL BLOQUE 2 ═══
---##################################################
---# ► SECCIONES, GRID, BOTONES, SLIDERS
---##################################################
+-- Vigía: si a los 6 s no hay pestaña activa, avisa en pantalla
+task.delay(6, function()
+    if not alive() or CurrentPage then return end
+    local aviso = plain(Screen, "Carga incompleta. Revisa la consola.", 14, F.bold,
+        Color3.fromRGB(255, 220, 220), UDim2.new(0.5, -160, 0.5, -14), UDim2.fromOffset(320, 28),
+        Enum.TextXAlignment.Center)
+    aviso.BackgroundColor3 = Color3.fromRGB(70, 12, 16)
+    aviso.BackgroundTransparency = 0.15
+    corner(aviso, 8)
+end)
 
+--═══ FIN DEL BLOQUE 2 ═══
 local function createSection(page, text)
     local h = Instance.new("Frame")
     h.Size = UDim2.new(1, -4, 0, 24)
@@ -1130,19 +1136,11 @@ local function createSlider(page, name, min, max, default, fmt, callback)
     return row
 end
 
---##################################################
---# ► COLORES DEL ESP
---##################################################
-
 local ESP_FILL = Color3.fromRGB(0, 70, 255)
 local ESP_LINE = Color3.fromRGB(120, 200, 255)
 local ESP_DARK = Color3.fromRGB(0, 14, 70)
 
 --═══ FIN DEL BLOQUE 3 ═══
---##################################################
---# ► SKINS: CATÁLOGO
---##################################################
-
 local SKINS = {}
 
 SKINS["Serafin"] = {
@@ -1406,6 +1404,7 @@ local PARTES = {
 
 local SK = { orig = {}, ropa = {}, puestas = {}, candado = false }
 
+--═══ FIN DEL BLOQUE 4 ═══
 local function pintar(char, skin)
     if not char or not skin then return end
     for _, par in ipairs(PARTES) do
@@ -1478,11 +1477,6 @@ local function devolverRopa()
     end
     SK.ropa = {}
 end
-
---═══ FIN DEL BLOQUE 4 ═══
---##################################################
---# ► ACCESORIOS Y APLICACIÓN DE SKIN
---##################################################
 
 local function esconderAccesorios(char)
     if not char then return end
@@ -1848,10 +1842,6 @@ end
 for _, plr in ipairs(Players:GetPlayers()) do hookPlayer(plr) end
 
 --═══ FIN DEL BLOQUE 5 ═══
---##################################################
---# ► SELECCIÓN, CÁMARA, I'M BOT (SIN NOCLIP FORZADO)
---##################################################
-
 local Sel = { list = {}, set = {} }
 
 local function selAdd(plr)
@@ -2215,10 +2205,6 @@ do
 end
 
 --═══ FIN DEL BLOQUE 6 ═══
---##################################################
---# ► NOCLIP (RESTAURA AL INSTANTE), SALTO, VUELO
---##################################################
-
 do
     local parts, changed, refreshAt = {}, {}, 0
 
@@ -2546,7 +2532,6 @@ local function prenderAura()
     auraFolder.Name = "DestroyaAura"
     auraFolder.Parent = Workspace
 
-    -- dos anillos de orbes a distinta altura y radio
     for i = 1, 10 do
         local orb = Instance.new("Part")
         orb.Shape = Enum.PartType.Ball
@@ -2562,7 +2547,6 @@ local function prenderAura()
         auraOrbs[i] = { parte = orb, anillo = (i <= 5) and 1 or 2, fase = i * 0.63 }
     end
 
-    -- tres aros finos que giran a la altura de la cintura
     for i = 1, 3 do
         local aro = discoOro(auraFolder, 2.6 + i * 0.5, 0.07, 0.45)
         auraAnillos[i] = aro
@@ -2651,10 +2635,6 @@ local function setAura(on)
 end
 
 --═══ FIN DEL BLOQUE 7 ═══
---##################################################
---# ► FPS BOOST
---##################################################
-
 do
     local orig = setmetatable({}, { __mode = "k" })
     local glob, conn, token = {}, nil, 0
@@ -2830,10 +2810,6 @@ do
     end
 end
 
---##################################################
---# ► PAREDES TRANSPARENTES
---##################################################
-
 local WALL_RADIUS = CONFIG.WALL_RADIUS
 local WALL_ALPHA = CONFIG.WALL_ALPHA
 local LIMITE = CONFIG.STRUCT_LIMIT
@@ -2958,10 +2934,6 @@ do
         end
     end
 end
-
---##################################################
---# ► DECORACIÓN: CIELOS, LUCES PROPIAS
---##################################################
 
 local setNoche, setRosa
 local L_SNAP, skyObj
@@ -3129,10 +3101,6 @@ track(player.CharacterAdded:Connect(safe(function()
 end, "decoRespawn")))
 
 --═══ FIN DEL BLOQUE 8 ═══
---##################################################
---# ► PÁGINAS
---##################################################
-
 local FunctionPage = addTab("Funciones")
 local ListPage = addTab("Lista")
 local SelPage = addTab("Seleccionados")
@@ -3415,10 +3383,6 @@ track(Players.PlayerRemoving:Connect(safe(function(plr)
     task.delay(0.3, UI.refreshLists)
 end, "PlayerRemoving")))
 
---##################################################
---# ► PÁGINA DE SKINS
---##################################################
-
 do
     local botonesSkin = {}
 
@@ -3516,7 +3480,6 @@ do
                         refrescarSkins()
                         pintarActual()
                     end)
-                -- Ancho fijo: en un scroller horizontal el 100% rompe la rejilla
                 fila.Size = UDim2.fromOffset(CONFIG.CELL_W, CONFIG.CELL_H)
                 fila.LayoutOrder = n
                 celda.Set(false, true)
@@ -3543,10 +3506,6 @@ do
 end
 
 --═══ FIN DEL BLOQUE 10 ═══
---##################################################
---# ► PÁGINA DE DECORACIÓN
---##################################################
-
 do
     createSection(DecoPage, "Cielo")
     local gridCielo = createGrid(DecoPage)
@@ -3589,10 +3548,6 @@ do
             notify(v and "Paredes transparentes" or "Paredes normales")
         end)
 end
-
---##################################################
---# ► PÁGINA DE CONFIGURACIÓN (aviso y portapapeles aquí)
---##################################################
 
 do
     createSection(SettingsPage, "Estilo")
@@ -3693,10 +3648,6 @@ end
 
 showPage("Funciones")
 
---##################################################
---# ► BOTÓN FLOTANTE
---##################################################
-
 local Toggle = Instance.new("TextButton")
 Toggle.Name = "MenuButton"
 Toggle.AnchorPoint = Vector2.new(0, 0.5)
@@ -3714,25 +3665,14 @@ squish(Toggle, 0.9)
 local ToggleImg = Instance.new("ImageLabel")
 ToggleImg.Size = UDim2.fromScale(1, 1)
 ToggleImg.BackgroundTransparency = 1
-ToggleImg.Image = "rbxassetid://" .. CONFIG.IMAGEN_BOTON
 ToggleImg.ScaleType = Enum.ScaleType.Crop
 ToggleImg.ZIndex = 10
 ToggleImg.Parent = Toggle
 corner(ToggleImg, 14)
 
-task.spawn(function()
-    local alterno = false
-    while alive() and ToggleImg.Parent do
-        task.wait(1.6)
-        if not ToggleImg.IsLoaded then
-            alterno = not alterno
-            local id = alterno and CONFIG.IMAGEN_BOTON2 or CONFIG.IMAGEN_BOTON
-            pcall(function()
-                ToggleImg.Image = "rbxthumb://type=Asset&id=" .. id .. "&w=150&h=150"
-            end)
-        end
-    end
-end)
+local BOTON_URLS = urls(80949061281229)
+for _, u in ipairs(urls(136392006111213)) do table.insert(BOTON_URLS, u) end
+forzarImagen(ToggleImg, BOTON_URLS, 10)
 
 local ToggleTxt = plain(Toggle, "DH", 17, F.title, C.Oro,
     UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), Enum.TextXAlignment.Center)
@@ -3751,7 +3691,6 @@ pcall(function()
         { Transparency = 0.55 }):Play()
 end)
 
--- Columna: los botones de parada se apilan, nunca se enciman
 local FloatCol = Instance.new("Frame")
 FloatCol.AnchorPoint = Vector2.new(0, 0)
 FloatCol.Position = UDim2.new(0, 14, 0.5, 34)
@@ -3815,10 +3754,6 @@ task.spawn(function()
 end)
 
 --═══ FIN DEL BLOQUE 11 ═══
---##################################################
---# ► BOTONES DE PARADA (APILADOS)
---##################################################
-
 local CamStop = Instance.new("TextButton")
 CamStop.LayoutOrder = 1
 CamStop.Size = UDim2.fromOffset(120, 42)
@@ -3949,7 +3884,7 @@ end
 FijoStop.Activated:Connect(safe(function() soltarFijo() end, "fijostop"))
 
 --##################################################
---# ► ETIQUETA DE DISCORD (ENCIMA DE LA CABEZA)
+--# ► ETIQUETA DE DISCORD SOBRE LA CABEZA
 --##################################################
 
 local tagGui, tagShine
@@ -3975,26 +3910,26 @@ local function aplicarTag()
 
     tagGui = Instance.new("BillboardGui")
     tagGui.Name = "DestroyaTag"
-    tagGui.Size = UDim2.fromOffset(190, 34)
-    -- Por encima del nametag de RIVALS para que no lo tape
-    tagGui.StudsOffset = Vector3.new(0, 4.1, 0)
+    tagGui.Size = UDim2.fromOffset(200, 36)
+    -- 5.6 studs: por encima del nametag de RIVALS (nombre + nivel)
+    tagGui.StudsOffset = Vector3.new(0, 5.6, 0)
     tagGui.AlwaysOnTop = true
     tagGui.LightInfluence = 0
-    tagGui.MaxDistance = 500
+    tagGui.MaxDistance = 800
     tagGui.Adornee = head
     tagGui.Parent = head
 
     local marco = Instance.new("Frame")
     marco.Size = UDim2.fromScale(1, 1)
     marco.BackgroundColor3 = Color3.fromRGB(30, 6, 10)
-    marco.BackgroundTransparency = 0.2
+    marco.BackgroundTransparency = 0.15
     marco.BorderSizePixel = 0
     marco.Parent = tagGui
     corner(marco, 9)
 
     local borde = Instance.new("UIStroke")
     borde.Color = Color3.fromRGB(255, 70, 90)
-    borde.Thickness = 1.6
+    borde.Thickness = 1.8
     borde.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     borde.Parent = marco
 
