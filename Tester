@@ -1,6 +1,6 @@
 --==================================================
 --            DESTROYA HUB  •  RIVALS
---            v1.5.1
+--            v1.6.0  (carga blindada)
 --==================================================
 
 if not game:IsLoaded() then
@@ -20,32 +20,58 @@ local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
 local espera = 0
-while not player and espera < 20 do
+while not player and espera < 25 do
     task.wait(0.1)
     espera += 0.1
     player = Players.LocalPlayer
 end
-if not player then return end
-
-local playerGui = player:WaitForChild("PlayerGui", 20) or player:FindFirstChildOfClass("PlayerGui")
-if not playerGui then
-    warn("[DestroyaHub] sin PlayerGui")
+if not player then
+    warn("[DestroyaHub] LocalPlayer no disponible")
     return
 end
 
-local function getGuiParent()
-    local ok, ui = pcall(function() return gethui and gethui() end)
-    if ok and ui then return ui end
-    return playerGui
+-- PlayerGui con reintentos largos: nunca se rinde a la primera
+local playerGui = player:FindFirstChildOfClass("PlayerGui")
+local vueltas = 0
+while not playerGui and vueltas < 60 do
+    task.wait(0.25)
+    vueltas += 1
+    playerGui = player:FindFirstChildOfClass("PlayerGui")
+end
+if not playerGui then
+    local ok, w = pcall(function() return player:WaitForChild("PlayerGui", 20) end)
+    if ok then playerGui = w end
+end
+if not playerGui then
+    warn("[DestroyaHub] PlayerGui no disponible")
+    return
 end
 
-local guiParent = getGuiParent()
-for _, container in ipairs({ guiParent, playerGui }) do
-    if container then
-        for _, name in ipairs({ "DestroyaHub", "EfrenHub" }) do
-            local old = container:FindFirstChild(name)
-            if old then pcall(function() old:Destroy() end) end
-        end
+local function obtenerPadres()
+    local lista = { playerGui }
+    local okHui, ui = pcall(function() return gethui and gethui() end)
+    if okHui and ui and ui ~= playerGui then lista[#lista + 1] = ui end
+    local okCore, core = pcall(function() return game:GetService("CoreGui") end)
+    if okCore and core and core ~= playerGui then lista[#lista + 1] = core end
+    return lista
+end
+
+local PADRES = obtenerPadres()
+
+-- Cuelga probando cada padre hasta que el Parent quede fijado
+local function colgar(inst)
+    if not inst then return false end
+    for _, padre in ipairs(PADRES) do
+        local ok = pcall(function() inst.Parent = padre end)
+        if ok and inst.Parent ~= nil then return true end
+    end
+    return false
+end
+
+for _, container in ipairs(PADRES) do
+    for _, name in ipairs({ "DestroyaHub", "EfrenHub" }) do
+        local old = container:FindFirstChild(name)
+        if old then pcall(function() old:Destroy() end) end
     end
 end
 pcall(function() RunService:UnbindFromRenderStep("TargetCamera") end)
@@ -57,15 +83,15 @@ Screen.ResetOnSpawn = false
 Screen.IgnoreGuiInset = true
 Screen.DisplayOrder = 9999
 Screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-local okParent = pcall(function() Screen.Parent = guiParent end)
-if not okParent then Screen.Parent = playerGui end
+Screen.Enabled = true
 
---##################################################
---# ► BLOQUE 1 — CONFIG
---##################################################
+if not colgar(Screen) then
+    warn("[DestroyaHub] no pude colgar el ScreenGui")
+end
 
+--═══ FIN DE LA PARTE 1 ═══
 local CONFIG = {
-    VERSION       = "1.5.1",
+    VERSION       = "1.6.0",
     ESP_MAX       = 150,
     ESP_TICK      = 0.12,
     MAX_TARGETS   = 8,
@@ -109,7 +135,6 @@ CONFIG.STRUCT_LIMIT  = math.floor(num(CONFIG.STRUCT_LIMIT, 130, 10, 2000))
 CONFIG.JUMP_HEIGHT   = num(CONFIG.JUMP_HEIGHT, 17, 5, 120)
 CONFIG.FLY_SPEED     = num(CONFIG.FLY_SPEED, 70, 10, 400)
 
---═══ FIN DE LA PARTE 1 ═══
 local function pickFont(name, fallback)
     local ok, f = pcall(function() return Enum.Font[name] end)
     return (ok and f) or fallback
@@ -311,6 +336,7 @@ track(UserInputService.InputEnded:Connect(safe(function(input)
     end
 end, "dragEnd")))
 
+--═══ FIN DE LA PARTE 3 ═══
 local lastToast
 local function notify(text)
     if not alive() then return end
@@ -359,46 +385,72 @@ local function getCamera()
     return Workspace.CurrentCamera
 end
 
-local function urls(id)
-    return {
-        "rbxassetid://" .. id,
-        "rbxthumb://type=Asset&id=" .. id .. "&w=420&h=420",
-    }
+--##################################################
+--# ► APLICADOR DE TEXTURAS A PRUEBA DE FALLOS
+--##################################################
+
+local function listaUrls(assetIds)
+    local ids = type(assetIds) == "table" and assetIds or { assetIds }
+    local urls = {}
+    for _, id in ipairs(ids) do
+        urls[#urls + 1] = "rbxassetid://" .. tostring(id)
+        urls[#urls + 1] = "rbxthumb://type=Asset&id=" .. tostring(id) .. "&w=420&h=420"
+    end
+    return urls
 end
 
-local function forzarImagen(label, lista, maxIntentos)
-    if not label or not lista or #lista == 0 then return end
-    maxIntentos = maxIntentos or 6
-    if label.IsLoaded then return end
+local function applyTextureSafe(label, assetIds, opciones)
+    if not label or not assetIds then return end
+    opciones = opciones or {}
 
-    local vivo, intentos, idx = true, 0, 1
-    local connCarga
+    local urls = listaUrls(assetIds)
+    if #urls == 0 then return end
 
-    local function parar()
-        if not vivo then return end
-        vivo = false
-        if connCarga then
-            pcall(function() connCarga:Disconnect() end)
-            connCarga = nil
-        end
+    local maxIntentos = opciones.max or 12
+    local intentos, indice = 0, 1
+    local vivo = true
+    local cargada = label.IsLoaded
+
+    local function pintar()
+        if not vivo or not label.Parent then return false end
+        local url = urls[indice]
+        indice = indice % #urls + 1
+        local ok = pcall(function() label.Image = url end)
+        if not ok then return false end
+        pcall(function() ContentProvider:PreloadAsync({ label }) end)
+        return true
     end
 
-    connCarga = label:GetPropertyChangedSignal("IsLoaded"):Connect(function()
-        if label.IsLoaded then parar() end
-    end)
+    -- Si la imagen queda en blanco o se pierde, se repinta sin bucle
+    track(label:GetPropertyChangedSignal("Image"):Connect(function()
+        if not vivo then return end
+        if label.Image == "" or label.Image == nil then
+            intentos = 0
+            task.delay(0.5, function()
+                if vivo and label.Parent then pintar() end
+            end)
+        end
+    end))
+
+    track(label:GetPropertyChangedSignal("IsLoaded"):Connect(function()
+        if label.IsLoaded then cargada = true end
+    end))
 
     task.spawn(function()
-        while vivo and label.Parent and intentos < maxIntentos do
-            if label.IsLoaded then break end
+        while vivo and label.Parent and not cargada and intentos < maxIntentos do
             intentos += 1
-            local url = lista[idx]
-            idx = idx % #lista + 1
-            pcall(function() label.Image = url end)
-            pcall(function() ContentProvider:PreloadAsync({ label }) end)
-            if label.IsLoaded then break end
-            task.wait(0.4 + intentos * 0.25)
+            pintar()
+            if label.IsLoaded then
+                cargada = true
+                break
+            end
+            task.wait(0.5)
         end
-        parar()
+        -- Se detiene al cargar o al agotar intentos; el listener de Image queda vivo
+        if cargada or intentos >= maxIntentos then
+            vivo = cargada and vivo or false
+            if not cargada then vivo = false end
+        end
     end)
 end
 
@@ -417,7 +469,7 @@ local function aplicarEscala()
     end
 end
 
---═══ FIN DE LA PARTE 3 ═══
+--═══ FIN DE LA PARTE 4 ═══
 local BASE_W, BASE_H, HEADER_H = CONFIG.BASE_W, CONFIG.BASE_H, 46
 local HOME = UDim2.fromScale(0.5, 0.5)
 local GLOW = Color3.fromRGB(140, 232, 255)
@@ -454,25 +506,6 @@ gradBase.Color = ColorSequence.new({
 gradBase.Rotation = 115
 gradBase.Parent = FondoBase
 
-local FondoBrillo = Instance.new("Frame")
-FondoBrillo.Size = UDim2.fromScale(1, 1)
-FondoBrillo.BackgroundColor3 = C.Acc
-FondoBrillo.BackgroundTransparency = 0.94
-FondoBrillo.BorderSizePixel = 0
-FondoBrillo.ZIndex = 1
-FondoBrillo.Parent = Main
-corner(FondoBrillo, 12)
-
-local gradBrillo = Instance.new("UIGradient")
-gradBrillo.Color = ColorSequence.new(C.Acc, C.Oro)
-gradBrillo.Transparency = NumberSequence.new({
-    NumberSequenceKeypoint.new(0, 0.98),
-    NumberSequenceKeypoint.new(0.45, 0.88),
-    NumberSequenceKeypoint.new(1, 1),
-})
-gradBrillo.Rotation = 60
-gradBrillo.Parent = FondoBrillo
-
 local Backdrop = Instance.new("ImageLabel")
 Backdrop.Name = "Backdrop"
 Backdrop.Size = UDim2.fromScale(1, 1)
@@ -483,9 +516,7 @@ Backdrop.ZIndex = 1
 Backdrop.Parent = Main
 corner(Backdrop, 12)
 
-local MENU_URLS = urls(CONFIG.IMAGEN_MENU)
-for _, u in ipairs(urls(CONFIG.IMAGEN_MENU2)) do table.insert(MENU_URLS, u) end
-forzarImagen(Backdrop, MENU_URLS, 6)
+applyTextureSafe(Backdrop, { CONFIG.IMAGEN_MENU, CONFIG.IMAGEN_MENU2 }, { max = 10 })
 
 local BackdropTint = Instance.new("Frame")
 BackdropTint.Size = UDim2.fromScale(1, 1)
@@ -583,7 +614,7 @@ pcall(function()
         { Offset = Vector2.new(1.35, 0) }):Play()
 end)
 
---═══ FIN DE LA PARTE 4 ═══
+--═══ FIN DE LA PARTE 5 ═══
 local function iconButton(kind, pos, bgColor)
     local b = Instance.new("TextButton")
     b.Size = UDim2.fromOffset(26, 26)
@@ -835,7 +866,7 @@ TabReveal.Activated:Connect(safe(function()
     plegarPestanas(UI.tabsOpen)
 end, "tabs"))
 
---═══ FIN DE LA PARTE 5 ═══
+--═══ FIN DE LA PARTE 6 ═══
 local function createSection(page, text)
     local h = Instance.new("Frame")
     h.Size = UDim2.new(1, -4, 0, 24)
@@ -1032,7 +1063,7 @@ local function createButton(parent, name, desc, callback)
     return api, row
 end
 
---═══ FIN DE LA PARTE 6 ═══
+--═══ FIN DE LA PARTE 7 ═══
 local function createSlider(page, name, min, max, default, fmt, callback)
     local cb = callback and safe(callback, name or "slider")
     min = num(min, 0)
@@ -1124,7 +1155,7 @@ local ESP_FILL = Color3.fromRGB(0, 70, 255)
 local ESP_LINE = Color3.fromRGB(120, 200, 255)
 local ESP_DARK = Color3.fromRGB(0, 14, 70)
 
---═══ FIN DE LA PARTE 7 ═══
+--═══ FIN DE LA PARTE 8 ═══
 local SKINS = {}
 
 SKINS["Serafin"] = {
@@ -1307,7 +1338,7 @@ local PARTES = {
 
 local SK = { orig = {}, ropa = {}, puestas = {}, candado = false }
 
---═══ FIN DE LA PARTE 8 ═══
+--═══ FIN DE LA PARTE 9 ═══
 local function pintar(char, skin)
     if not char or not skin then return end
     for _, par in ipairs(PARTES) do
@@ -1541,7 +1572,7 @@ track(player.CharacterAdded:Connect(safe(function()
     end
 end, "respawnSkin")))
 
---═══ FIN DE LA PARTE 9 ═══
+--═══ FIN DE LA PARTE 10 ═══
 local ESP_MAX = CONFIG.ESP_MAX
 local ESP_TICK = CONFIG.ESP_TICK
 
@@ -1668,7 +1699,7 @@ end
 
 for _, plr in ipairs(Players:GetPlayers()) do hookPlayer(plr) end
 
---═══ FIN DE LA PARTE 10 ═══
+--═══ FIN DE LA PARTE 11 ═══
 local Sel = { list = {}, set = {} }
 
 local function selAdd(plr)
@@ -1805,7 +1836,6 @@ local function camStep(dt)
     cam.CFrame = CFrame.lookAt(want, focus)
 end
 
--- Cámara enganchada de verdad al render
 RunService:BindToRenderStep("DestroyaCam", Enum.RenderPriority.Camera.Value + 1, function(dt)
     if not alive() then return end
     local ok, err = pcall(camStep, dt)
@@ -1916,10 +1946,7 @@ local function soltarFijo()
     notify("Fijo liberado, el bot sigue")
 end
 
---##################################################
---# ► BLOQUE 13 — NOMBRES OCULTOS
---##################################################
-
+--═══ FIN DE LA PARTE 12 ═══
 local hideSaved = {}
 
 local function restaurarNombre(plr)
@@ -1948,7 +1975,6 @@ local function ocultarNombre(plr)
     hideSaved[plr] = reg
     if hum then pcall(function() hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end) end
     for _, g in ipairs(char:GetDescendants()) do
-        -- No apagar nuestra propia etiqueta de Discord
         if g:IsA("BillboardGui") and g.Enabled and g.Name ~= "DestroyaTag" then
             reg.guis[#reg.guis + 1] = g
             pcall(function() g.Enabled = false end)
@@ -1956,7 +1982,6 @@ local function ocultarNombre(plr)
     end
 end
 
---═══ FIN DE LA PARTE 11 ═══
 do
     local parts, changed, refreshAt = {}, {}, 0
 
@@ -2093,10 +2118,7 @@ track(player.CharacterAdded:Connect(safe(function()
     end
 end, "flyRespawn")))
 
---##################################################
---# ► BLOQUE 15 — PISO DORADO Y AURA
---##################################################
-
+--═══ FIN DE LA PARTE 13 ═══
 local oroFolder, oroLight, oroConn, oroT, oroPulse
 
 local function apagarOro()
@@ -2326,7 +2348,7 @@ local function prenderAura()
     end, "auraLoop"))
 end
 
---═══ FIN DE LA PARTE 12 ═══
+--═══ FIN DE LA PARTE 14 ═══
 do
     local orig = setmetatable({}, { __mode = "k" })
     local glob, conn, token = {}, nil, 0
@@ -2627,6 +2649,7 @@ do
     end
 end
 
+--═══ FIN DE LA PARTE 15 ═══
 local L_SNAP, skyObj
 
 local SKY_NOCHE = {
@@ -2791,7 +2814,6 @@ track(player.CharacterAdded:Connect(safe(function()
     if S.aura then pcall(prenderAura) end
 end, "decoRespawn")))
 
---═══ FIN DE LA PARTE 13 ═══
 local tagGui, tagShine
 
 local function quitarTag()
@@ -2823,7 +2845,6 @@ local function aplicarTag()
     tagGui.Adornee = head
     tagGui.Parent = head
 
-    -- Si los nombres están ocultos, la etiqueta nace apagada pero no se borra
     if hideSaved[player] then tagGui.Enabled = false end
 
     local marco = Instance.new("Frame")
@@ -2878,6 +2899,7 @@ local function aplicarTag()
     end, "tag"))
 end
 
+--═══ FIN DE LA PARTE 16 ═══
 local FunctionPage = addTab("Funciones")
 local ListPage = addTab("Lista")
 local SelPage = addTab("Seleccionados")
@@ -3040,7 +3062,7 @@ do
     end
 end
 
---═══ FIN DE LA PARTE 14 ═══
+--═══ FIN DE LA PARTE 17 ═══
 local refreshSel
 do
     createSection(SelPage, "Seleccionados")
@@ -3261,7 +3283,7 @@ do
     UI.pintarActual = pintarActual
 end
 
---═══ FIN DE LA PARTE 15 ═══
+--═══ FIN DE LA PARTE 18 ═══
 do
     createSection(DecoPage, "Cielo")
     local gridCielo = createGrid(DecoPage)
@@ -3367,6 +3389,8 @@ do
         pcall(function() setFly(false) end)
         pcall(function() setNoclip(false) end)
         pcall(function() setWalls(false) end)
+        colgar(Screen)
+        Main.Parent = Screen
         Main.Position = HOME
         Main.Visible = true
         UI.open = true
@@ -3375,6 +3399,8 @@ do
     end)
 
     createButton(gridRep, "Reiniciar interfaz", "Vuelve la ventana al centro", function()
+        colgar(Screen)
+        Main.Parent = Screen
         Main.Position = HOME
         Main.Visible = true
         UI.open = true
@@ -3402,7 +3428,7 @@ do
     end).Set(true, true)
 end
 
---═══ FIN DE LA PARTE 16 ═══
+--═══ FIN DE LA PARTE 19 ═══
 local Toggle = Instance.new("TextButton")
 Toggle.Name = "MenuButton"
 Toggle.AnchorPoint = Vector2.new(0, 0.5)
@@ -3417,11 +3443,6 @@ Toggle.Parent = Screen
 corner(Toggle, 14)
 squish(Toggle, 0.9)
 
-local gradBoton = Instance.new("UIGradient")
-gradBoton.Color = ColorSequence.new(C.FondoB, C.FondoC)
-gradBoton.Rotation = 120
-gradBoton.Parent = Toggle
-
 local ToggleImg = Instance.new("ImageLabel")
 ToggleImg.Size = UDim2.fromScale(1, 1)
 ToggleImg.BackgroundTransparency = 1
@@ -3431,9 +3452,7 @@ ToggleImg.ZIndex = 10
 ToggleImg.Parent = Toggle
 corner(ToggleImg, 14)
 
-local BOTON_URLS = urls(CONFIG.IMAGEN_BOTON)
-for _, u in ipairs(urls(CONFIG.IMAGEN_BOTON2)) do table.insert(BOTON_URLS, u) end
-forzarImagen(ToggleImg, BOTON_URLS, 6)
+applyTextureSafe(ToggleImg, { CONFIG.IMAGEN_BOTON, CONFIG.IMAGEN_BOTON2 }, { max = 10 })
 
 local ToggleTxt = plain(Toggle, "DH", 17, F.title, C.Oro,
     UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), Enum.TextXAlignment.Center)
@@ -3473,9 +3492,7 @@ local function setOpen(v)
     if v == UI.open then return end
     UI.open = v
     Main.Visible = v
-    if v then
-        Main.Position = HOME
-    end
+    if v then Main.Position = HOME end
 end
 
 Toggle.Activated:Connect(safe(function()
@@ -3505,34 +3522,6 @@ camGrad.Parent = CamStop
 local StopScale = Instance.new("UIScale")
 StopScale.Scale = 0
 StopScale.Parent = CamStop
-
-local StopStroke = Instance.new("UIStroke")
-StopStroke.Color = GLOW
-StopStroke.Thickness = 2
-StopStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-StopStroke.Parent = CamStop
-
-local box = Instance.new("Frame")
-box.Position = UDim2.fromOffset(8, 9)
-box.Size = UDim2.fromOffset(24, 24)
-box.BackgroundColor3 = GLOW
-box.BackgroundTransparency = 0.25
-box.BorderSizePixel = 0
-box.ZIndex = 11
-box.Parent = CamStop
-corner(box, 12)
-for _, rot in ipairs({ 45, -45 }) do
-    local f = Instance.new("Frame")
-    f.AnchorPoint = Vector2.new(0.5, 0.5)
-    f.Position = UDim2.fromScale(0.5, 0.5)
-    f.Size = UDim2.fromOffset(12, 2)
-    f.Rotation = rot
-    f.BackgroundColor3 = Color3.fromRGB(240, 253, 255)
-    f.BorderSizePixel = 0
-    f.ZIndex = 12
-    f.Parent = box
-    corner(f, 1)
-end
 
 local l1 = plain(CamStop, "DESACTIVAR", 14, F.head, C.White, UDim2.fromOffset(40, 6), UDim2.fromOffset(76, 17))
 l1.ZIndex = 11
@@ -3572,7 +3561,6 @@ FijoStop.ZIndex = 10
 FijoStop.Parent = FloatCol
 corner(FijoStop, 11)
 squish(FijoStop, 0.92)
-stroke(FijoStop, "Rojo", 1.4, 0.2)
 
 local FijoScale = Instance.new("UIScale")
 FijoScale.Scale = 0
@@ -3592,105 +3580,61 @@ end
 
 FijoStop.Activated:Connect(safe(function() soltarFijo() end, "fijostop"))
 
-local FpsText = Instance.new("TextButton")
-FpsText.Name = "FpsText"
-FpsText.Size = UDim2.fromOffset(180, 52)
-FpsText.Position = UDim2.new(0.5, -90, 0, 4)
-FpsText.BackgroundTransparency = 1
-FpsText.AutoButtonColor = false
-FpsText.Text = "FPS --"
-FpsText.TextColor3 = Color3.new(1, 1, 1)
-FpsText.TextSize = 36
-FpsText.Font = F.head
+local FpsText = plain(Screen, "FPS --", 36, F.head, Color3.new(1, 1, 1),
+    UDim2.new(0.5, -90, 0, 4), UDim2.fromOffset(180, 52), Enum.TextXAlignment.Center)
 FpsText.ZIndex = 10
-FpsText.Parent = Screen
 
-local FpsStroke = Instance.new("UIStroke")
-FpsStroke.Color = Color3.new(0, 0, 0)
-FpsStroke.Thickness = 2.4
-FpsStroke.Transparency = 0.05
-FpsStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
-FpsStroke.Parent = FpsText
+-- Pads de vuelo: se crean ANTES del latido que los usa
+local UpBtn = Instance.new("TextButton")
+UpBtn.Size = UDim2.fromOffset(54, 54)
+UpBtn.Position = UDim2.new(1, -74, 0.5, -88)
+UpBtn.BackgroundColor3 = Color3.fromRGB(16, 46, 58)
+UpBtn.BackgroundTransparency = 0.25
+UpBtn.Text = "▲"
+UpBtn.TextColor3 = Color3.new(1, 1, 1)
+UpBtn.Font = F.head
+UpBtn.TextSize = 16
+UpBtn.AutoButtonColor = false
+UpBtn.Visible = false
+UpBtn.ZIndex = 10
+UpBtn.Parent = Screen
+corner(UpBtn, 27)
 
-local FpsGrad = Instance.new("UIGradient")
-FpsGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 60)),
-    ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 200, 0)),
-    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(0, 255, 90)),
-    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0, 230, 255)),
-    ColorSequenceKeypoint.new(0.8, Color3.fromRGB(120, 60, 255)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 200)),
-})
-FpsGrad.Offset = Vector2.new(-0.5, 0)
-FpsGrad.Parent = FpsText
+local DownBtn = UpBtn:Clone()
+DownBtn.Position = UDim2.new(1, -74, 0.5, 24)
+DownBtn.Text = "▼"
+DownBtn.Parent = Screen
 
-FpsText.InputBegan:Connect(safe(function(input)
-    if not isPointer(input) then return end
-    local startPos, startMouse = FpsText.Position, input.Position
-    beginDrag(input, function(i)
-        local d = i.Position - startMouse
-        FpsText.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X,
-            startPos.Y.Scale, startPos.Y.Offset + d.Y)
-    end)
-end, "fpsDrag"))
+local UpScale = Instance.new("UIScale")
+UpScale.Scale = 0
+UpScale.Parent = UpBtn
+local DownScale = Instance.new("UIScale")
+DownScale.Scale = 0
+DownScale.Parent = DownBtn
 
-local function padButton(y, arriba)
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.fromOffset(54, 54)
-    b.Position = UDim2.new(1, -74, 0.5, y)
-    b.BackgroundColor3 = Color3.fromRGB(16, 46, 58)
-    b.BackgroundTransparency = 0.25
-    b.Text = ""
-    b.AutoButtonColor = false
-    b.Visible = false
-    b.ZIndex = 10
-    b.Parent = Screen
-    corner(b, 27)
-    stroke(b, "Acc2", 2, 0.15)
-
-    for i = 0, 2 do
-        local w = Instance.new("Frame")
-        w.AnchorPoint = Vector2.new(0.5, 0.5)
-        w.Position = UDim2.new(0.5, 0, 0.5, (arriba and -1 or 1) * (i * 4 - 4))
-        w.Size = UDim2.fromOffset(16 - i * 4, 3)
-        w.BackgroundColor3 = Color3.fromRGB(235, 252, 255)
-        w.BorderSizePixel = 0
-        w.ZIndex = 11
-        w.Parent = b
-        corner(w, 1)
-    end
-
-    local sc = Instance.new("UIScale")
-    sc.Scale = 0
-    sc.Parent = b
-
-    local function pulsar(on)
-        if arriba then S.up = on else S.down = on end
-        tween(sc, { Scale = on and 0.88 or 1 }, 0.1, Enum.EasingStyle.Quad)
-    end
-
-    b.InputBegan:Connect(safe(function(i)
-        if isPointer(i) then pulsar(true) end
-    end, "pad"))
-    b.InputEnded:Connect(safe(function(i)
-        if isPointer(i) then pulsar(false) end
-    end, "pad"))
-    b.MouseLeave:Connect(safe(function() pulsar(false) end, "pad"))
-
-    return b, sc
+local function padPulsar(escala, arriba, on)
+    if arriba then S.up = on else S.down = on end
+    tween(escala, { Scale = on and 0.88 or 1 }, 0.1, Enum.EasingStyle.Quad)
 end
 
-local UpBtn, UpScale = padButton(-88, true)
-local DownBtn, DownScale = padButton(24, false)
+for _, par in ipairs({ { UpBtn, UpScale, true }, { DownBtn, DownScale, false } }) do
+    local b, esc, arriba = par[1], par[2], par[3]
+    b.InputBegan:Connect(safe(function(i)
+        if isPointer(i) then padPulsar(esc, arriba, true) end
+    end, "pad"))
+    b.InputEnded:Connect(safe(function(i)
+        if isPointer(i) then padPulsar(esc, arriba, false) end
+    end, "pad"))
+    b.MouseLeave:Connect(safe(function() padPulsar(esc, arriba, false) end, "pad"))
+end
 
---═══ FIN DE LA PARTE 17 ═══
+--═══ FIN DE LA PARTE 20 ═══
 local frames, fpsAcc, espAcc, tagAcc, hideAcc = 0, 0, 0, 0, 0
 local lastFly = false
 
 local function pasoEsp()
     local lr = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     local cands = {}
-
     if lr then
         for _, plr in ipairs(Players:GetPlayers()) do
             if plr ~= player then
@@ -3729,10 +3673,8 @@ local function pasoEsp()
         if d and d.bb.Parent then
             if not d.bb.Enabled then d.bb.Enabled = true end
             if not d.hl.Enabled then d.hl.Enabled = true end
-
             local head = c.char:FindFirstChild("Head") or c.root
             if head and d.bb.Adornee ~= head then d.bb.Adornee = head end
-
             local hp = math.max(0, math.floor(c.hum.Health + 0.5))
             local mx = math.max(1, math.floor(c.hum.MaxHealth + 0.5))
             if d.hp ~= hp or d.mx ~= mx then
@@ -3919,58 +3861,23 @@ task.spawn(function()
             tween(Toggle, { Position = base }, 0.2)
         end
         if tagShine and S.tag then pcall(function() tagShine:Play() end) end
-        if UI.anim and Title.Parent then
-            local base = UDim2.fromOffset(TITLE_X, TITLE_Y)
-            for _ = 1, 5 do
-                Title.Position = UDim2.fromOffset(TITLE_X + math.random(-2, 2), TITLE_Y + math.random(-1, 1))
-                task.wait(0.04)
-            end
-            Title.Position = base
-        end
     end
 end)
 
-local function guardia()
-    task.spawn(function()
-        while alive() do
-            task.wait(1)
-            if Screen.Parent == nil then
-                pcall(function() Screen.Parent = playerGui end)
-            end
-            if Main.Parent == nil then
-                pcall(function() Main.Parent = Screen end)
-            end
-
-            pcall(ajustarEscala)
-
-            local roto = Main.AbsoluteSize.X < 40 or Main.AbsoluteSize.Y < 40
-            if roto then
-                pcall(function()
-                    Screen.Parent = playerGui
-                    Screen.Enabled = true
-                    Screen.DisplayOrder = 9999
-                    Main.Visible = true
-                    Main.Position = HOME
-                    Main.Size = UDim2.fromOffset(BASE_W, BASE_H)
-                end)
-            end
-
-            if not UI.closing then
-                aplicarEscala()
-                if UI.open and not Main.Visible then
-                    pcall(function() Main.Visible = true end)
-                end
-            end
-
-            if not CurrentPage and Pages["Funciones"] then
-                pcall(function() showPage("Funciones") end)
-            end
-            if not TabBar.Visible and UI.tabsOpen then
-                pcall(function() plegarPestanas(false) end)
-            end
+task.spawn(function()
+    while alive() do
+        task.wait(1)
+        if Screen.Parent == nil then pcall(function() colgar(Screen) end) end
+        if Main.Parent == nil then pcall(function() Main.Parent = Screen end) end
+        pcall(ajustarEscala)
+        if not UI.closing then
+            aplicarEscala()
+            if UI.open and not Main.Visible then pcall(function() Main.Visible = true end) end
         end
-    end)
-end
+        if not CurrentPage and Pages["Funciones"] then pcall(function() showPage("Funciones") end) end
+        if not TabBar.Visible and UI.tabsOpen then pcall(function() plegarPestanas(false) end) end
+    end
+end)
 
 local closing = false
 
@@ -4044,6 +3951,7 @@ verify("Noclip", function() return type(setNoclip) == "function" end)
 verify("Aura", function() return type(prenderAura) == "function" end)
 verify("Tag", function() return type(aplicarTag) == "function" end)
 verify("Camara", function() return type(camStep) == "function" end)
+verify("Texturas", function() return type(applyTextureSafe) == "function" end)
 
 showPage("Funciones")
 ajustarEscala()
@@ -4053,7 +3961,6 @@ Main.Position = HOME
 plegarPestanas(false)
 UI.refreshLists()
 syncBot()
-guardia()
 
 task.delay(0.8, function()
     pcall(ajustarEscala)
@@ -4062,4 +3969,4 @@ end)
 
 notify("Destroya Hub v" .. CONFIG.VERSION .. " cargado")
 
---═══ FIN DE LA PARTE 18 — FIN DEL SCRIPT ═══
+--═══ FIN DE LA PARTE 21 — FIN DEL SCRIPT ═══
