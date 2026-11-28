@@ -348,6 +348,7 @@ end
 --══════════════════════════════════════════════
 --   ▸  AQUÍ TERMINA LA PARTE 1.5
 --══════════════════════════════════════════════
+
 --##################################################
 --# ► PARTE 2 — VENTANA, FONDO, CABECERA Y TÍTULO
 --#   El fondo es UNA sola imagen que cubre el marco.
@@ -738,6 +739,7 @@ end
 --══════════════════════════════════════════════
 --   ▸  AQUÍ TERMINA LA PARTE 3
 --══════════════════════════════════════════════
+
 --##################################################
 --# ► PARTE 4 — SECCIONES, CUADRÍCULA Y BOTONES
 --##################################################
@@ -929,6 +931,327 @@ end
 
 --══════════════════════════════════════════════
 --   ▸  AQUÍ TERMINA LA PARTE 4
+--══════════════════════════════════════════════
+--##################################################
+--# ► PARTE 5 — DESLIZADORES
+--##################################################
+
+local function createSlider(page, name, min, max, default, fmt, callback)
+    local cb = callback and safe(callback, name)
+
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, -4, 0, 46)
+    row.BackgroundTransparency = 0.5
+    row.LayoutOrder = nextOrder()
+    row.Parent = page
+    bind(row, "BackgroundColor3", "Row")
+    corner(row, 10)
+
+    local glass = Instance.new("UIStroke")
+    glass.Color = Color3.fromRGB(220, 250, 255)
+    glass.Thickness = 1
+    glass.Transparency = 0.78
+    glass.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    glass.Parent = row
+
+    mkLabel(row, string.upper(name), 12, F.head, "White", UDim2.fromOffset(12, 5), UDim2.new(0.62, 0, 0, 16))
+    local valueL = mkLabel(row, "", 12, F.head, "Acc2", UDim2.new(0.62, 0, 0, 5),
+        UDim2.new(0.38, -12, 0, 16), Enum.TextXAlignment.Right)
+
+    local hit = Instance.new("Frame")
+    hit.Size = UDim2.new(1, -24, 0, 24)
+    hit.Position = UDim2.fromOffset(12, 21)
+    hit.BackgroundTransparency = 1
+    hit.Parent = row
+
+    local barF = Instance.new("Frame")
+    barF.AnchorPoint = Vector2.new(0, 0.5)
+    barF.Position = UDim2.fromScale(0, 0.5)
+    barF.Size = UDim2.new(1, 0, 0, 6)
+    barF.BackgroundTransparency = 0.35
+    barF.BorderSizePixel = 0
+    barF.Parent = hit
+    bind(barF, "BackgroundColor3", "Off")
+    corner(barF, 3)
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.fromScale(0, 1)
+    fill.BorderSizePixel = 0
+    fill.Parent = barF
+    bind(fill, "BackgroundColor3", "Acc")
+    corner(fill, 3)
+
+    local knob = Instance.new("Frame")
+    knob.AnchorPoint = Vector2.new(0.5, 0.5)
+    knob.Size = UDim2.fromOffset(15, 15)
+    knob.BorderSizePixel = 0
+    knob.Parent = barF
+    bind(knob, "BackgroundColor3", "White")
+    corner(knob, 8)
+
+    local function setRatio(r)
+        r = math.clamp(r, 0, 1)
+        fill.Size = UDim2.fromScale(r, 1)
+        knob.Position = UDim2.fromScale(r, 0.5)
+        local value = min + (max - min) * r
+        valueL.Text = fmt(value)
+        if cb then cb(value) end
+    end
+
+    local function fromInput(input)
+        local w = barF.AbsoluteSize.X
+        if w > 0 then setRatio((input.Position.X - barF.AbsolutePosition.X) / w) end
+    end
+
+    hit.InputBegan:Connect(function(input)
+        if isPointer(input) then
+            fromInput(input)
+            tween(knob, { Size = UDim2.fromOffset(20, 20) }, 0.12, Enum.EasingStyle.Back)
+            beginDrag(input, fromInput, true, function()
+                tween(knob, { Size = UDim2.fromOffset(15, 15) }, 0.16)
+            end)
+        end
+    end)
+
+    setRatio((default - min) / (max - min))
+    return row
+end
+
+--══════════════════════════════════════════════
+--   ▸  AQUÍ TERMINA LA PARTE 5
+--══════════════════════════════════════════════
+
+--##################################################
+--# ► PARTE 6 — ACCESOS DE CÁMARA Y COLOR DEL ESP
+--##################################################
+
+local function getCamera()
+    return Workspace.CurrentCamera
+end
+
+local function getParts()
+    local char = player.Character
+    if not char then return nil end
+    return char:FindFirstChild("HumanoidRootPart"), char:FindFirstChildOfClass("Humanoid"), char
+end
+
+-- azul fuerte para todos los objetivos
+local ESP_FILL  = Color3.fromRGB(0, 70, 255)
+local ESP_LINE  = Color3.fromRGB(120, 200, 255)
+local ESP_DARK  = Color3.fromRGB(0, 14, 70)
+
+--══════════════════════════════════════════════
+--   ▸  AQUÍ TERMINA LA PARTE 6
+--══════════════════════════════════════════════
+
+--##################################################
+--# ► PARTE 7 — ESP AZUL (140 STUDS, 5 OBJETIVOS)
+--#   Solo los 5 más cercanos dentro de 140 studs
+--#   se dibujan. Fuera de rango se ocultan sin destruir.
+--##################################################
+
+local ESP_MAX = CONFIG.ESP_MAX
+local ESP_TICK = CONFIG.ESP_TICK
+
+local espObjects = {}
+local playerConns = {}
+
+local function removeESP(plr)
+    local d = espObjects[plr]
+    if d then
+        if d.hl then d.hl:Destroy() end
+        if d.bb then d.bb:Destroy() end
+        espObjects[plr] = nil
+    end
+end
+
+local function clearESP()
+    for plr in pairs(espObjects) do removeESP(plr) end
+end
+
+local function espLabel(parent, size, font, pos, sz)
+    local l = plain(parent, "", size, font, Color3.new(1, 1, 1), pos, sz, Enum.TextXAlignment.Center)
+    l.TextStrokeTransparency = 0.2
+    l.TextStrokeColor3 = Color3.new(0, 0, 0)
+    return l
+end
+
+local function paintESP(d)
+    d.hl.FillColor = ESP_FILL
+    d.hl.OutlineColor = ESP_LINE
+    d.nameL.TextColor3 = ESP_LINE
+    d.distL.TextColor3 = ESP_LINE
+    d.barStroke.Color = ESP_LINE
+    d.barBack.BackgroundColor3 = ESP_DARK
+    d.grad.Color = ColorSequence.new(ESP_DARK, ESP_FILL)
+end
+
+local function applyESP(plr)
+    if plr == player then return end
+    local char = plr.Character
+    if not char then return end
+    removeESP(plr)
+
+    local hl = Instance.new("Highlight")
+    hl.Adornee = char
+    hl.FillColor = ESP_FILL
+    hl.FillTransparency = 0.15
+    hl.OutlineColor = ESP_LINE
+    hl.OutlineTransparency = 0
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.Parent = Workspace
+
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "DestroyaESP"
+    bb.Size = UDim2.fromOffset(150, 46)
+    bb.StudsOffset = Vector3.new(0, 3.1, 0)
+    bb.AlwaysOnTop = true
+    bb.LightInfluence = 0
+    bb.Adornee = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
+    bb.Parent = Workspace
+
+    local nameL = espLabel(bb, 14, F.head, UDim2.fromOffset(0, 0), UDim2.new(1, 0, 0, 15))
+    nameL.Text = string.upper(plr.Name)
+
+    local barBack = Instance.new("Frame")
+    barBack.AnchorPoint = Vector2.new(0.5, 0)
+    barBack.Position = UDim2.new(0.5, 0, 0, 17)
+    barBack.Size = UDim2.new(0.9, 0, 0, 13)
+    barBack.BackgroundTransparency = 0.1
+    barBack.BorderSizePixel = 0
+    barBack.Parent = bb
+    corner(barBack, 4)
+
+    local barStroke = Instance.new("UIStroke")
+    barStroke.Thickness = 1.4
+    barStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    barStroke.Parent = barBack
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.fromScale(1, 1)
+    fill.BackgroundColor3 = ESP_FILL
+    fill.BorderSizePixel = 0
+    fill.Parent = barBack
+    corner(fill, 4)
+    local grad = Instance.new("UIGradient")
+    grad.Parent = fill
+
+    for i = 1, 3 do
+        local tk = Instance.new("Frame")
+        tk.Size = UDim2.new(0, 1, 1, 0)
+        tk.Position = UDim2.fromScale(i / 4, 0)
+        tk.BackgroundColor3 = Color3.new(0, 0, 0)
+        tk.BackgroundTransparency = 0.45
+        tk.BorderSizePixel = 0
+        tk.ZIndex = 2
+        tk.Parent = barBack
+    end
+
+    local hpL = espLabel(barBack, 10, F.head, UDim2.new(), UDim2.fromScale(1, 1))
+    hpL.ZIndex = 3
+    hpL.TextStrokeTransparency = 0.1
+    local distL = espLabel(bb, 11, F.head, UDim2.fromOffset(0, 32), UDim2.new(1, 0, 0, 12))
+
+    local d = {
+        hl = hl, bb = bb, nameL = nameL, distL = distL, barBack = barBack, barStroke = barStroke,
+        fill = fill, grad = grad, hpL = hpL, char = char, hp = -1, mx = -1, dist = -1,
+    }
+    espObjects[plr] = d
+    paintESP(d)
+end
+
+local function unhookPlayer(plr)
+    local c = playerConns[plr]
+    if c then
+        pcall(function() c:Disconnect() end)
+        playerConns[plr] = nil
+    end
+end
+
+local function hookPlayer(plr)
+    if plr == player then return end
+    unhookPlayer(plr)
+    playerConns[plr] = track(plr.CharacterAdded:Connect(function()
+        if S.esp then
+            task.wait(1)
+            if S.esp then pcall(applyESP, plr) end
+        end
+    end))
+end
+
+do
+    local acc = 0
+    track(RunService.Heartbeat:Connect(function(dt)
+        if not S.esp then return end
+        acc += dt
+        if acc < ESP_TICK then return end
+        acc = 0
+        pcall(function()
+            local lr = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            local cands = {}
+
+            for _, plr in ipairs(Players:GetPlayers()) do
+                if plr ~= player and lr then
+                    local char = plr.Character
+                    local root = char and char:FindFirstChild("HumanoidRootPart")
+                    local hum = char and char:FindFirstChildOfClass("Humanoid")
+                    if root and hum and hum.Health > 0 then
+                        local dist = math.floor((root.Position - lr.Position).Magnitude + 0.5)
+                        if dist <= ESP_MAX then
+                            cands[#cands + 1] = { plr = plr, char = char, root = root, hum = hum, dist = dist }
+                        end
+                    end
+                end
+            end
+
+            table.sort(cands, function(a, b) return a.dist < b.dist end)
+
+            local shown = {}
+            for i = 1, math.min(#cands, CONFIG.MAX_TARGETS) do
+                shown[cands[i].plr] = cands[i]
+            end
+
+            for plr, d in pairs(espObjects) do
+                if not shown[plr] then
+                    if d.bb.Enabled then d.bb.Enabled = false end
+                    if d.hl.Enabled then d.hl.Enabled = false end
+                end
+            end
+
+            for plr, c in pairs(shown) do
+                local d = espObjects[plr]
+                if not d or d.char ~= c.char then
+                    applyESP(plr)
+                    d = espObjects[plr]
+                end
+                if d then
+                    if not d.bb.Enabled then d.bb.Enabled = true end
+                    if not d.hl.Enabled then d.hl.Enabled = true end
+
+                    local head = c.char:FindFirstChild("Head") or c.root
+                    if head and d.bb.Adornee ~= head then d.bb.Adornee = head end
+
+                    local hp = math.max(0, math.floor(c.hum.Health + 0.5))
+                    local mx = math.max(1, math.floor(c.hum.MaxHealth + 0.5))
+                    if d.hp ~= hp or d.mx ~= mx then
+                        d.hp, d.mx = hp, mx
+                        d.fill.Size = UDim2.fromScale(math.clamp(hp / mx, 0, 1), 1)
+                        d.hpL.Text = hp .. " / " .. mx
+                    end
+                    if d.dist ~= c.dist then
+                        d.dist = c.dist
+                        d.distL.Text = c.dist .. " studs"
+                    end
+                end
+            end
+        end)
+    end))
+end
+
+for _, plr in ipairs(Players:GetPlayers()) do hookPlayer(plr) end
+
+--══════════════════════════════════════════════
+--   ▸  AQUÍ TERMINA LA PARTE 7
 --══════════════════════════════════════════════
 --##################################################
 --# ► PARTE 8 — I'M BOT Y SELECCIONADOS
