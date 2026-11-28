@@ -1,27 +1,53 @@
 --==================================================
 --            DESTROYA HUB  •  RIVALS
---            v7.0  (reconstrucción)
+--     reconstrucción v7.1  •  archivo único
 --==================================================
---  Arranque y fondo: Destroya.
---  Forma del menú: Free.
---  Lógica de funciones: Tester, reparada.
---  Animación de vuelo: ScriptBlox.
---  Sin skins, sin accesorios del catálogo.
+--  Arranque y fondo ......... Destroya
+--  Forma del menú ........... Free
+--  Lógica de funciones ...... Tester, reparada
+--  Animación de vuelo ....... ScriptBlox
+--  Sin ropa, sin accesorios del catálogo.
+--
+--  BLOQUES
+--  B1  servicios y CONFIG
+--  B2  estado y utilidades
+--  B3  arranque y candado
+--  B4  ventana y fondo
+--  B5  pestañas, cuerpo y pie
+--  B6  secciones, rejilla y botones
+--  B7  deslizadores
+--  B8  ESP
+--  B9  seleccionados, cámara, bot y TP
+--  B10 vuelo animado
+--  B11 nombres, noclip y salto
+--  B12 FPS Boost y paredes
+--  B13 cielos, neón, brillo y etiqueta
+--  B14 decoraciones D1 a D12
+--  B15 registro y restauradores
+--  B16 Funciones, Lista, Seleccionados
+--  B17 Decoración y Configuración
+--  B18 flotantes, chip FPS y motor
+--  B19 guardia, cierre, verify y arranque
+--
+--  Para mover distancias, edita solo CONFIG.
 --==================================================
 
 if not game:IsLoaded() then
     pcall(function() game.Loaded:Wait() end)
 end
 
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
+--##################################################
+--#  B1  •  SERVICIOS
+--##################################################
+local Players          = game:GetService("Players")
+local TweenService     = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
-local TextService = game:GetService("TextService")
-local GuiService = game:GetService("GuiService")
-local ContentProvider = game:GetService("ContentProvider")
+local Workspace        = game:GetService("Workspace")
+local RunService       = game:GetService("RunService")
+local Lighting         = game:GetService("Lighting")
+local TextService      = game:GetService("TextService")
+local GuiService       = game:GetService("GuiService")
+local ContentProvider  = game:GetService("ContentProvider")
 
 local player = Players.LocalPlayer
 local vueltas = 0
@@ -39,27 +65,30 @@ end
 --#  B1  •  CONFIG
 --##################################################
 local CONFIG = {
-    ESP_MAX      = 150,
-    ESP_TICK     = 0.12,
-    MAX_TARGETS  = 8,
-    BOT_RANGE    = 60,
-    HIDE_RADIUS  = 400,
-    WALL_RADIUS  = 170,
-    WALL_ALPHA   = 0.62,
-    STRUCT_LIMIT = 320,
-    JUMP_HEIGHT  = 17,
-    FLY_SPEED    = 70,
-    BTN_T        = 0.55,
-    BTN_T_ON     = 0.38,
-    CELL_H       = 34,
-    CELL_GAP     = 12,
-    BASE_W       = 480,
-    BASE_H       = 340,
-    HEADER_H     = 46,
+    ESP_MAX      = 150,      -- studs que alcanza el ESP
+    ESP_TICK     = 0.12,     -- refresco del ESP
+    MAX_TARGETS  = 8,        -- jugadores dibujados a la vez
+    BOT_RANGE    = 60,       -- alcance de I'm bot
+    HIDE_RADIUS  = 400,      -- radio de nombres ocultos
+    WALL_RADIUS  = 170,      -- radio de paredes claras
+    WALL_ALPHA   = 0.62,     -- transparencia aplicada
+    STRUCT_LIMIT = 320,      -- estructuras máximas
+    JUMP_HEIGHT  = 17,       -- studs del impulso
+    FLY_SPEED    = 70,       -- velocidad de vuelo
+    BTN_T        = 0.55,     -- transparencia de botón
+    BTN_T_ON     = 0.38,     -- transparencia de botón activo
+    CELL_H       = 34,       -- alto de celda
+    CELL_GAP     = 12,       -- separación de celda
+    BASE_W       = 480,      -- ancho base de la ventana
+    BASE_H       = 340,      -- alto base de la ventana
+    HEADER_H     = 46,       -- alto de la cabecera
     DISCORD      = "https://discord.gg/ykHwgmQnD",
     IMAGEN_FONDO = "rbxassetid://118874416134775",
 }
 
+--##################################################
+--#  B1  •  FUENTES
+--##################################################
 local function pickFont(name, fallback)
     local ok, f = pcall(function() return Enum.Font[name] end)
     return (ok and f) or fallback
@@ -77,50 +106,86 @@ local F = {
 --#  B1  •  PALETA FIJA
 --##################################################
 local C = {
-    White = Color3.fromRGB(240, 252, 255), Gray = Color3.fromRGB(168, 208, 220),
-    Plus = Color3.fromRGB(60, 220, 120), Minus = Color3.fromRGB(255, 60, 80),
-    Acc = Color3.fromRGB(120, 224, 250), Acc2 = Color3.fromRGB(200, 246, 255),
-    Dark = Color3.fromRGB(10, 26, 34), Panel = Color3.fromRGB(16, 40, 52),
-    Row = Color3.fromRGB(130, 210, 232), Off = Color3.fromRGB(78, 140, 160),
-    Tab = Color3.fromRGB(22, 52, 64), RowOn = Color3.fromRGB(96, 178, 198),
-    Oro = Color3.fromRGB(255, 196, 60), OroClaro = Color3.fromRGB(255, 234, 160),
-    Rojo = Color3.fromRGB(255, 70, 90),
-    Carbon = Color3.fromRGB(20, 20, 24), CarbonD = Color3.fromRGB(9, 9, 11),
+    White   = Color3.fromRGB(240, 252, 255),
+    Gray    = Color3.fromRGB(168, 208, 220),
+    Plus    = Color3.fromRGB(60, 220, 120),
+    Minus   = Color3.fromRGB(255, 60, 80),
+    Acc     = Color3.fromRGB(120, 224, 250),
+    Acc2    = Color3.fromRGB(200, 246, 255),
+    Dark    = Color3.fromRGB(10, 26, 34),
+    Panel   = Color3.fromRGB(16, 40, 52),
+    Row     = Color3.fromRGB(130, 210, 232),
+    Off     = Color3.fromRGB(78, 140, 160),
+    Tab     = Color3.fromRGB(22, 52, 64),
+    RowOn   = Color3.fromRGB(96, 178, 198),
+    Oro     = Color3.fromRGB(255, 196, 60),
+    OroClaro= Color3.fromRGB(255, 234, 160),
+    Rojo    = Color3.fromRGB(255, 70, 90),
+    Carbon  = Color3.fromRGB(20, 20, 24),
+    CarbonD = Color3.fromRGB(9, 9, 11),
 }
 
-local GLOW = Color3.fromRGB(140, 232, 255)
-local HOME = UDim2.fromScale(0.5, 0.5)
-local BASE_W, BASE_H, HEADER_H = CONFIG.BASE_W, CONFIG.BASE_H, CONFIG.HEADER_H
+local GLOW    = Color3.fromRGB(140, 232, 255)
+local HOME    = UDim2.fromScale(0.5, 0.5)
+local BASE_W  = CONFIG.BASE_W
+local BASE_H  = CONFIG.BASE_H
+local HEADER_H= CONFIG.HEADER_H
 
 local ESP_FILL = Color3.fromRGB(0, 70, 255)
 local ESP_LINE = Color3.fromRGB(120, 200, 255)
 local ESP_DARK = Color3.fromRGB(0, 14, 70)
 
 --═══ FIN DEL BLOQUE B1 ═══
+
 --##################################################
 --#  B2  •  ESTADO
 --##################################################
 local S = {
-    esp = false, bot = false, target = nil, fijado = nil, tp = false,
-    infJump = false, noclip = false, fly = false, up = false, down = false,
-    boost = false, walls = false, jumpPower = false,
-    noche = false, rosa = false, neon = false, glow = false,
-    tag = true, hideNames = false, decorando = false,
+    esp = false,
+    bot = false,
+    target = nil,
+    fijado = nil,
+    tp = false,
+    infJump = false,
+    noclip = false,
+    fly = false,
+    up = false,
+    down = false,
+    boost = false,
+    walls = false,
+    jumpPower = false,
+    noche = false,
+    rosa = false,
+    neon = false,
+    glow = false,
+    tag = true,
+    hideNames = false,
 }
 
 local UI = {
-    open = true, size = 1, anim = true, autoLow = false, lowApplied = false,
-    dead = false, closing = false, fit = 1, setScrollLock = nil, filter = "",
+    open = true,
+    size = 1,
+    anim = true,
+    autoLow = false,
+    lowApplied = false,
+    dead = false,
+    closing = false,
+    fit = 1,
+    filter = "",
+    setScrollLock = nil,
 }
 
 local conns = {}
+
+-- Adelantos: nada de esto puede nacer después de usarse.
+local Screen
+local MenuScale
 local setNoclip, setWalls, setFpsBoost, setFly, setBot
 local setNoche, setRosa, setNeon, setGlow
-local aplicarTag, quitarTag, MenuScale
-local decoTicks = {}
+local aplicarTag, quitarTag
 
 --##################################################
---#  B2  •  UTILIDADES  (todas antes de cualquier pixel)
+--#  B2  •  UTILIDADES  (antes de cualquier píxel)
 --##################################################
 local function alive()
     return not UI.dead and Screen ~= nil and Screen.Parent ~= nil
@@ -139,9 +204,12 @@ end
 local function tween(obj, props, time, style, dir)
     if not obj or not obj.Parent then return end
     local ok, t = pcall(function()
-        return TweenService:Create(obj,
+        return TweenService:Create(
+            obj,
             TweenInfo.new(time or 0.2, style or Enum.EasingStyle.Quint,
-                dir or Enum.EasingDirection.Out), props)
+                dir or Enum.EasingDirection.Out),
+            props
+        )
     end)
     if ok and t then
         pcall(function() t:Play() end)
@@ -228,7 +296,9 @@ local function debounced(fn)
         task.defer(function()
             pending = false
             local ok, err = pcall(fn)
-            if not ok then warn("[DestroyaHub] B2 / debounced: " .. tostring(err)) end
+            if not ok then
+                warn("[DestroyaHub] B2 / debounced: " .. tostring(err))
+            end
         end)
     end
 end
@@ -236,7 +306,7 @@ end
 local function verify(name, fn)
     local ok, res = pcall(fn)
     if not ok or res == false then
-        warn("[DestroyaHub] B18 / verify: falló " .. name)
+        warn("[DestroyaHub] B19 / verify: falló " .. name)
         return false
     end
     return true
@@ -246,10 +316,14 @@ local function squish(btn, depth)
     local sc = Instance.new("UIScale")
     sc.Parent = btn
     btn.InputBegan:Connect(safe(function(i)
-        if isPointer(i) then tween(sc, { Scale = depth or 0.95 }, 0.08, Enum.EasingStyle.Quad) end
+        if isPointer(i) then
+            tween(sc, { Scale = depth or 0.95 }, 0.08, Enum.EasingStyle.Quad)
+        end
     end, "squish", 2))
     btn.InputEnded:Connect(safe(function(i)
-        if isPointer(i) then tween(sc, { Scale = 1 }, 0.22, Enum.EasingStyle.Back) end
+        if isPointer(i) then
+            tween(sc, { Scale = 1 }, 0.22, Enum.EasingStyle.Back)
+        end
     end, "squish", 2))
     return sc
 end
@@ -267,21 +341,28 @@ end
 local function beginDrag(input, handler, lockScroll, onEnd)
     endDrag()
     activeDrag, activeInput, activeEnd = handler, input, onEnd
-    if lockScroll and UI.setScrollLock then pcall(UI.setScrollLock, true) end
+    if lockScroll and UI.setScrollLock then
+        pcall(UI.setScrollLock, true)
+    end
 end
 
 track(UserInputService.InputChanged:Connect(safe(function(input)
-    if activeDrag and (input == activeInput or input.UserInputType == Enum.UserInputType.MouseMovement) then
-        local ok, err = pcall(activeDrag, input)
-        if not ok then
-            endDrag()
-            warn("[DestroyaHub] B2 / arrastre: " .. tostring(err))
-        end
+    if not activeDrag then return end
+    if input ~= activeInput
+        and input.UserInputType ~= Enum.UserInputType.MouseMovement then
+        return
+    end
+    local ok, err = pcall(activeDrag, input)
+    if not ok then
+        endDrag()
+        warn("[DestroyaHub] B2 / arrastre: " .. tostring(err))
     end
 end, "drag", 2)))
 
 track(UserInputService.InputEnded:Connect(safe(function(input)
-    if activeDrag and (input == activeInput or input.UserInputType == Enum.UserInputType.MouseButton1) then
+    if not activeDrag then return end
+    if input == activeInput
+        or input.UserInputType == Enum.UserInputType.MouseButton1 then
         endDrag()
     end
 end, "dragEnd", 2)))
@@ -289,7 +370,11 @@ end, "dragEnd", 2)))
 --═══ FIN DEL BLOQUE B2 ═══
 --##################################################
 --#  B3  •  ARRANQUE  (Destroya)
+--#  PlayerGui con reintentos, padres ordenados y
+--#  colgado con recorrido. Nada de un solo pcall
+--#  mudo: si algo falla, queda el warn.
 --##################################################
+
 local playerGui = player:FindFirstChildOfClass("PlayerGui")
 local intentos = 0
 while not playerGui and intentos < 80 do
@@ -306,12 +391,22 @@ if not playerGui then
     return
 end
 
+--##################################################
+--#  B3  •  PADRES
+--##################################################
+
 local function obtenerPadres()
     local lista = { playerGui }
     local okHui, ui = pcall(function() return gethui and gethui() end)
-    if okHui and ui and ui ~= playerGui then lista[#lista + 1] = ui end
-    local okCore, core = pcall(function() return game:GetService("CoreGui") end)
-    if okCore and core and core ~= playerGui then lista[#lista + 1] = core end
+    if okHui and ui and ui ~= playerGui then
+        lista[#lista + 1] = ui
+    end
+    local okCore, core = pcall(function()
+        return game:GetService("CoreGui")
+    end)
+    if okCore and core and core ~= playerGui then
+        lista[#lista + 1] = core
+    end
     return lista
 end
 
@@ -326,16 +421,25 @@ local function colgar(inst)
     return false
 end
 
+--##################################################
+--#  B3  •  LIMPIEZA
+--##################################################
+
 for _, container in ipairs(PADRES) do
     for _, name in ipairs({ "DestroyaHub", "EfrenHub" }) do
         local old = container:FindFirstChild(name)
         if old then pcall(function() old:Destroy() end) end
     end
 end
+
 pcall(function() RunService:UnbindFromRenderStep("TargetCamera") end)
 pcall(function() RunService:UnbindFromRenderStep("DestroyaCam") end)
 
-local Screen = Instance.new("ScreenGui")
+--##################################################
+--#  B3  •  PANTALLA
+--##################################################
+
+Screen = Instance.new("ScreenGui")
 Screen.Name = "DestroyaHub"
 Screen.ResetOnSpawn = false
 Screen.IgnoreGuiInset = true
@@ -356,7 +460,8 @@ end
 --##################################################
 --#  B3  •  CANDADO: SOLO RIVALS
 --##################################################
-local RIVALS_ID = 6035872082
+
+local RIVALS_ID    = 6035872082
 local RIVALS_PLACE = 17625359962
 
 local function dentroDeRivals()
@@ -364,7 +469,9 @@ local function dentroDeRivals()
 end
 
 if not dentroDeRivals() then
-    pcall(function() if Screen.Parent then Screen:Destroy() end end)
+    pcall(function()
+        if Screen.Parent then Screen:Destroy() end
+    end)
     pcall(function() player:Kick("No estás dentro de RIVALS") end)
     task.delay(1.5, function()
         pcall(function()
@@ -375,12 +482,17 @@ if not dentroDeRivals() then
 end
 
 --##################################################
---#  B3  •  AVISOS Y ACCESOS
+--#  B3  •  AVISOS
 --##################################################
+
 local lastToast
+
 local function notify(text)
     if not alive() then return end
-    if lastToast and lastToast.Parent then pcall(function() lastToast:Destroy() end) end
+    if lastToast and lastToast.Parent then
+        pcall(function() lastToast:Destroy() end)
+    end
+
     local toast = Instance.new("Frame")
     lastToast = toast
     toast.AnchorPoint = Vector2.new(0.5, 1)
@@ -392,6 +504,7 @@ local function notify(text)
     toast.ZIndex = 30
     toast.Parent = Screen
     corner(toast, 9)
+
     local bar = Instance.new("Frame")
     bar.Position = UDim2.fromOffset(0, 7)
     bar.Size = UDim2.fromOffset(3, 16)
@@ -399,10 +512,15 @@ local function notify(text)
     bar.BorderSizePixel = 0
     bar.ZIndex = 31
     bar.Parent = toast
-    local l = plain(toast, text, 12, F.head, C.White, UDim2.fromOffset(12, 0), UDim2.new(1, -18, 1, 0))
+
+    local l = plain(toast, text, 12, F.head, C.White,
+        UDim2.fromOffset(12, 0), UDim2.new(1, -18, 1, 0))
     l.ZIndex = 31
     l.TextTruncate = Enum.TextTruncate.AtEnd
-    tween(toast, { Position = UDim2.new(0.5, 0, 1, -70) }, 0.35, Enum.EasingStyle.Back)
+
+    tween(toast, { Position = UDim2.new(0.5, 0, 1, -70) },
+        0.35, Enum.EasingStyle.Back)
+
     task.delay(2.2, function()
         if toast.Parent then
             tween(toast, { Position = UDim2.new(0.5, 0, 1, 44) }, 0.25)
@@ -412,6 +530,10 @@ local function notify(text)
         end
     end)
 end
+
+--##################################################
+--#  B3  •  ACCESOS
+--##################################################
 
 local function getCamera()
     return Workspace.CurrentCamera
@@ -428,17 +550,20 @@ end
 local TIPO_FILTRO = Enum.RaycastFilterType.Exclude
 do
     local ok = pcall(function() return Enum.RaycastFilterType.Exclude end)
-    if not ok then TIPO_FILTRO = Enum.RaycastFilterType.Blacklist end
+    if not ok then
+        TIPO_FILTRO = Enum.RaycastFilterType.Blacklist
+    end
 end
 
 --##################################################
---#  B3  •  TEXTURA A PRUEBA DE FALLOS  (E6.5)
+--#  B3  •  TEXTURA A PRUEBA DE FALLOS
 --##################################################
+
 local function applyTextureSafe(label, assetId, opciones)
     if not label or not assetId then return end
     opciones = opciones or {}
     local urls = { "rbxassetid://" .. tostring(assetId) }
-    local intentos, indice = 0, 1
+    local intentosImg, indice = 0, 1
     local vivo = true
     local cargada = label.IsLoaded
 
@@ -455,7 +580,7 @@ local function applyTextureSafe(label, assetId, opciones)
     local connImg = label:GetPropertyChangedSignal("Image"):Connect(safe(function()
         if not vivo then return end
         if label.Image == "" then
-            intentos = 0
+            intentosImg = 0
             task.delay(0.5, function()
                 if vivo and label.Parent then pintar() end
             end)
@@ -472,8 +597,9 @@ local function applyTextureSafe(label, assetId, opciones)
     end)
 
     task.spawn(function()
-        while vivo and label.Parent and not cargada and intentos < (opciones.max or 12) do
-            intentos += 1
+        while vivo and label.Parent and not cargada
+            and intentosImg < (opciones.max or 12) do
+            intentosImg += 1
             pintar()
             if label.IsLoaded then
                 cargada = true
@@ -483,6 +609,10 @@ local function applyTextureSafe(label, assetId, opciones)
         end
     end)
 end
+
+--##################################################
+--#  B3  •  ESCALA
+--##################################################
 
 local function ajustarEscala()
     local cam = getCamera()
@@ -500,9 +630,12 @@ local function aplicarEscala()
 end
 
 --═══ FIN DEL BLOQUE B3 ═══
+
 --##################################################
---#  B4  •  VENTANA Y FONDO  (Free + Destroya)
+--#  B4  •  VENTANA Y FONDO
+--#  Marco de Free, imagen y tinte de Destroya.
 --##################################################
+
 local Main = Instance.new("Frame")
 Main.Name = "Main"
 Main.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -515,6 +648,10 @@ Main.ClipsDescendants = true
 Main.Parent = Screen
 corner(Main, 12)
 stroke(Main, "Acc", 1.6, 0.1)
+
+--==================================================
+-- FONDO: una sola imagen, se cambia en CONFIG
+--==================================================
 
 local Backdrop = Instance.new("ImageLabel")
 Backdrop.Name = "Backdrop"
@@ -542,6 +679,10 @@ MenuScale = Instance.new("UIScale")
 MenuScale.Scale = 1
 MenuScale.Parent = Main
 
+--##################################################
+--#  B4  •  CABECERA
+--##################################################
+
 local Header = Instance.new("Frame")
 Header.Name = "Header"
 Header.Size = UDim2.new(1, 0, 0, HEADER_H)
@@ -564,6 +705,7 @@ blood.BorderSizePixel = 0
 blood.ZIndex = 4
 blood.Parent = Header
 bind(blood, "BackgroundColor3", "Acc2")
+
 local bg = Instance.new("UIGradient")
 bg.Transparency = NumberSequence.new({
     NumberSequenceKeypoint.new(0, 0.1),
@@ -572,10 +714,16 @@ bg.Transparency = NumberSequence.new({
 })
 bg.Parent = blood
 
+--##################################################
+--#  B4  •  TÍTULO
+--##################################################
+
 local TITLE_X, TITLE_Y = 40, 4
 local titleW = 150
 pcall(function()
-    titleW = TextService:GetTextSize("DESTROYA HUB", 26, F.title, Vector2.new(500, 40)).X
+    titleW = TextService:GetTextSize(
+        "DESTROYA HUB", 26, F.title, Vector2.new(500, 40)
+    ).X
 end)
 
 local TitleShadow = plain(Header, "DESTROYA HUB", 26, F.title, Color3.new(0, 0, 0),
@@ -619,11 +767,17 @@ bind(underline, "BackgroundColor3", "Acc2")
 
 local titleShine
 pcall(function()
-    titleShine = TweenService:Create(TitleGrad,
+    titleShine = TweenService:Create(
+        TitleGrad,
         TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-        { Offset = Vector2.new(1.35, 0) })
+        { Offset = Vector2.new(1.35, 0) }
+    )
     titleShine:Play()
 end)
+
+--##################################################
+--#  B4  •  BOTONES DE VENTANA
+--##################################################
 
 local function iconButton(kind, pos, bgColor)
     local b = Instance.new("TextButton")
@@ -637,6 +791,7 @@ local function iconButton(kind, pos, bgColor)
     b.Parent = Header
     corner(b, 8)
     squish(b, 0.88)
+
     local function glyph(w, rot)
         local f = Instance.new("Frame")
         f.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -649,6 +804,7 @@ local function iconButton(kind, pos, bgColor)
         f.Parent = b
         corner(f, 1)
     end
+
     if kind == "x" then
         glyph(13, 45)
         glyph(13, -45)
@@ -658,8 +814,14 @@ local function iconButton(kind, pos, bgColor)
     return b
 end
 
-local DestroyBtn = iconButton("x", UDim2.fromOffset(8, 10), Color3.fromRGB(24, 84, 104))
-local HideBtn = iconButton("minus", UDim2.new(1, -34, 0, 10), Color3.fromRGB(26, 62, 74))
+local DestroyBtn = iconButton("x", UDim2.fromOffset(8, 10),
+    Color3.fromRGB(24, 84, 104))
+local HideBtn = iconButton("minus", UDim2.new(1, -34, 0, 10),
+    Color3.fromRGB(26, 62, 74))
+
+--##################################################
+--#  B4  •  ARRASTRE
+--##################################################
 
 local DragZone = Instance.new("Frame")
 DragZone.Position = UDim2.fromOffset(42, 0)
@@ -673,15 +835,18 @@ DragZone.InputBegan:Connect(safe(function(input)
     local startPos, startMouse = Main.Position, input.Position
     beginDrag(input, function(i)
         local d = i.Position - startMouse
-        Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X,
-            startPos.Y.Scale, startPos.Y.Offset + d.Y)
+        Main.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + d.X,
+            startPos.Y.Scale, startPos.Y.Offset + d.Y
+        )
     end)
 end, "dragMain", 4))
 
 --═══ FIN DEL BLOQUE B4 ═══
 --##################################################
---#  B5  •  PESTAÑAS, CUERPO Y PIE  (Free)
+--#  B5  •  PESTAÑAS, CUERPO Y PIE
 --##################################################
+
 local TabBar = Instance.new("Frame")
 TabBar.Position = UDim2.fromOffset(8, HEADER_H + 6)
 TabBar.Size = UDim2.new(1, -16, 0, 26)
@@ -721,10 +886,16 @@ Content.Parent = Main
 bind(Content, "BackgroundColor3", "Panel")
 corner(Content, 10)
 
-local Status = plain(Main, "Listo. Usa el botón de la izquierda para ocultar.", 9, F.body, C.Gray,
+--==================================================
+-- PIE: estado a la izquierda, autor a la derecha
+--==================================================
+
+local Status = plain(Main, "Listo. Usa el botón de la izquierda para ocultar.",
+    9, F.body, C.Gray,
     UDim2.new(0, 12, 1, -21), UDim2.new(1, -90, 0, 12))
 Status.ZIndex = 3
 Status.TextTruncate = Enum.TextTruncate.AtEnd
+
 UI.setStatus = function(t)
     if Status and Status.Parent then Status.Text = tostring(t) end
 end
@@ -735,6 +906,10 @@ Author.AnchorPoint = Vector2.new(1, 0)
 Author.TextTransparency = 0.45
 Author.ZIndex = 3
 
+--##################################################
+--#  B5  •  MOTOR DE PESTAÑAS
+--##################################################
+
 local TabButtons, Pages, tabOrder = {}, {}, {}
 local CurrentPage
 
@@ -742,7 +917,8 @@ local function moveIndicator(animated)
     local b = TabButtons[CurrentPage]
     if not b or not b.Parent then return end
     if animated then
-        tween(TabIndicator, { Position = b.Position, Size = b.Size }, 0.32, Enum.EasingStyle.Quint)
+        tween(TabIndicator, { Position = b.Position, Size = b.Size },
+            0.32, Enum.EasingStyle.Quint)
     else
         TabIndicator.Position = b.Position
         TabIndicator.Size = b.Size
@@ -789,7 +965,8 @@ local function showPage(name)
         if vis then
             page.CanvasPosition = Vector2.zero
             page.Position = UDim2.fromOffset(0, 14)
-            tween(page, { Position = UDim2.fromOffset(0, 0) }, 0.3, Enum.EasingStyle.Quint)
+            tween(page, { Position = UDim2.fromOffset(0, 0) },
+                0.3, Enum.EasingStyle.Quint)
         end
     end
     paintTabs(true)
@@ -807,6 +984,7 @@ local function addTab(name)
     b.ZIndex = 4
     b.Parent = TabScroll
     squish(b, 0.94)
+
     TabButtons[name] = b
     tabOrder[#tabOrder + 1] = name
 
@@ -847,9 +1025,12 @@ UI.setScrollLock = function(lock)
     end
 end
 
---═══ FIN DEL BLOQUE B5 ═══.--##################################################
---#  B6  •  SECCIONES Y CUADRÍCULA  (Free)
+--═══ FIN DEL BLOQUE B5 ═══
+
 --##################################################
+--#  B6  •  SECCIONES Y REJILLA
+--##################################################
+
 local function createSection(page, text)
     local h = Instance.new("Frame")
     h.Size = UDim2.new(1, -4, 0, 24)
@@ -866,17 +1047,21 @@ local function createSection(page, text)
     corner(barF, 2)
 
     local up = string.upper(text)
-    mkLabel(h, up, 9, F.section, "Acc2", UDim2.fromOffset(12, 9), UDim2.fromOffset(320, 14))
+    mkLabel(h, up, 9, F.section, "Acc2",
+        UDim2.fromOffset(12, 9), UDim2.fromOffset(320, 14))
+
     local w = 120
     pcall(function()
         w = TextService:GetTextSize(up, 9, F.section, Vector2.new(600, 20)).X
     end)
+
     local line = Instance.new("Frame")
     line.Position = UDim2.fromOffset(12 + w + 10, 16)
     line.Size = UDim2.new(1, -(12 + w + 10) - 8, 0, 1)
     line.BorderSizePixel = 0
     line.Parent = h
     bind(line, "BackgroundColor3", "Acc")
+
     local lg = Instance.new("UIGradient")
     lg.Transparency = NumberSequence.new(0.2, 1)
     lg.Parent = line
@@ -899,8 +1084,13 @@ local function createGrid(page)
     return grid
 end
 
+--##################################################
+--#  B6  •  BOTÓN PEQUEÑO + Y -
+--##################################################
+
 local function createMiniButton(parent, kind, size)
     size = size or 26
+
     local b = Instance.new("TextButton")
     b.Size = UDim2.fromOffset(size, size)
     b.BackgroundColor3 = (kind == "plus") and C.Plus or C.Minus
@@ -911,6 +1101,7 @@ local function createMiniButton(parent, kind, size)
     b.Parent = parent
     corner(b, math.floor(size * 0.3))
     squish(b, 0.86)
+
     local len = math.floor(size * 0.5)
     local h = Instance.new("Frame")
     h.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -921,6 +1112,7 @@ local function createMiniButton(parent, kind, size)
     h.ZIndex = 5
     h.Parent = b
     corner(h, 1)
+
     if kind == "plus" then
         local v = h:Clone()
         v.Size = UDim2.fromOffset(2, len)
@@ -930,8 +1122,9 @@ local function createMiniButton(parent, kind, size)
 end
 
 --##################################################
---#  B6  •  FÁBRICA DE BOTONES  (Free)
+--#  B6  •  FÁBRICA DE BOTONES
 --##################################################
+
 local function createButton(parent, name, desc, callback)
     local cb = callback and safe(callback, name or "boton", 6)
 
@@ -956,7 +1149,8 @@ local function createButton(parent, name, desc, callback)
 
     local sheen = Instance.new("UIGradient")
     sheen.Rotation = 90
-    sheen.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(180, 235, 250))
+    sheen.Color = ColorSequence.new(Color3.new(1, 1, 1),
+        Color3.fromRGB(180, 235, 250))
     sheen.Parent = row
 
     local accent = Instance.new("Frame")
@@ -1008,15 +1202,51 @@ local function createButton(parent, name, desc, callback)
     corner(flash, 9)
 
     local enabled = false
+
     local function paint(animated)
         local on = enabled
         local set = {
-            { row, { BackgroundColor3 = on and C.RowOn or C.Row, BackgroundTransparency = on and CONFIG.BTN_T_ON or CONFIG.BTN_T }, 0.25, Enum.EasingStyle.Quint },
-            { accent, { Size = UDim2.fromOffset(3, on and 18 or 0), BackgroundColor3 = C.Acc2 }, 0.3, Enum.EasingStyle.Back },
-            { pill, { BackgroundColor3 = on and C.Acc or C.Off }, 0.22, Enum.EasingStyle.Quint },
-            { knob, { Position = on and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6) }, 0.28, Enum.EasingStyle.Back },
-            { nameL, { TextColor3 = on and C.White or Color3.fromRGB(206, 240, 250) }, 0.2, Enum.EasingStyle.Quad },
+            {
+                row,
+                {
+                    BackgroundColor3 = on and C.RowOn or C.Row,
+                    BackgroundTransparency = on and CONFIG.BTN_T_ON or CONFIG.BTN_T,
+                },
+                0.25, Enum.EasingStyle.Quint,
+            },
+            {
+                accent,
+                {
+                    Size = UDim2.fromOffset(3, on and 18 or 0),
+                    BackgroundColor3 = C.Acc2,
+                },
+                0.3, Enum.EasingStyle.Back,
+            },
+            {
+                pill,
+                { BackgroundColor3 = on and C.Acc or C.Off },
+                0.22, Enum.EasingStyle.Quint,
+            },
+            {
+                knob,
+                {
+                    Position = on
+                        and UDim2.new(1, -14, 0.5, -6)
+                        or UDim2.new(0, 2, 0.5, -6),
+                },
+                0.28, Enum.EasingStyle.Back,
+            },
+            {
+                nameL,
+                {
+                    TextColor3 = on
+                        and C.White
+                        or Color3.fromRGB(206, 240, 250),
+                },
+                0.2, Enum.EasingStyle.Quad,
+            },
         }
+
         for _, s in ipairs(set) do
             if s[1].Parent then
                 if animated then
@@ -1030,10 +1260,14 @@ local function createButton(parent, name, desc, callback)
     paint(false)
 
     local api = {}
+
     function api.Set(v, silent)
         if type(v) ~= "boolean" then v = not enabled end
         if v == enabled then return end
-        if not row.Parent then enabled = v; return end
+        if not row.Parent then
+            enabled = v
+            return
+        end
         enabled = v
         paint(true)
         if v then
@@ -1042,7 +1276,11 @@ local function createButton(parent, name, desc, callback)
         end
         if cb and not silent then cb(enabled) end
     end
-    function api.Get() return enabled end
+
+    function api.Get()
+        return enabled
+    end
+
     api.Row = row
 
     row.Activated:Connect(safe(function() api.Set(not enabled) end, "boton", 6))
@@ -1051,10 +1289,12 @@ end
 
 --═══ FIN DEL BLOQUE B6 ═══
 --##################################################
---#  B7  •  DESLIZADORES  (Free)
+--#  B7  •  DESLIZADORES
 --##################################################
+
 local function createSlider(page, name, min, max, default, fmt, callback)
     local cb = callback and safe(callback, name or "slider", 7)
+
     min = tonumber(min) or 0
     max = tonumber(max) or 100
     if max <= min then max = min + 1 end
@@ -1077,9 +1317,12 @@ local function createSlider(page, name, min, max, default, fmt, callback)
     glass.Parent = row
 
     mkLabel(row, string.upper(name or ""), 12, F.head, "White",
-        UDim2.fromOffset(12, 5), UDim2.new(0.62, 0, 0, 16)).TextTruncate = Enum.TextTruncate.AtEnd
-    local valueL = mkLabel(row, "", 12, F.head, "Acc2", UDim2.new(0.62, 0, 0, 5),
-        UDim2.new(0.38, -12, 0, 16), Enum.TextXAlignment.Right)
+        UDim2.fromOffset(12, 5), UDim2.new(0.62, 0, 0, 16)).TextTruncate =
+        Enum.TextTruncate.AtEnd
+
+    local valueL = mkLabel(row, "", 12, F.head, "Acc2",
+        UDim2.new(0.62, 0, 0, 5), UDim2.new(0.38, -12, 0, 16),
+        Enum.TextXAlignment.Right)
 
     local hit = Instance.new("Frame")
     hit.Size = UDim2.new(1, -24, 0, 24)
@@ -1124,7 +1367,9 @@ local function createSlider(page, name, min, max, default, fmt, callback)
 
     local function fromInput(input)
         local w = barF.AbsoluteSize.X
-        if w > 0 then setRatio((input.Position.X - barF.AbsolutePosition.X) / w) end
+        if w > 0 then
+            setRatio((input.Position.X - barF.AbsolutePosition.X) / w)
+        end
     end
 
     hit.InputBegan:Connect(safe(function(input)
@@ -1141,9 +1386,14 @@ local function createSlider(page, name, min, max, default, fmt, callback)
 end
 
 --═══ FIN DEL BLOQUE B7 ═══
+
 --##################################################
---#  B8  •  ESP  (Tester reparado)
+--#  B8  •  ESP
+--#  Azul, 8 objetivos, 150 studs. Fuera de rango se
+--#  oculta sin destruir. Se limpia al morir y al
+--#  desanclarse el personaje.
 --##################################################
+
 local ESP_MAX = CONFIG.ESP_MAX
 local ESP_TICK = CONFIG.ESP_TICK
 
@@ -1152,13 +1402,12 @@ local playerConns = {}
 
 local function removeESP(plr)
     local d = espObjects[plr]
-    if d then
-        if d.hl then pcall(function() d.hl:Destroy() end) end
-        if d.bb then pcall(function() d.bb:Destroy() end) end
-        if d.conn then pcall(function() d.conn:Disconnect() end) end
-        if d.connH then pcall(function() d.connH:Disconnect() end) end
-        espObjects[plr] = nil
-    end
+    if not d then return end
+    if d.hl then pcall(function() d.hl:Destroy() end) end
+    if d.bb then pcall(function() d.bb:Destroy() end) end
+    if d.conn then pcall(function() d.conn:Disconnect() end) end
+    if d.connH then pcall(function() d.connH:Disconnect() end) end
+    espObjects[plr] = nil
 end
 
 local function clearESP()
@@ -1166,7 +1415,8 @@ local function clearESP()
 end
 
 local function espLabel(parent, size, font, pos, sz)
-    local l = plain(parent, "", size, font, Color3.new(1, 1, 1), pos, sz, Enum.TextXAlignment.Center)
+    local l = plain(parent, "", size, font, Color3.new(1, 1, 1),
+        pos, sz, Enum.TextXAlignment.Center)
     l.TextStrokeTransparency = 0.2
     l.TextStrokeColor3 = Color3.new(0, 0, 0)
     return l
@@ -1175,10 +1425,14 @@ end
 local function applyESP(plr)
     if not alive() then return end
     if not plr or plr == player or plr.Parent ~= Players then return end
+
     local char = plr.Character
     if not char or not char.Parent then return end
-    local head = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
+
+    local head = char:FindFirstChild("Head")
+        or char:FindFirstChild("HumanoidRootPart")
     if not head then return end
+
     removeESP(plr)
 
     local hl = Instance.new("Highlight")
@@ -1199,7 +1453,8 @@ local function applyESP(plr)
     bb.Adornee = head
     bb.Parent = head
 
-    local nameL = espLabel(bb, 14, F.head, UDim2.fromOffset(0, 0), UDim2.new(1, 0, 0, 15))
+    local nameL = espLabel(bb, 14, F.head, UDim2.fromOffset(0, 0),
+        UDim2.new(1, 0, 0, 15))
     nameL.Text = string.upper(plr.Name)
     nameL.TextColor3 = ESP_LINE
 
@@ -1225,6 +1480,7 @@ local function applyESP(plr)
     fill.BorderSizePixel = 0
     fill.Parent = barBack
     corner(fill, 4)
+
     local grad = Instance.new("UIGradient")
     grad.Color = ColorSequence.new(ESP_DARK, ESP_FILL)
     grad.Parent = fill
@@ -1244,19 +1500,23 @@ local function applyESP(plr)
     hpL.ZIndex = 3
     hpL.TextColor3 = ESP_LINE
     hpL.TextStrokeTransparency = 0.1
-    local distL = espLabel(bb, 11, F.head, UDim2.fromOffset(0, 32), UDim2.new(1, 0, 0, 12))
+
+    local distL = espLabel(bb, 11, F.head, UDim2.fromOffset(0, 32),
+        UDim2.new(1, 0, 0, 12))
     distL.TextColor3 = ESP_LINE
 
     local reg = {
-        hl = hl, bb = bb, nameL = nameL, distL = distL, barBack = barBack,
-        barStroke = barStroke, fill = fill, grad = grad, hpL = hpL,
-        char = char, hp = -1, mx = -1, dist = -1,
+        hl = hl, bb = bb, nameL = nameL, distL = distL,
+        barBack = barBack, barStroke = barStroke, fill = fill,
+        grad = grad, hpL = hpL, char = char,
+        hp = -1, mx = -1, dist = -1,
     }
     espObjects[plr] = reg
 
     reg.conn = char.AncestryChanged:Connect(safe(function()
         if not char.Parent then removeESP(plr) end
     end, "espAncestro", 8))
+
     local hum = char:FindFirstChildOfClass("Humanoid")
     if hum then
         reg.connH = hum.Died:Connect(safe(function()
@@ -1284,9 +1544,15 @@ local function hookPlayer(plr)
     end, "espRespawn", 8)))
 end
 
+--==================================================
+-- Paso del ESP: solo los 8 más cercanos dentro de rango
+--==================================================
+
 local function pasoEsp()
-    local lr = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    local lr = player.Character
+        and player.Character:FindFirstChild("HumanoidRootPart")
     local cands = {}
+
     if lr then
         for _, plr in ipairs(Players:GetPlayers()) do
             if plr ~= player then
@@ -1294,9 +1560,14 @@ local function pasoEsp()
                 local root = char and char:FindFirstChild("HumanoidRootPart")
                 local hum = char and char:FindFirstChildOfClass("Humanoid")
                 if root and hum and hum.Health > 0 then
-                    local dist = math.floor((root.Position - lr.Position).Magnitude + 0.5)
+                    local dist = math.floor(
+                        (root.Position - lr.Position).Magnitude + 0.5
+                    )
                     if dist <= ESP_MAX then
-                        cands[#cands + 1] = { plr = plr, char = char, root = root, hum = hum, dist = dist }
+                        cands[#cands + 1] = {
+                            plr = plr, char = char, root = root,
+                            hum = hum, dist = dist,
+                        }
                     end
                 end
             end
@@ -1325,8 +1596,10 @@ local function pasoEsp()
         if d and d.bb and d.bb.Parent then
             if not d.bb.Enabled then d.bb.Enabled = true end
             if d.hl and not d.hl.Enabled then d.hl.Enabled = true end
+
             local head = c.char:FindFirstChild("Head") or c.root
             if head and d.bb.Adornee ~= head then d.bb.Adornee = head end
+
             local hp = math.max(0, math.floor(c.hum.Health + 0.5))
             local mx = math.max(1, math.floor(c.hum.MaxHealth + 0.5))
             if d.hp ~= hp or d.mx ~= mx then
@@ -1346,8 +1619,9 @@ for _, plr in ipairs(Players:GetPlayers()) do hookPlayer(plr) end
 
 --═══ FIN DEL BLOQUE B8 ═══
 --##################################################
---#  B9  •  SELECCIONADOS, CÁMARA Y BOT
+--#  B9  •  SELECCIONADOS
 --##################################################
+
 local Sel = { list = {}, set = {} }
 
 local function selAdd(plr)
@@ -1368,7 +1642,12 @@ local function selRemove(plr)
     return true
 end
 
+--##################################################
+--#  B9  •  CÁMARA
+--##################################################
+
 local camHeld, camPrev, camPrevRot, camErr = false, nil, nil, 0
+
 local camParams = RaycastParams.new()
 camParams.FilterType = TIPO_FILTRO
 camParams.IgnoreWater = true
@@ -1399,7 +1678,9 @@ local function releaseCamera()
     end
     camHeld = false
     if hum then
-        pcall(function() hum.AutoRotate = (camPrevRot == nil) and true or camPrevRot end)
+        pcall(function()
+            hum.AutoRotate = (camPrevRot == nil) and true or camPrevRot
+        end)
     end
     camPrevRot = nil
 end
@@ -1457,10 +1738,16 @@ local function camStep(dt)
         camPrev = cam.CameraType
         camPrevRot = hum and hum.AutoRotate or true
     end
-    if cam.CameraType ~= Enum.CameraType.Scriptable then cam.CameraType = Enum.CameraType.Scriptable end
+    if cam.CameraType ~= Enum.CameraType.Scriptable then
+        cam.CameraType = Enum.CameraType.Scriptable
+    end
     if hum and hum.AutoRotate then hum.AutoRotate = false end
 
-    local flat = Vector3.new(tRoot.Position.X - root.Position.X, 0, tRoot.Position.Z - root.Position.Z)
+    local flat = Vector3.new(
+        tRoot.Position.X - root.Position.X,
+        0,
+        tRoot.Position.Z - root.Position.Z
+    )
     local dir
     if flat.Magnitude >= 0.4 then
         dir = flat.Unit
@@ -1469,10 +1756,12 @@ local function camStep(dt)
         dir = lastDir
     end
 
+    -- Nunca se toca la raíz con CFrame mientras hay vuelo
     if not S.fly then
         local actual = root.CFrame.LookVector
         local plano = Vector3.new(actual.X, 0, actual.Z)
-        if plano.Magnitude < 0.01 or (plano.Unit - dir).Magnitude > 0.05 then
+        if plano.Magnitude < 0.01
+            or (plano.Unit - dir).Magnitude > 0.05 then
             root.CFrame = CFrame.lookAt(root.Position, root.Position + dir)
         end
     end
@@ -1497,6 +1786,10 @@ local function camStep(dt)
     cam.CFrame = CFrame.lookAt(want, focus)
 end
 
+--##################################################
+--#  B9  •  BOT
+--##################################################
+
 local function botStatus()
     if S.fijado then return "Fijo: @" .. S.fijado.Name end
     if not S.bot then return "I'm bot desactivado" end
@@ -1506,9 +1799,13 @@ end
 
 local function syncBot()
     if UI.botToggle then UI.botToggle.Set(S.bot, true) end
-    if UI.showCamStop then UI.showCamStop(S.bot or S.fijado ~= nil) end
+    if UI.showCamStop then
+        UI.showCamStop(S.bot or S.fijado ~= nil)
+    end
     if UI.showFijoStop then UI.showFijoStop(S.fijado ~= nil) end
-    if os.clock() >= statusUntil and UI.setStatus then UI.setStatus(botStatus()) end
+    if os.clock() >= statusUntil and UI.setStatus then
+        UI.setStatus(botStatus())
+    end
     if UI.refreshLists then UI.refreshLists() end
 end
 
@@ -1587,6 +1884,10 @@ local function soltarFijo()
     setStatusTemp("Fijo liberado, el bot sigue", 2.5)
 end
 
+--##################################################
+--#  B9  •  TELETRANSPORTE
+--##################################################
+
 local tpTarget
 
 local function stopTP()
@@ -1605,6 +1906,7 @@ local function teletransportar(plr)
     tpTarget = plr
     S.tp = true
     notify("TP a @" .. plr.Name)
+
     task.spawn(function()
         while S.tp and alive() and tpTarget == plr do
             local root = getParts()
@@ -1629,29 +1931,41 @@ local function tpSeleccionados()
     teletransportar(primero)
 end
 
-RunService:BindToRenderStep("DestroyaCam", Enum.RenderPriority.Camera.Value + 1, function(dt)
-    if not alive() then return end
-    local ok, err = pcall(camStep, dt)
-    if ok then
-        camErr = 0
-    else
-        camErr += 1
-        if camErr == 1 then warn("[DestroyaHub] B9 / cámara: " .. tostring(err)) end
-        if camErr > 30 then
+--##################################################
+--#  B9  •  ENLACE DE CÁMARA
+--##################################################
+
+RunService:BindToRenderStep("DestroyaCam",
+    Enum.RenderPriority.Camera.Value + 1,
+    function(dt)
+        if not alive() then return end
+        local ok, err = pcall(camStep, dt)
+        if ok then
             camErr = 0
-            pcall(function() setBot(false) end)
-            S.fijado = nil
-            notify("Cámara apagada por un error")
+        else
+            camErr += 1
+            if camErr == 1 then
+                warn("[DestroyaHub] B9 / cámara: " .. tostring(err))
+            end
+            if camErr > 30 then
+                camErr = 0
+                pcall(function() setBot(false) end)
+                S.fijado = nil
+                notify("Cámara apagada por un error")
+            end
         end
     end
-end)
+)
 
 --═══ FIN DEL BLOQUE B9 ═══
+
 --##################################################
---#  B10  •  VUELO ANIMADO  (ScriptBlox)
+--#  B10  •  VUELO ANIMADO
 --#  Pistas del script fuente. Las que no existen
---#  reutilizan sus IDs y el vuelo sigue con inclinación.
+--#  reutilizan los IDs y el vuelo sigue inclinado.
+--#  La precarga va antes de tocar el cuerpo.
 --##################################################
+
 local PISTAS = {
     idle     = { id = 110863385954626, vel = 1.0 },
     hover    = { id = 110863385954626, vel = 1.0 },
@@ -1668,21 +1982,26 @@ local flyBV, flyBG, flyAnimator
 local flyTracks = {}
 local flyActual = nil
 local tilt = CFrame.new()
-local flyHueso = nil
+
+local alDespegar
 
 local function precargarPistas(hum)
     flyTracks = {}
     flyAnimator = hum and hum:FindFirstChildOfClass("Animator")
     if not flyAnimator then return end
+
     for nombre, datos in pairs(PISTAS) do
         local anim = Instance.new("Animation")
         anim.AnimationId = "rbxassetid://" .. tostring(datos.id)
-        local ok, pista = pcall(function() return flyAnimator:LoadAnimation(anim) end)
+        local ok, pista = pcall(function()
+            return flyAnimator:LoadAnimation(anim)
+        end)
         if ok and pista then
             pista.Priority = Enum.AnimationPriority.Movement
             flyTracks[nombre] = pista
         else
-            warn("[DestroyaHub] B10 / pista no cargada: " .. nombre .. " (" .. datos.id .. ")")
+            warn("[DestroyaHub] B10 / pista no cargada: "
+                .. nombre .. " (" .. datos.id .. ")")
         end
     end
 end
@@ -1717,6 +2036,7 @@ end
 
 local function crearCuerpos(root, hum)
     limpiarCuerpos()
+
     flyBV = Instance.new("BodyVelocity")
     flyBV.Name = "DestroyaFly"
     flyBV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
@@ -1734,7 +2054,9 @@ local function crearCuerpos(root, hum)
     if hum then
         hum.PlatformStand = true
         local cam = getCamera()
-        if cam then pcall(function() cam.CameraSubject = hum end) end
+        if cam then
+            pcall(function() cam.CameraSubject = hum end)
+        end
     end
     tilt = CFrame.new()
 end
@@ -1749,10 +2071,12 @@ setFly = function(on)
 
     if on and root and hum then
         pcall(function()
-            crearCuerpos(root, hum)
+            -- primero las pistas, después el cuerpo
             precargarPistas(hum)
+            crearCuerpos(root, hum)
             flyActual = nil
             tocarPista("idle", 0.15)
+            if alDespegar then pcall(alDespegar) end
         end)
     else
         pcall(function()
@@ -1765,14 +2089,24 @@ setFly = function(on)
             end
             flyActual = nil
             limpiarCuerpos()
+
             if hum then
                 hum.PlatformStand = false
                 local cam = getCamera()
-                if cam then pcall(function() cam.CameraSubject = hum end) end
+                if cam then
+                    pcall(function() cam.CameraSubject = hum end)
+                end
             end
+
             if root then
                 local p = root.Position
-                root.CFrame = CFrame.lookAt(p, p + Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z))
+                local look = root.CFrame.LookVector
+                local plano = Vector3.new(look.X, 0, look.Z)
+                if plano.Magnitude > 0.01 then
+                    pcall(function()
+                        root.CFrame = CFrame.lookAt(p, p + plano.Unit)
+                    end)
+                end
             end
         end)
     end
@@ -1783,13 +2117,16 @@ local function pasoVuelo(dt)
     local root, hum = getParts()
     if not root then return end
 
-    if not flyBV or flyBV.Parent ~= root or not flyBG or flyBG.Parent ~= root then
+    -- Reparación: si el cuerpo cambió, se rehace el vuelo
+    if not flyBV or flyBV.Parent ~= root
+        or not flyBG or flyBG.Parent ~= root then
         setFly(true)
         return
     end
 
     local cam = getCamera()
     if not cam then return end
+
     local dir = cam.CFrame.LookVector
     local right = cam.CFrame.RightVector
     local move = Vector3.zero
@@ -1842,7 +2179,7 @@ local function pasoVuelo(dt)
 end
 
 track(player.CharacterAdded:Connect(safe(function()
-    flyBV, flyBG, flyAnimator, flyHueso = nil, nil, nil, nil
+    flyBV, flyBG, flyAnimator = nil, nil, nil
     flyTracks = {}
     flyActual = nil
     if S.fly then
@@ -1853,8 +2190,11 @@ end, "flyRespawn", 10)))
 
 --═══ FIN DEL BLOQUE B10 ═══
 --##################################################
---#  B11  •  NOMBRES, NOCLIP Y SALTO  (Tester)
+--#  B11  •  NOMBRES OCULTOS
+--#  400 studs a la redonda. Se respetan las dos GUI
+--#  propias: DestroyaESP y DestroyaTag.
 --##################################################
+
 local hideSaved = {}
 
 local function restaurarNombre(plr)
@@ -1865,7 +2205,9 @@ local function restaurarNombre(plr)
         pcall(function() d.hum.DisplayDistanceType = d.tipo end)
     end
     for _, g in ipairs(d.guis or {}) do
-        if g and g.Parent then pcall(function() g.Enabled = true end) end
+        if g and g.Parent then
+            pcall(function() g.Enabled = true end)
+        end
     end
 end
 
@@ -1879,10 +2221,21 @@ local function ocultarNombre(plr)
     if not plr or plr == player or hideSaved[plr] then return end
     local char = plr.Character
     if not char then return end
+
     local hum = char:FindFirstChildOfClass("Humanoid")
-    local reg = { hum = hum, tipo = hum and hum.DisplayDistanceType, guis = {} }
+    local reg = {
+        hum = hum,
+        tipo = hum and hum.DisplayDistanceType,
+        guis = {},
+    }
     hideSaved[plr] = reg
-    if hum then pcall(function() hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end) end
+
+    if hum then
+        pcall(function()
+            hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+        end)
+    end
+
     for _, g in ipairs(char:GetDescendants()) do
         if g:IsA("BillboardGui") and g.Enabled then
             local n = g.Name
@@ -1897,22 +2250,29 @@ end
 local function pasoNombres()
     local root = getParts()
     local cerca = {}
+
     if root then
         for _, plr in ipairs(Players:GetPlayers()) do
             if plr ~= player then
                 local c = plr.Character
                 local r = c and c:FindFirstChild("HumanoidRootPart")
-                if r and (r.Position - root.Position).Magnitude <= CONFIG.HIDE_RADIUS then
+                if r and (r.Position - root.Position).Magnitude
+                    <= CONFIG.HIDE_RADIUS then
                     cerca[plr] = true
                     ocultarNombre(plr)
                 end
             end
         end
     end
+
     for plr in pairs(hideSaved) do
         if not cerca[plr] then restaurarNombre(plr) end
     end
 end
+
+--##################################################
+--#  B11  •  NOCLIP
+--##################################################
 
 do
     local parts, changed = {}, {}
@@ -1968,15 +2328,22 @@ do
     end))
 end
 
+--##################################################
+--#  B11  •  SALTO
+--##################################################
+
 local function impulso()
     local root, hum = getParts()
     if not root or not hum then return end
     if hum.FloorMaterial == Enum.Material.Air then return end
+
     local g = Workspace.Gravity
     if g <= 0 then g = 196.2 end
+
     local v = math.sqrt(2 * g * CONFIG.JUMP_HEIGHT)
     local hx = math.clamp(root.AssemblyLinearVelocity.X * 1.15, -60, 60)
     local hz = math.clamp(root.AssemblyLinearVelocity.Z * 1.15, -60, 60)
+
     pcall(function()
         root.AssemblyLinearVelocity = Vector3.new(hx, v, hz)
     end)
@@ -1985,8 +2352,10 @@ end
 local function setJumpPower(on)
     on = on and true or false
     S.jumpPower = on
+
     local _, hum = getParts()
     if not hum then return end
+
     if on then
         if not S.jumpPrevio then
             S.jumpPrevio = { Use = hum.UseJumpPower, Power = hum.JumpPower }
@@ -2004,26 +2373,36 @@ end
 track(UserInputService.JumpRequest:Connect(safe(function()
     local _, hum = getParts()
     if S.jumpPower then impulso() end
-    if S.infJump and hum and hum.Health > 0 then
+    if S.infJump and hum and hum.Health > 0
+        and hum.FloorMaterial == Enum.Material.Air then
         pcall(function() hum:ChangeState(Enum.HumanoidStateType.Jumping) end)
     end
 end, "salto", 11)))
 
 --═══ FIN DEL BLOQUE B11 ═══
+
 --##################################################
---#  B12  •  FPS BOOST  (Tester, restauración completa)
+--#  B12  •  FPS BOOST
+--#  Guarda cada propiedad antes de tocarla y la
+--#  devuelve al apagar, aunque el flag ya esté en
+--#  false (parámetro forzar).
 --##################################################
+
 do
     local orig = setmetatable({}, { __mode = "k" })
     local glob, conn, token = {}, nil, 0
 
     local KIND = {
-        ParticleEmitter = "fx", Trail = "fx", Smoke = "fx", Fire = "fx", Sparkles = "fx", Beam = "fx",
-        PointLight = "fx", SpotLight = "fx", SurfaceLight = "fx", Clouds = "fx",
-        BloomEffect = "fx", BlurEffect = "fx", ColorCorrectionEffect = "fx",
+        ParticleEmitter = "fx", Trail = "fx", Smoke = "fx", Fire = "fx",
+        Sparkles = "fx", Beam = "fx",
+        PointLight = "fx", SpotLight = "fx", SurfaceLight = "fx",
+        Clouds = "fx",
+        BloomEffect = "fx", BlurEffect = "fx",
+        ColorCorrectionEffect = "fx",
         DepthOfFieldEffect = "fx", SunRaysEffect = "fx",
         Decal = "tex", Texture = "tex",
-        Atmosphere = "atmo", SurfaceAppearance = "sa", Explosion = "boom",
+        Atmosphere = "atmo", SurfaceAppearance = "sa",
+        Explosion = "boom",
     }
 
     local function isCharacter(inst)
@@ -2032,12 +2411,18 @@ do
     end
 
     local function boost(inst)
-        if not S.boost or not inst or not inst.Parent or orig[inst] then return end
+        if not S.boost or not inst or not inst.Parent or orig[inst] then
+            return
+        end
+
         local kind = KIND[inst.ClassName]
         if not kind then
-            if inst.ClassName == "Terrain" or not inst:IsA("BasePart") then return end
+            if inst.ClassName == "Terrain" or not inst:IsA("BasePart") then
+                return
+            end
             kind = "part"
         end
+
         local saved
         pcall(function()
             if kind == "fx" then
@@ -2059,7 +2444,11 @@ do
                 inst.Visible = false
             else
                 if isCharacter(inst) then return end
-                saved = { Material = inst.Material, Reflectance = inst.Reflectance, CastShadow = inst.CastShadow }
+                saved = {
+                    Material = inst.Material,
+                    Reflectance = inst.Reflectance,
+                    CastShadow = inst.CastShadow,
+                }
                 inst.Material = Enum.Material.SmoothPlastic
                 inst.Reflectance = 0
                 inst.CastShadow = false
@@ -2094,7 +2483,8 @@ do
         end)
         pcall(function()
             glob.Mesh = settings().Rendering.MeshPartDetailLevel
-            settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level04
+            settings().Rendering.MeshPartDetailLevel =
+                Enum.MeshPartDetailLevel.Level04
         end)
         pcall(function()
             glob.Shadows = Lighting.GlobalShadows
@@ -2105,7 +2495,8 @@ do
             Lighting.ShadowSoftness = 0
         end)
         pcall(function()
-            glob.EnvD, glob.EnvS = Lighting.EnvironmentDiffuseScale, Lighting.EnvironmentSpecularScale
+            glob.EnvD = Lighting.EnvironmentDiffuseScale
+            glob.EnvS = Lighting.EnvironmentSpecularScale
             Lighting.EnvironmentDiffuseScale = 0
             Lighting.EnvironmentSpecularScale = 0
         end)
@@ -2116,7 +2507,11 @@ do
         end)
         pcall(function()
             local t = Workspace.Terrain
-            glob.Terrain = { WaterWaveSize = t.WaterWaveSize, WaterWaveSpeed = t.WaterWaveSpeed, WaterReflectance = t.WaterReflectance }
+            glob.Terrain = {
+                WaterWaveSize = t.WaterWaveSize,
+                WaterWaveSpeed = t.WaterWaveSpeed,
+                WaterReflectance = t.WaterReflectance,
+            }
             glob.Decoration = t.Decoration
             t.WaterWaveSize, t.WaterWaveSpeed, t.WaterReflectance = 0, 0, 0
             t.Decoration = false
@@ -2124,16 +2519,33 @@ do
         pcall(function()
             if sethiddenproperty and gethiddenproperty then
                 glob.Tech = gethiddenproperty(Lighting, "Technology")
-                sethiddenproperty(Lighting, "Technology", Enum.Technology.Compatibility)
+                sethiddenproperty(Lighting, "Technology",
+                    Enum.Technology.Compatibility)
             end
         end)
     end
 
     local function restoreGlobal()
-        pcall(function() if glob.Quality then settings().Rendering.QualityLevel = glob.Quality end end)
-        pcall(function() if glob.Mesh then settings().Rendering.MeshPartDetailLevel = glob.Mesh end end)
-        pcall(function() if glob.Shadows ~= nil then Lighting.GlobalShadows = glob.Shadows end end)
-        pcall(function() if glob.Soft ~= nil then Lighting.ShadowSoftness = glob.Soft end end)
+        pcall(function()
+            if glob.Quality then
+                settings().Rendering.QualityLevel = glob.Quality
+            end
+        end)
+        pcall(function()
+            if glob.Mesh then
+                settings().Rendering.MeshPartDetailLevel = glob.Mesh
+            end
+        end)
+        pcall(function()
+            if glob.Shadows ~= nil then
+                Lighting.GlobalShadows = glob.Shadows
+            end
+        end)
+        pcall(function()
+            if glob.Soft ~= nil then
+                Lighting.ShadowSoftness = glob.Soft
+            end
+        end)
         pcall(function()
             if glob.EnvD then
                 Lighting.EnvironmentDiffuseScale = glob.EnvD
@@ -2141,16 +2553,24 @@ do
             end
         end)
         pcall(function()
-            if glob.Mat ~= nil then game:GetService("MaterialService").Use2022Materials = glob.Mat end
+            if glob.Mat ~= nil then
+                game:GetService("MaterialService").Use2022Materials = glob.Mat
+            end
         end)
         pcall(function()
             if glob.Terrain then
-                for k, v in pairs(glob.Terrain) do Workspace.Terrain[k] = v end
+                for k, v in pairs(glob.Terrain) do
+                    Workspace.Terrain[k] = v
+                end
             end
-            if glob.Decoration ~= nil then Workspace.Terrain.Decoration = glob.Decoration end
+            if glob.Decoration ~= nil then
+                Workspace.Terrain.Decoration = glob.Decoration
+            end
         end)
         pcall(function()
-            if glob.Tech and sethiddenproperty then sethiddenproperty(Lighting, "Technology", glob.Tech) end
+            if glob.Tech and sethiddenproperty then
+                sethiddenproperty(Lighting, "Technology", glob.Tech)
+            end
         end)
         glob = {}
     end
@@ -2159,9 +2579,13 @@ do
         for inst, saved in pairs(orig) do
             pcall(function()
                 for prop, value in pairs(saved) do
-                    if prop ~= "Parent" and prop ~= "Orig" then inst[prop] = value end
+                    if prop ~= "Parent" and prop ~= "Orig" then
+                        inst[prop] = value
+                    end
                 end
-                if saved.Parent and saved.Orig then saved.Orig.Parent = saved.Parent end
+                if saved.Parent and saved.Orig then
+                    saved.Orig.Parent = saved.Parent
+                end
             end)
         end
         table.clear(orig)
@@ -2174,6 +2598,7 @@ do
         S.boost = enabled
         token += 1
         local myToken = token
+
         if enabled then
             applyGlobal()
             if conn then pcall(function() conn:Disconnect() end) end
@@ -2197,15 +2622,21 @@ do
 end
 
 --##################################################
---#  B12  •  PAREDES TRANSPARENTES  (E6.6)
+--#  B12  •  PAREDES CLARAS
+--#  170 studs, solo opacas, 320 de tope, escaneo
+--#  espaciado y corte si se rebasa.
 --##################################################
+
 local function esPiso(part)
     if not part then return true end
     local sz = part.Size
     if sz.Y <= 1.5 and (sz.X >= 8 or sz.Z >= 8) then return true end
     local n = string.lower(part.Name)
-    return n:find("floor") ~= nil or n:find("piso") ~= nil
-        or n:find("ground") ~= nil or n:find("suelo") ~= nil or n:find("terrain") ~= nil
+    return n:find("floor") ~= nil
+        or n:find("piso") ~= nil
+        or n:find("ground") ~= nil
+        or n:find("suelo") ~= nil
+        or n:find("terrain") ~= nil
 end
 
 local function estructurasCerca(root)
@@ -2214,13 +2645,20 @@ local function estructurasCerca(root)
     p.FilterDescendantsInstances = { player.Character }
     p.MaxParts = 4000
 
-    local hits = Workspace:GetPartBoundsInRadius(root.Position, CONFIG.WALL_RADIUS, p)
+    local hits = Workspace:GetPartBoundsInRadius(root.Position,
+        CONFIG.WALL_RADIUS, p)
+
     local list = {}
     for _, part in ipairs(hits) do
-        if part:IsA("BasePart") and part.Parent and part.Transparency < 0.6 and not esPiso(part) then
+        if part:IsA("BasePart") and part.Parent
+            and part.Transparency < 0.6 and not esPiso(part) then
             local c = part.ClassName
-            if c == "WedgePart" or c == "TrussPart" or c == "MeshPart" or c == "Part" then
-                list[#list + 1] = { part = part, d = (part.Position - root.Position).Magnitude }
+            if c == "WedgePart" or c == "TrussPart"
+                or c == "MeshPart" or c == "Part" then
+                list[#list + 1] = {
+                    part = part,
+                    d = (part.Position - root.Position).Magnitude,
+                }
             end
         end
     end
@@ -2257,7 +2695,9 @@ do
     local function debeEscanear(root)
         local now = os.clock()
         if now - lastScan < 0.5 then return false end
-        if lastPos and (root.Position - lastPos).Magnitude < 6 then return false end
+        if lastPos and (root.Position - lastPos).Magnitude < 6 then
+            return false
+        end
         lastScan = now
         lastPos = root.Position
         return true
@@ -2270,7 +2710,8 @@ do
 
         local list = estructurasCerca(root)
         if #list > CONFIG.STRUCT_LIMIT then
-            apagar("Paredes apagadas: " .. #list .. " estructuras en " .. CONFIG.WALL_RADIUS .. " studs")
+            apagar("Paredes apagadas: " .. #list
+                .. " estructuras en " .. CONFIG.WALL_RADIUS .. " studs")
             return false
         end
 
@@ -2301,6 +2742,7 @@ do
         on = on and true or false
         if on == S.walls and not forzar then return end
         S.walls = on
+
         if on then
             lastPos, lastScan = nil, 0
             if running then return end
@@ -2322,22 +2764,31 @@ end
 
 --═══ FIN DEL BLOQUE B12 ═══
 --##################################################
---#  B13  •  CIELOS, NEÓN Y BRILLO  (Tester)
+--#  B13  •  CIELOS, NEÓN Y BRILLO
+--#  Se guarda luz, atmósfera y cielo antes de tocar
+--#  nada, y se devuelve todo al apagar.
 --##################################################
+
 local L_SNAP, skyObj
 
 local SKY_NOCHE = {
-    Bk = "rbxassetid://159454299", Dn = "rbxassetid://159454296",
-    Ft = "rbxassetid://159454293", Lf = "rbxassetid://159454286",
-    Rt = "rbxassetid://159454300", Up = "rbxassetid://159454288",
+    Bk = "rbxassetid://159454299",
+    Dn = "rbxassetid://159454296",
+    Ft = "rbxassetid://159454293",
+    Lf = "rbxassetid://159454286",
+    Rt = "rbxassetid://159454300",
+    Up = "rbxassetid://159454288",
 }
 
 local function guardarLuz()
     if L_SNAP then return end
     L_SNAP = {
-        Brightness = Lighting.Brightness, ClockTime = Lighting.ClockTime,
-        Ambient = Lighting.Ambient, Outdoor = Lighting.OutdoorAmbient,
-        FogEnd = Lighting.FogEnd, FogStart = Lighting.FogStart,
+        Brightness = Lighting.Brightness,
+        ClockTime = Lighting.ClockTime,
+        Ambient = Lighting.Ambient,
+        Outdoor = Lighting.OutdoorAmbient,
+        FogEnd = Lighting.FogEnd,
+        FogStart = Lighting.FogStart,
         FogColor = Lighting.FogColor,
         Sky = Lighting:FindFirstChildOfClass("Sky"),
     }
@@ -2350,9 +2801,12 @@ local function restaurarLuz()
     end
     if not L_SNAP then return end
     pcall(function()
-        Lighting.Brightness, Lighting.ClockTime = L_SNAP.Brightness, L_SNAP.ClockTime
-        Lighting.Ambient, Lighting.OutdoorAmbient = L_SNAP.Ambient, L_SNAP.Outdoor
-        Lighting.FogEnd, Lighting.FogStart = L_SNAP.FogEnd, L_SNAP.FogStart
+        Lighting.Brightness = L_SNAP.Brightness
+        Lighting.ClockTime = L_SNAP.ClockTime
+        Lighting.Ambient = L_SNAP.Ambient
+        Lighting.OutdoorAmbient = L_SNAP.Outdoor
+        Lighting.FogEnd = L_SNAP.FogEnd
+        Lighting.FogStart = L_SNAP.FogStart
         Lighting.FogColor = L_SNAP.FogColor
     end)
     if L_SNAP.Sky then
@@ -2363,7 +2817,9 @@ end
 
 local function nuevoCielo(tabla)
     local s = Instance.new("Sky")
-    for k, v in pairs(tabla) do pcall(function() s[k] = v end) end
+    for k, v in pairs(tabla) do
+        pcall(function() s[k] = v end)
+    end
     s.Parent = Lighting
     skyObj = s
 end
@@ -2371,6 +2827,7 @@ end
 setNoche = function(on, forzar)
     on = on and true or false
     if on == S.noche and not forzar then return end
+
     if S.rosa then
         S.rosa = false
         if UI.rosaToggle then UI.rosaToggle.Set(false, true) end
@@ -2398,6 +2855,7 @@ end
 setRosa = function(on, forzar)
     on = on and true or false
     if on == S.rosa and not forzar then return end
+
     if S.noche then
         S.noche = false
         if UI.nocheToggle then UI.nocheToggle.Set(false, true) end
@@ -2428,12 +2886,17 @@ setRosa = function(on, forzar)
     end
 end
 
+--==================================================
+-- NEÓN PROPIO
+--==================================================
+
 local neonLight
 
 local function aplicarNeon()
     local root = getParts()
     if not root then return end
     if neonLight and neonLight.Parent then return end
+
     neonLight = Instance.new("PointLight")
     neonLight.Name = "DestroyaNeon"
     neonLight.Color = ESP_LINE
@@ -2447,6 +2910,7 @@ setNeon = function(on, forzar)
     on = on and true or false
     if on == S.neon and not forzar then return end
     S.neon = on
+
     if on then
         pcall(aplicarNeon)
     elseif neonLight then
@@ -2455,12 +2919,17 @@ setNeon = function(on, forzar)
     end
 end
 
+--==================================================
+-- BRILLO PROPIO
+--==================================================
+
 local glowHL
 
 local function aplicarGlow()
     local char = player.Character
     if not char or not char.Parent then return end
     if glowHL and glowHL.Parent then return end
+
     glowHL = Instance.new("Highlight")
     glowHL.Name = "DestroyaGlow"
     glowHL.Adornee = char
@@ -2476,6 +2945,7 @@ setGlow = function(on, forzar)
     on = on and true or false
     if on == S.glow and not forzar then return end
     S.glow = on
+
     if on then
         pcall(aplicarGlow)
     elseif glowHL then
@@ -2485,8 +2955,11 @@ setGlow = function(on, forzar)
 end
 
 --##################################################
---#  B13  •  ETIQUETA DE DISCORD  (destello continuo)
+--#  B13  •  ETIQUETA DE DISCORD
+--#  Cartel rojo con destello continuo y copia al
+--#  tocar. Se guarda para que el noclip no la coma.
 --##################################################
+
 local tagGui, tagShine
 
 quitarTag = function()
@@ -2503,8 +2976,10 @@ end
 aplicarTag = function()
     local char = player.Character
     if not char or not char.Parent or not S.tag then return end
+
     local hum = char:FindFirstChildOfClass("Humanoid")
     if hum and hum.Health <= 0 then return end
+
     quitarTag()
 
     local head = char:FindFirstChild("Head")
@@ -2547,9 +3022,12 @@ aplicarTag = function()
     brillo.Parent = marco
 
     pcall(function()
-        tagShine = TweenService:Create(brillo,
-            TweenInfo.new(1.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-            { Offset = Vector2.new(0.6, 0) })
+        tagShine = TweenService:Create(
+            brillo,
+            TweenInfo.new(1.4, Enum.EasingStyle.Sine,
+                Enum.EasingDirection.InOut, -1, true),
+            { Offset = Vector2.new(0.6, 0) }
+        )
         tagShine:Play()
     end)
 
@@ -2574,11 +3052,14 @@ aplicarTag = function()
 end
 
 --═══ FIN DEL BLOQUE B13 ═══
+
 --##################################################
---#  B14  •  DECORACIONES DEL AVATAR  (D1-D12)
+--#  B14  •  DECORACIONES D1 A D12
 --#  Solo Attachment, Part, Weld, ParticleEmitter,
---#  Trail y Highlight. Sin accesorios ni ropa.
+--#  Trail y Highlight. Todo soldado al hueso que
+--#  corresponde y sin colisión.
 --##################################################
+
 local decoData = {}
 local decoAngulo = 0
 
@@ -2618,54 +3099,65 @@ local function soldar(p, hueso, offset)
     return w
 end
 
--- D1 Halo -------------------------------------------------
+--==================================================
+-- D1  Halo
+--==================================================
 local function dHalo(on)
     local f, char = decoFolder("halo")
-    if not f then return end
-    if not on then return end
+    if not f or not on then return end
     local head = char:FindFirstChild("Head")
     if not head then return end
+
     local welds = {}
     for i = 1, 12 do
         local a = (i / 12) * math.pi * 2
-        local p = decoPart(f, Vector3.new(0.9, 0.14, 0.28), C.Oro)
-        p.CFrame = head.CFrame * CFrame.new(math.cos(a) * 1.35, 1.15, math.sin(a) * 1.35)
+        local off = CFrame.new(math.cos(a) * 1.35, 1.15, math.sin(a) * 1.35)
             * CFrame.Angles(0, -a, 0)
-        welds[i] = { w = soldar(p, head, CFrame.new(math.cos(a) * 1.35, 1.15, math.sin(a) * 1.35)
-            * CFrame.Angles(0, -a, 0)), base = a }
+        local p = decoPart(f, Vector3.new(0.9, 0.14, 0.28), C.Oro)
+        p.CFrame = head.CFrame * off
+        welds[i] = { w = soldar(p, head, off), base = a }
     end
     decoData.halo = { welds = welds, head = head }
 end
 
--- D2 Corona de picos --------------------------------------
+--==================================================
+-- D2  Corona de picos
+--==================================================
 local function dCorona(on)
     local f, char = decoFolder("corona")
-    if not f then return end
-    if not on then return end
+    if not f or not on then return end
     local head = char:FindFirstChild("Head")
     if not head then return end
+
     local welds = {}
     for i = 1, 8 do
         local a = (i / 8) * math.pi * 2
+        local off = CFrame.new(math.cos(a) * 0.95, 1.85, math.sin(a) * 0.95)
         local p = decoPart(f, Vector3.new(0.18, 1.25, 0.18), C.OroClaro)
-        p.CFrame = head.CFrame * CFrame.new(math.cos(a) * 0.95, 1.85, math.sin(a) * 0.95)
-        welds[i] = { w = soldar(p, head, CFrame.new(math.cos(a) * 0.95, 1.85, math.sin(a) * 0.95)), base = a }
+        p.CFrame = head.CFrame * off
+        welds[i] = { w = soldar(p, head, off), base = a }
     end
     decoData.corona = { welds = welds, head = head }
 end
 
--- D3 Alas de partículas -----------------------------------
+--==================================================
+-- D3  Alas de partículas
+--==================================================
 local function dAlas(on)
     local f, char = decoFolder("alas")
-    if not f then return end
-    if not on then return end
-    local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+    if not f or not on then return end
+    local torso = char:FindFirstChild("UpperTorso")
+        or char:FindFirstChild("Torso")
     if not torso then return end
+
     local emisores = {}
     for i, lado in ipairs({ -1, 1 }) do
-        local p = decoPart(f, Vector3.new(0.4, 1.4, 0.4), C.Oro, Enum.Material.SmoothPlastic, 1)
-        p.CFrame = torso.CFrame * CFrame.new(lado * 1.1, 0.4, 0.75)
-        soldar(p, torso, CFrame.new(lado * 1.1, 0.4, 0.75))
+        local off = CFrame.new(lado * 1.1, 0.4, 0.75)
+        local p = decoPart(f, Vector3.new(0.4, 1.4, 0.4), C.Oro,
+            Enum.Material.SmoothPlastic, 1)
+        p.CFrame = torso.CFrame * off
+        soldar(p, torso, off)
+
         local e = Instance.new("ParticleEmitter")
         e.Color = ColorSequence.new(C.Oro, C.OroClaro)
         e.Size = NumberSequence.new(1.1, 2.4)
@@ -2682,16 +3174,21 @@ local function dAlas(on)
     decoData.alas = { emisores = emisores }
 end
 
--- D4 Estela de partículas ---------------------------------
+--==================================================
+-- D4  Estela de partículas
+--==================================================
 local function dEstela(on)
     local f, char = decoFolder("estela")
-    if not f then return end
-    if not on then return end
-    local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+    if not f or not on then return end
+    local torso = char:FindFirstChild("UpperTorso")
+        or char:FindFirstChild("Torso")
     if not torso then return end
-    local p = decoPart(f, Vector3.new(0.3, 0.3, 0.3), C.OroClaro, Enum.Material.SmoothPlastic, 1)
+
+    local p = decoPart(f, Vector3.new(0.3, 0.3, 0.3), C.OroClaro,
+        Enum.Material.SmoothPlastic, 1)
     p.CFrame = torso.CFrame
     soldar(p, torso, CFrame.new(0, -0.6, 0))
+
     local e = Instance.new("ParticleEmitter")
     e.Color = ColorSequence.new(C.Oro)
     e.Size = NumberSequence.new(0.8, 0)
@@ -2704,52 +3201,65 @@ local function dEstela(on)
     decoData.estela = { emisor = e }
 end
 
--- D5 Aura de orbes ----------------------------------------
+--==================================================
+-- D5  Aura de orbes
+--==================================================
 local function dOrbes(on)
     local f, char = decoFolder("orbes")
-    if not f then return end
-    if not on then return end
+    if not f or not on then return end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
+
     local welds = {}
     for i = 1, 10 do
-        local p = decoPart(f, Vector3.new(0.28, 0.28, 0.28), (i % 2 == 0) and C.Oro or C.OroClaro)
+        local p = decoPart(f, Vector3.new(0.28, 0.28, 0.28),
+            (i % 2 == 0) and C.Oro or C.OroClaro)
         p.Shape = Enum.PartType.Ball
+
         local a = (i / 10) * math.pi * 2
         local radio = (i <= 5) and 1.5 or 2.2
         local alto = (i <= 5) and 0.5 or 1.8
         local off = CFrame.new(math.cos(a) * radio, alto, math.sin(a) * radio)
         p.CFrame = root.CFrame * off
-        welds[i] = { w = soldar(p, root, off), fase = a, radio = radio, alto = alto }
+        welds[i] = {
+            w = soldar(p, root, off),
+            fase = a, radio = radio, alto = alto,
+        }
     end
     decoData.orbes = { welds = welds, root = root }
 end
 
--- D6 Anillos de piso --------------------------------------
+--==================================================
+-- D6  Anillos de piso
+--==================================================
 local function dAnillos(on)
     local f, char = decoFolder("anillos")
-    if not f then return end
-    if not on then return end
+    if not f or not on then return end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
+
     local welds = {}
     for i = 1, 3 do
-        local p = decoPart(f, Vector3.new(0.1, 2.6 + i * 0.6, 2.6 + i * 0.6), C.Oro)
+        local p = decoPart(f, Vector3.new(0.1, 2.6 + i * 0.6, 2.6 + i * 0.6),
+            C.Oro)
         p.Shape = Enum.PartType.Cylinder
-        p.CFrame = root.CFrame * CFrame.new(0, -2.7, 0) * CFrame.Angles(0, 0, math.rad(90))
+        local off = CFrame.new(0, -2.7, 0) * CFrame.Angles(0, 0, math.rad(90))
+        p.CFrame = root.CFrame * off
         welds[i] = {
-            w = soldar(p, root, CFrame.new(0, -2.7, 0) * CFrame.Angles(0, 0, math.rad(90))),
+            w = soldar(p, root, off),
             giro = (i % 2 == 0) and -1 or 1,
         }
     end
     decoData.anillos = { welds = welds }
 end
 
--- D7 Contorno dorado --------------------------------------
+--==================================================
+-- D7  Contorno dorado
+--==================================================
 local function dContorno(on)
     local char = player.Character
-    if not char then return end
-    if not on then return end
+    if not char or not on then return end
+
     local hl = Instance.new("Highlight")
     hl.Name = "DestroyaContorno"
     hl.Adornee = char
@@ -2759,20 +3269,26 @@ local function dContorno(on)
     hl.OutlineTransparency = 0
     hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     hl.Parent = char
-    local pulso = TweenService:Create(hl,
-        TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-        { OutlineTransparency = 0.8, FillTransparency = 0.95 })
+
+    local pulso = TweenService:Create(
+        hl,
+        TweenInfo.new(1.2, Enum.EasingStyle.Sine,
+            Enum.EasingDirection.InOut, -1, true),
+        { OutlineTransparency = 0.8, FillTransparency = 0.95 }
+    )
     pulso:Play()
     decoData.contorno = { hl = hl, pulso = pulso }
 end
 
--- D8 Chispas ----------------------------------------------
+--==================================================
+-- D8  Chispas
+--==================================================
 local function dChispas(on)
     local char = player.Character
-    if not char then return end
-    if not on then return end
+    if not char or not on then return end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
+
     local sp = Instance.new("Sparkles")
     sp.Name = "DestroyaChispas"
     sp.SparkleColor = C.Oro
@@ -2781,13 +3297,15 @@ local function dChispas(on)
     decoData.chispas = { sp = sp }
 end
 
--- D9 Luz personal -----------------------------------------
+--==================================================
+-- D9  Luz personal
+--==================================================
 local function dLuz(on)
     local char = player.Character
-    if not char then return end
-    if not on then return end
+    if not char or not on then return end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
+
     local l = Instance.new("PointLight")
     l.Name = "DestroyaLuz"
     l.Color = C.OroClaro
@@ -2798,11 +3316,13 @@ local function dLuz(on)
     decoData.luz = { l = l }
 end
 
--- D10 Cambio de material ----------------------------------
+--==================================================
+-- D10  Cambio de material
+--==================================================
 local function dMaterial(on)
     local char = player.Character
-    if not char then return end
-    if not on then return end
+    if not char or not on then return end
+
     local guardado = {}
     for _, p in ipairs(char:GetDescendants()) do
         if p:IsA("BasePart") then
@@ -2816,40 +3336,54 @@ local function dMaterial(on)
     decoData.material = { guardado = guardado }
 end
 
--- D11 Capa ------------------------------------------------
+--==================================================
+-- D11  Capa
+--==================================================
 local function dCapa(on)
     local f, char = decoFolder("capa")
-    if not f then return end
-    if not on then return end
-    local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+    if not f or not on then return end
+    local torso = char:FindFirstChild("UpperTorso")
+        or char:FindFirstChild("Torso")
     if not torso then return end
-    local p = decoPart(f, Vector3.new(2.4, 3.2, 0.12), C.Oro, Enum.Material.Fabric, 0.1)
-    p.CFrame = torso.CFrame * CFrame.new(0, -1.2, 0.75)
-    local w = soldar(p, torso, CFrame.new(0, -1.2, 0.75))
+
+    local off = CFrame.new(0, -1.2, 0.75)
+    local p = decoPart(f, Vector3.new(2.4, 3.2, 0.12), C.Oro,
+        Enum.Material.Fabric, 0.1)
+    p.CFrame = torso.CFrame * off
+    local w = soldar(p, torso, off)
+
     local a0 = Instance.new("Attachment")
     a0.Position = Vector3.new(-1.2, 0, 0)
     a0.Parent = p
+
     local a1 = Instance.new("Attachment")
     a1.Position = Vector3.new(1.2, 0, 0)
     a1.Parent = p
+
     local t = Instance.new("Trail")
     t.Attachment0 = a0
     t.Attachment1 = a1
     t.Color = ColorSequence.new(C.Oro, C.OroClaro)
     t.Lifetime = 0.4
     t.Parent = p
+
     decoData.capa = { p = p, w = w }
 end
 
--- D12 Escala ----------------------------------------------
+--==================================================
+-- D12  Escala
+--##################################################
 local function dEscala(on)
     local _, hum = getParts()
     if not hum then return end
+
     if on then
         if not S.escalaPrevia then
             S.escalaPrevia = {
-                W = hum.BodyWidthScale, H = hum.BodyHeightScale,
-                D = hum.BodyDepthScale, C = hum.HeadScale,
+                W = hum.BodyWidthScale,
+                H = hum.BodyHeightScale,
+                D = hum.BodyDepthScale,
+                C = hum.HeadScale,
             }
         end
         local k = 1.25
@@ -2871,23 +3405,39 @@ local function dEscala(on)
     end
 end
 
+--==================================================
+-- Despegue: las alas sueltan una ráfaga
+--==================================================
+alDespegar = function()
+    local d = decoData.alas
+    if not d then return end
+    for _, e in ipairs(d.emisores) do
+        if e and e.Parent then
+            pcall(function() e:Emit(18) end)
+        end
+    end
+end
+
 --═══ FIN DEL BLOQUE B14 ═══
 --##################################################
---#  B15  •  REGISTRO Y RESTAURADORES DE DECORACIÓN
+--#  B15  •  REGISTRO Y RESTAURADORES
+--#  Cada decoración devuelve su carpeta al apagar,
+--#  con la bandera del estado ya en false.
 --##################################################
+
 local DECO = {
-    { id = "halo",     nombre = "Halo",        desc = "Anillo dorado sobre la cabeza", fn = dHalo },
-    { id = "corona",   nombre = "Corona",      desc = "8 picos girando al revés",      fn = dCorona },
-    { id = "alas",     nombre = "Alas",        desc = "Emisores en la espalda",        fn = dAlas },
-    { id = "estela",   nombre = "Estela",      desc = "Chispas solo al moverse",       fn = dEstela },
-    { id = "orbes",    nombre = "Aura orbes",  desc = "10 esferas en dos anillos",     fn = dOrbes },
-    { id = "anillos",  nombre = "Anillos",     desc = "Discos girando bajo los pies",  fn = dAnillos },
-    { id = "contorno", nombre = "Contorno",    desc = "Borde dorado con pulso",        fn = dContorno },
-    { id = "chispas",  nombre = "Chispas",     desc = "Destellos sobre el root",       fn = dChispas },
-    { id = "luz",      nombre = "Luz",         desc = "Luz cálida rango 22",           fn = dLuz },
-    { id = "material", nombre = "Material",    desc = "Cuerpo en neón dorado",         fn = dMaterial },
-    { id = "capa",     nombre = "Capa",        desc = "Tela con estela y ondulación",  fn = dCapa },
-    { id = "escala",   nombre = "Escala",      desc = "Personaje 25% más grande",      fn = dEscala },
+    { id = "halo",     nombre = "Halo",       desc = "Anillo dorado sobre la cabeza", fn = dHalo },
+    { id = "corona",   nombre = "Corona",     desc = "8 picos girando al revés",      fn = dCorona },
+    { id = "alas",     nombre = "Alas",       desc = "Emisores en la espalda",        fn = dAlas },
+    { id = "estela",   nombre = "Estela",     desc = "Chispas solo al moverse",       fn = dEstela },
+    { id = "orbes",    nombre = "Aura orbes", desc = "10 esferas en dos anillos",     fn = dOrbes },
+    { id = "anillos",  nombre = "Anillos",    desc = "Discos girando bajo los pies",  fn = dAnillos },
+    { id = "contorno", nombre = "Contorno",   desc = "Borde dorado con pulso",        fn = dContorno },
+    { id = "chispas",  nombre = "Chispas",    desc = "Destellos sobre el root",       fn = dChispas },
+    { id = "luz",      nombre = "Luz",        desc = "Luz cálida rango 22",           fn = dLuz },
+    { id = "material", nombre = "Material",   desc = "Cuerpo en neón dorado",         fn = dMaterial },
+    { id = "capa",     nombre = "Capa",       desc = "Tela con estela y ondulación",  fn = dCapa },
+    { id = "escala",   nombre = "Escala",     desc = "Personaje 25% más grande",      fn = dEscala },
 }
 
 local decoOn = {}
@@ -2896,6 +3446,8 @@ local decoBotones = {}
 local function quitarDeco(id)
     local d = decoData[id]
     decoData[id] = nil
+    decoOn[id] = nil
+
     local char = player.Character
 
     if id == "contorno" and d then
@@ -2939,14 +3491,19 @@ end
 local function ponerDeco(id)
     local entrada
     for _, e in ipairs(DECO) do
-        if e.id == id then entrada = e break end
+        if e.id == id then
+            entrada = e
+            break
+        end
     end
     if not entrada then return end
+
     local _, hum = getParts()
     if not hum or hum.Health <= 0 then
         notify("Sin personaje")
         return
     end
+
     pcall(function() entrada.fn(true) end)
     decoOn[id] = true
 end
@@ -2956,7 +3513,6 @@ local function alternarDeco(id, on)
         ponerDeco(id)
     else
         quitarDeco(id)
-        decoOn[id] = nil
     end
 end
 
@@ -2977,8 +3533,8 @@ local function pasoDecos(dt)
         for _, it in ipairs(d.welds) do
             if it.w and it.w.Parent then
                 local a = it.base + decoAngulo * 0.8
-                it.w.CFrame = CFrame.new(math.cos(a) * 1.35, 1.15, math.sin(a) * 1.35)
-                    * CFrame.Angles(0, -a, 0)
+                it.w.CFrame = CFrame.new(math.cos(a) * 1.35, 1.15,
+                    math.sin(a) * 1.35) * CFrame.Angles(0, -a, 0)
             end
         end
     end
@@ -2988,7 +3544,8 @@ local function pasoDecos(dt)
         for _, it in ipairs(d.welds) do
             if it.w and it.w.Parent then
                 local a = it.base - decoAngulo * 0.55
-                it.w.CFrame = CFrame.new(math.cos(a) * 0.95, 1.85, math.sin(a) * 0.95)
+                it.w.CFrame = CFrame.new(math.cos(a) * 0.95, 1.85,
+                    math.sin(a) * 0.95)
             end
         end
     end
@@ -2997,9 +3554,10 @@ local function pasoDecos(dt)
     if d and d.root and d.root.Parent then
         for _, it in ipairs(d.welds) do
             if it.w and it.w.Parent then
-                local a = it.fase + decoAngulo * (it.radio < 2 and 1.6 or -1.2)
+                local a = it.fase + decoAngulo * ((it.radio < 2) and 1.6 or -1.2)
                 local alto = it.alto + math.sin(decoAngulo * 2 + it.fase) * 0.25
-                it.w.CFrame = CFrame.new(math.cos(a) * it.radio, alto, math.sin(a) * it.radio)
+                it.w.CFrame = CFrame.new(math.cos(a) * it.radio, alto,
+                    math.sin(a) * it.radio)
             end
         end
     end
@@ -3018,7 +3576,8 @@ local function pasoDecos(dt)
     d = decoData.capa
     if d and d.p and d.p.Parent and d.w then
         local onda = math.sin(decoAngulo * 3) * 0.22
-        d.w.CFrame = CFrame.new(0, -1.2, 0.75) * CFrame.Angles(math.rad(onda * 12), 0, 0)
+        d.w.CFrame = CFrame.new(0, -1.2, 0.75)
+            * CFrame.Angles(math.rad(onda * 12), 0, 0)
     end
 
     d = decoData.estela
@@ -3055,9 +3614,11 @@ track(player.CharacterAdded:Connect(safe(function()
 end, "decoRespawn", 15)))
 
 --═══ FIN DEL BLOQUE B15 ═══
+
 --##################################################
---#  B16  •  PESTAÑAS Y PÁGINA FUNCIONES  (Free + Tester)
+--#  B16  •  PESTAÑAS Y PÁGINA FUNCIONES
 --##################################################
+
 local FunctionPage = addTab("Funciones")
 local ListPage = addTab("Lista")
 local SelPage = addTab("Seleccionados")
@@ -3072,7 +3633,9 @@ do
     createButton(grid, "ESP Player", "Azul, 8 cercanos a 150", function(v)
         S.esp = v
         if v then
-            for _, plr in ipairs(Players:GetPlayers()) do pcall(applyESP, plr) end
+            for _, plr in ipairs(Players:GetPlayers()) do
+                pcall(applyESP, plr)
+            end
         else
             clearESP()
         end
@@ -3115,10 +3678,11 @@ do
         notify(v and "Vuelo activado" or "Vuelo apagado")
     end)
 
-    createButton(grid, "Impulso de salto", "Brinca " .. CONFIG.JUMP_HEIGHT .. " studs", function(v)
-        setJumpPower(v)
-        notify(v and "Impulso activado" or "Impulso apagado")
-    end)
+    createButton(grid, "Impulso de salto",
+        "Brinca " .. CONFIG.JUMP_HEIGHT .. " studs", function(v)
+            setJumpPower(v)
+            notify(v and "Impulso activado" or "Impulso apagado")
+        end)
 
     createButton(grid, "Salto infinito", "Salta sin parar", function(v)
         S.infJump = v
@@ -3128,6 +3692,7 @@ end
 --##################################################
 --#  B16  •  LISTA CON BUSCADOR
 --##################################################
+
 local refreshList
 do
     createSection(ListPage, "Buscar jugador")
@@ -3162,6 +3727,7 @@ do
     container.AutomaticSize = Enum.AutomaticSize.Y
     container.LayoutOrder = nextOrder()
     container.Parent = ListPage
+
     local layout = Instance.new("UIListLayout")
     layout.Padding = UDim.new(0, 8)
     layout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -3172,9 +3738,12 @@ do
         for _, c in ipairs(container:GetChildren()) do
             if c:IsA("GuiObject") then c:Destroy() end
         end
+
         local n = 0
         for _, plr in ipairs(Players:GetPlayers()) do
-            if plr ~= player and (UI.filter == "" or string.find(string.lower(plr.Name), UI.filter, 1, true)) then
+            if plr ~= player
+                and (UI.filter == ""
+                    or string.find(string.lower(plr.Name), UI.filter, 1, true)) then
                 n += 1
                 local isTarget = S.target == plr
                 local isSel = Sel.set[plr] == true
@@ -3200,10 +3769,13 @@ do
                 corner(accent, 2)
 
                 plain(btn, "@" .. plr.Name, 13, F.head, C.White,
-                    UDim2.fromOffset(12, 0), UDim2.new(1, -108, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
+                    UDim2.fromOffset(12, 0),
+                    UDim2.new(1, -108, 1, 0)).TextTruncate =
+                    Enum.TextTruncate.AtEnd
 
                 if isTarget then
-                    plain(btn, "OBJETIVO", 9, F.section, C.Acc2, UDim2.new(1, -140, 0, 0),
+                    plain(btn, "OBJETIVO", 9, F.section, C.Acc2,
+                        UDim2.new(1, -140, 0, 0),
                         UDim2.fromOffset(46, 34), Enum.TextXAlignment.Right)
                 end
 
@@ -3226,8 +3798,14 @@ do
                 plus.Position = UDim2.new(1, -8, 0.5, 0)
                 plus.BackgroundTransparency = isSel and 0.72 or 0.2
 
-                btn.Activated:Connect(safe(function() selectTarget(plr) end, "lista", 16))
-                tp.Activated:Connect(safe(function() teletransportar(plr) end, "listaTP", 16))
+                btn.Activated:Connect(safe(function()
+                    selectTarget(plr)
+                end, "lista", 16))
+
+                tp.Activated:Connect(safe(function()
+                    teletransportar(plr)
+                end, "listaTP", 16))
+
                 plus.Activated:Connect(safe(function()
                     if selAdd(plr) then
                         notify("@" .. plr.Name .. " en Seleccionados")
@@ -3238,6 +3816,7 @@ do
                 end, "agregar", 16))
             end
         end
+
         if n == 0 then
             local e = plain(container, "No hay jugadores", 11, F.body, C.Gray,
                 nil, UDim2.new(1, 0, 0, 30), Enum.TextXAlignment.Center)
@@ -3246,12 +3825,16 @@ do
     end
 end
 
+--═══ FIN DEL BLOQUE B16 (primera mitad) ═══
 --##################################################
 --#  B16  •  SELECCIONADOS
+--#  Tocar un nombre fija la cámara hasta soltarla.
 --##################################################
+
 local refreshSel
 do
     createSection(SelPage, "Seleccionados")
+
     local hint = plain(SelPage,
         "Agrega con el + de la Lista. Toca un nombre y la cámara se fija hasta que la sueltes.",
         10, F.body, C.Gray, nil, UDim2.new(1, -4, 0, 0))
@@ -3265,6 +3848,7 @@ do
     selContainer.AutomaticSize = Enum.AutomaticSize.Y
     selContainer.LayoutOrder = nextOrder()
     selContainer.Parent = SelPage
+
     local sl = Instance.new("UIListLayout")
     sl.Padding = UDim.new(0, 10)
     sl.SortOrder = Enum.SortOrder.LayoutOrder
@@ -3275,12 +3859,15 @@ do
         for _, c in ipairs(selContainer:GetChildren()) do
             if c:IsA("GuiObject") then c:Destroy() end
         end
+
         if #Sel.list == 0 then
-            local e = plain(selContainer, "Aún no hay nadie seleccionado", 11, F.body, C.Gray,
+            local e = plain(selContainer, "Aún no hay nadie seleccionado",
+                11, F.body, C.Gray,
                 nil, UDim2.new(1, 0, 0, 30), Enum.TextXAlignment.Center)
             e.LayoutOrder = 1
             return
         end
+
         for i, plr in ipairs(Sel.list) do
             local esFijo = S.fijado == plr
             local esTarget = S.target == plr and S.bot
@@ -3293,7 +3880,9 @@ do
 
             local nameBtn = Instance.new("TextButton")
             nameBtn.Size = UDim2.new(1, -38, 0, 34)
-            nameBtn.BackgroundColor3 = esFijo and ESP_FILL or (esTarget and C.RowOn or C.Row)
+            nameBtn.BackgroundColor3 = esFijo
+                and ESP_FILL
+                or (esTarget and C.RowOn or C.Row)
             nameBtn.BackgroundTransparency = esFijo and 0.45 or 0.55
             nameBtn.Text = ""
             nameBtn.AutoButtonColor = false
@@ -3311,15 +3900,23 @@ do
             corner(accent, 2)
 
             plain(nameBtn, "@" .. plr.Name, 13, F.head, C.White,
-                UDim2.fromOffset(12, 0), UDim2.new(1, -100, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
+                UDim2.fromOffset(12, 0),
+                UDim2.new(1, -100, 1, 0)).TextTruncate =
+                Enum.TextTruncate.AtEnd
+
             if esFijo then
-                plain(nameBtn, "FIJO", 10, F.section, ESP_LINE, UDim2.new(1, -86, 0, 0),
+                plain(nameBtn, "FIJO", 10, F.section, ESP_LINE,
+                    UDim2.new(1, -86, 0, 0),
                     UDim2.fromOffset(78, 34), Enum.TextXAlignment.Right)
             elseif esTarget then
-                plain(nameBtn, "OBJETIVO", 10, F.section, ESP_LINE, UDim2.new(1, -86, 0, 0),
+                plain(nameBtn, "OBJETIVO", 10, F.section, ESP_LINE,
+                    UDim2.new(1, -86, 0, 0),
                     UDim2.fromOffset(78, 34), Enum.TextXAlignment.Right)
             end
-            nameBtn.Activated:Connect(safe(function() fijar(plr) end, "seleccionado", 16))
+
+            nameBtn.Activated:Connect(safe(function()
+                fijar(plr)
+            end, "seleccionado", 16))
 
             local minus = createMiniButton(entry, "minus", 30)
             minus.Position = UDim2.new(1, -30, 0, 2)
@@ -3329,7 +3926,9 @@ do
                     S.target = nil
                     syncBot()
                 end
-                if selRemove(plr) then notify("@" .. plr.Name .. " fuera") end
+                if selRemove(plr) then
+                    notify("@" .. plr.Name .. " fuera")
+                end
             end, "quitar", 16))
         end
     end
@@ -3350,10 +3949,12 @@ track(Players.PlayerRemoving:Connect(safe(function(plr)
     unhookPlayer(plr)
     restaurarNombre(plr)
     if S.tp and tpTarget == plr then stopTP() end
+
     if Sel.set[plr] then
         selRemove(plr)
         notify("@" .. plr.Name .. " salió y se quitó")
     end
+
     if S.fijado == plr then
         S.fijado = nil
         S.target = nil
@@ -3363,13 +3964,16 @@ track(Players.PlayerRemoving:Connect(safe(function(plr)
         S.target = nil
         syncBot()
     end
+
     task.delay(0.3, UI.refreshLists)
 end, "PlayerRemoving", 16)))
 
 --═══ FIN DEL BLOQUE B16 ═══
+
 --##################################################
 --#  B17  •  PÁGINA DECORACIÓN
 --##################################################
+
 do
     createSection(DecoPage, "Avatar")
     local grid = createGrid(DecoPage)
@@ -3405,15 +4009,17 @@ createSection(DecoPage, "Entorno")
 do
     local grid = createGrid(DecoPage)
 
-    UI.nocheToggle = createButton(grid, "Cielo nocturno", "Noche con estrellas", function(v)
-        setNoche(v)
-        notify(v and "Cielo nocturno" or "Cielo normal")
-    end)
+    UI.nocheToggle = createButton(grid, "Cielo nocturno", "Noche con estrellas",
+        function(v)
+            setNoche(v)
+            notify(v and "Cielo nocturno" or "Cielo normal")
+        end)
 
-    UI.rosaToggle = createButton(grid, "Cielo rosa", "Atardecer rosado", function(v)
-        setRosa(v)
-        notify(v and "Cielo rosa" or "Cielo normal")
-    end)
+    UI.rosaToggle = createButton(grid, "Cielo rosa", "Atardecer rosado",
+        function(v)
+            setRosa(v)
+            notify(v and "Cielo rosa" or "Cielo normal")
+        end)
 
     createButton(grid, "Neón propio", "Luz azul que te alumbra", function(v)
         setNeon(v)
@@ -3433,6 +4039,7 @@ end
 --##################################################
 --#  B17  •  CONFIGURACIÓN
 --##################################################
+
 do
     createSection(SettingsPage, "Estilo")
 
@@ -3451,7 +4058,9 @@ do
         function(v) return tostring(math.floor(v + 0.5)) end,
         function(v)
             local c = getCamera()
-            if c then pcall(function() c.FieldOfView = math.clamp(v, 40, 120) end) end
+            if c then
+                pcall(function() c.FieldOfView = math.clamp(v, 40, 120) end)
+            end
         end)
 
     createSection(SettingsPage, "Rendimiento")
@@ -3464,64 +4073,72 @@ do
 
     createButton(grid, "Animaciones", "Apágalas si hay lag", function(v)
         UI.anim = v
-        if not v and titleShine then pcall(function() titleShine:Pause() end) end
+        if not v and titleShine then
+            pcall(function() titleShine:Pause() end)
+        end
     end).Set(true, true)
 
-    createButton(grid, "Modo seguro (auto)", "FPS Boost si bajas de 24 FPS", function(v)
-        UI.autoLow = v
-        UI.lowApplied = false
-        notify(v and "Modo seguro activado" or "Modo seguro apagado")
-    end)
+    createButton(grid, "Modo seguro (auto)", "FPS Boost si bajas de 24 FPS",
+        function(v)
+            UI.autoLow = v
+            UI.lowApplied = false
+            notify(v and "Modo seguro activado" or "Modo seguro apagado")
+        end)
 
     createSection(SettingsPage, "Reparar")
     local gridRep = createGrid(SettingsPage)
 
-    createButton(gridRep, "Reparar sistema", "Reinicia cámara y estados", function()
-        pcall(releaseCamera)
-        pcall(function() setBot(false) end)
-        S.fijado = nil
-        pcall(function() setFly(false) end)
-        pcall(function() setNoclip(false) end)
-        pcall(function() setWalls(false, true) end)
-        colgar(Screen)
-        Main.Parent = Screen
-        Main.Position = HOME
-        Main.Visible = true
-        UI.open = true
-        ajustarEscala()
-        aplicarEscala()
-        notify("Sistema reparado")
-    end)
+    createButton(gridRep, "Reparar sistema", "Reinicia cámara y estados",
+        function()
+            pcall(releaseCamera)
+            pcall(function() setBot(false) end)
+            S.fijado = nil
+            pcall(function() setFly(false) end)
+            pcall(function() setNoclip(false) end)
+            pcall(function() setWalls(false, true) end)
 
-    createButton(gridRep, "Reiniciar interfaz", "Vuelve la ventana al centro", function()
-        colgar(Screen)
-        Main.Parent = Screen
-        Main.Position = HOME
-        Main.Visible = true
-        UI.open = true
-        ajustarEscala()
-        aplicarEscala()
-        notify("Ventana recolocada")
-    end)
+            colgar(Screen)
+            Main.Parent = Screen
+            Main.Position = HOME
+            Main.Visible = true
+            UI.open = true
+            ajustarEscala()
+            aplicarEscala()
+            notify("Sistema reparado")
+        end)
+
+    createButton(gridRep, "Reiniciar interfaz", "Vuelve la ventana al centro",
+        function()
+            colgar(Screen)
+            Main.Parent = Screen
+            Main.Position = HOME
+            Main.Visible = true
+            UI.open = true
+            ajustarEscala()
+            aplicarEscala()
+            notify("Ventana recolocada")
+        end)
 
     createSection(SettingsPage, "Discord")
     local gridDiscord = createGrid(SettingsPage)
 
-    createButton(gridDiscord, "Copiar enlace", "discord.gg/ykHwgmQnD", function()
-        pcall(function() setclipboard(CONFIG.DISCORD) end)
-        notify("Enlace copiado")
-    end)
+    createButton(gridDiscord, "Copiar enlace", "discord.gg/ykHwgmQnD",
+        function()
+            pcall(function() setclipboard(CONFIG.DISCORD) end)
+            notify("Enlace copiado")
+        end)
 
-    createButton(gridDiscord, "Etiqueta en la cabeza", "Cartel rojo animado", function(v)
-        S.tag = v
-        if v then
-            pcall(aplicarTag)
-            notify("Etiqueta visible")
-        else
-            pcall(quitarTag)
-            notify("Etiqueta oculta")
-        end
-    end).Set(true, true)
+    createButton(gridDiscord, "Etiqueta en la cabeza", "Cartel rojo animado",
+        function(v)
+            S.tag = v
+            if v then
+                pcall(aplicarTag)
+                notify("Etiqueta visible")
+            else
+                pcall(quitarTag)
+                notify("Etiqueta oculta")
+            end
+        end).Set(true, true)
 end
 
 showPage("Funciones")
@@ -3530,6 +4147,7 @@ showPage("Funciones")
 --##################################################
 --#  B18  •  BOTÓN DH, COLUMNA FLOTANTE Y CHIP FPS
 --##################################################
+
 local Toggle = Instance.new("TextButton")
 Toggle.Name = "MenuButton"
 Toggle.AnchorPoint = Vector2.new(0, 0.5)
@@ -3552,9 +4170,12 @@ ring.Color = GLOW
 ring.Thickness = 2.2
 ring.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 ring.Parent = Toggle
-local ringPulse = TweenService:Create(ring,
+
+local ringPulse = TweenService:Create(
+    ring,
     TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-    { Transparency = 0.55 })
+    { Transparency = 0.55 }
+)
 ringPulse:Play()
 
 local FloatCol = Instance.new("Frame")
@@ -3565,6 +4186,7 @@ FloatCol.AutomaticSize = Enum.AutomaticSize.Y
 FloatCol.BackgroundTransparency = 1
 FloatCol.ZIndex = 10
 FloatCol.Parent = Screen
+
 local fLayout = Instance.new("UIListLayout")
 fLayout.Padding = UDim.new(0, 8)
 fLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -3613,6 +4235,10 @@ end, "toggle", 18))
 
 HideBtn.Activated:Connect(safe(function() setOpen(false) end, "hide", 18))
 
+--==================================================
+-- Desactivar cámara
+--==================================================
+
 local CamStop = Instance.new("TextButton")
 CamStop.LayoutOrder = 1
 CamStop.Size = UDim2.fromOffset(118, 40)
@@ -3626,7 +4252,10 @@ CamStop.Parent = FloatCol
 corner(CamStop, 13)
 
 local camGrad = Instance.new("UIGradient")
-camGrad.Color = ColorSequence.new(Color3.fromRGB(30, 110, 135), Color3.fromRGB(8, 30, 40))
+camGrad.Color = ColorSequence.new(
+    Color3.fromRGB(30, 110, 135),
+    Color3.fromRGB(8, 30, 40)
+)
 camGrad.Rotation = 90
 camGrad.Parent = CamStop
 
@@ -3634,9 +4263,13 @@ local StopScale = Instance.new("UIScale")
 StopScale.Scale = 0
 StopScale.Parent = CamStop
 
-local l1 = plain(CamStop, "DESACTIVAR", 13, F.head, C.White, UDim2.fromOffset(40, 5), UDim2.fromOffset(74, 16))
+local l1 = plain(CamStop, "DESACTIVAR", 13, F.head, C.White,
+    UDim2.fromOffset(40, 5), UDim2.fromOffset(74, 16))
 l1.ZIndex = 11
-local l2 = plain(CamStop, "I'M BOT", 9, F.section, Color3.fromRGB(200, 245, 255), UDim2.fromOffset(40, 22), UDim2.fromOffset(74, 12))
+
+local l2 = plain(CamStop, "I'M BOT", 9, F.section,
+    Color3.fromRGB(200, 245, 255),
+    UDim2.fromOffset(40, 22), UDim2.fromOffset(74, 12))
 l2.ZIndex = 11
 
 UI.showCamStop = function(v)
@@ -3656,6 +4289,10 @@ CamStop.Activated:Connect(safe(function()
     if S.fijado then soltarFijo() end
     notify("Cámara desactivada")
 end, "camstop", 18))
+
+--==================================================
+-- Dejar fijo
+--==================================================
 
 local FijoStop = Instance.new("TextButton")
 FijoStop.LayoutOrder = 2
@@ -3691,9 +4328,55 @@ end
 
 FijoStop.Activated:Connect(safe(function() soltarFijo() end, "fijostop", 18))
 
+--==================================================
+-- Chip de FPS
+--==================================================
+
 local FpsText = plain(Screen, "FPS --", 36, F.head, Color3.new(1, 1, 1),
-    UDim2.new(0.5, -90, 0, 4), UDim2.fromOffset(180, 52), Enum.TextXAlignment.Center)
+    UDim2.new(0.5, -90, 0, 4), UDim2.fromOffset(180, 52),
+    Enum.TextXAlignment.Center)
 FpsText.ZIndex = 10
+
+local FpsStroke = Instance.new("UIStroke")
+FpsStroke.Color = Color3.new(0, 0, 0)
+FpsStroke.Thickness = 2.4
+FpsStroke.Transparency = 0.05
+FpsStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+FpsStroke.Parent = FpsText
+
+local FpsGrad = Instance.new("UIGradient")
+FpsGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 60)),
+    ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 200, 0)),
+    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(0, 255, 90)),
+    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0, 230, 255)),
+    ColorSequenceKeypoint.new(0.8, Color3.fromRGB(120, 60, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 200)),
+})
+FpsGrad.Offset = Vector2.new(-0.5, 0)
+FpsGrad.Parent = FpsText
+
+TweenService:Create(
+    FpsGrad,
+    TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+    { Offset = Vector2.new(0.5, 0) }
+):Play()
+
+FpsText.InputBegan:Connect(safe(function(input)
+    if not isPointer(input) then return end
+    local startPos, startMouse = FpsText.Position, input.Position
+    beginDrag(input, function(i)
+        local d = i.Position - startMouse
+        FpsText.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + d.X,
+            startPos.Y.Scale, startPos.Y.Offset + d.Y
+        )
+    end)
+end, "fpsDrag", 18))
+
+--==================================================
+-- Pads de vuelo
+--==================================================
 
 local UpBtn = Instance.new("TextButton")
 UpBtn.Size = UDim2.fromOffset(54, 54)
@@ -3718,6 +4401,7 @@ DownBtn.Parent = Screen
 local UpScale = Instance.new("UIScale")
 UpScale.Scale = 0
 UpScale.Parent = UpBtn
+
 local DownScale = Instance.new("UIScale")
 DownScale.Scale = 0
 DownScale.Parent = DownBtn
@@ -3735,24 +4419,30 @@ for _, par in ipairs({ { UpBtn, UpScale, true }, { DownBtn, DownScale, false } }
     b.InputEnded:Connect(safe(function(i)
         if isPointer(i) then padPulsar(esc, arriba, false) end
     end, "pad", 18))
-    b.MouseLeave:Connect(safe(function() padPulsar(esc, arriba, false) end, "pad", 18))
+    b.MouseLeave:Connect(safe(function()
+        padPulsar(esc, arriba, false)
+    end, "pad", 18))
 end
 
 --##################################################
 --#  B18  •  MOTOR
 --##################################################
-local frames, fpsAcc, espAcc, tagAcc, hideAcc, decoAcc = 0, 0, 0, 0, 0, 0
+
+local frames, fpsAcc = 0, 0
+local espAcc, tagAcc, hideAcc, decoAcc = 0, 0, 0, 0
 local lastFly = false
 
 track(RunService.Heartbeat:Connect(safe(function(dt)
     if not alive() then return end
 
+    -- FPS y modo seguro
     frames += 1
     fpsAcc += dt
     if fpsAcc >= 0.5 then
         local fps = math.floor(frames / fpsAcc + 0.5)
         if FpsText.Parent then FpsText.Text = "FPS " .. fps end
         frames, fpsAcc = 0, 0
+
         if UI.autoLow and fps < 24 and not S.boost and not UI.lowApplied then
             UI.lowApplied = true
             pcall(function() setFpsBoost(true) end)
@@ -3760,6 +4450,7 @@ track(RunService.Heartbeat:Connect(safe(function(dt)
         elseif UI.autoLow and fps >= 45 then
             UI.lowApplied = false
         end
+
         if UI.anim and ring.Parent then
             ring.Transparency = (ring.Transparency > 0.2) and 0.05 or 0.4
         end
@@ -3767,6 +4458,7 @@ track(RunService.Heartbeat:Connect(safe(function(dt)
 
     if S.fly then pcall(pasoVuelo, dt) end
 
+    -- Seguimiento del objetivo
     if S.bot then
         if S.fijado then
             if S.fijado.Parent ~= Players then
@@ -3782,8 +4474,12 @@ track(RunService.Heartbeat:Connect(safe(function(dt)
             local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
             local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
             local root = getParts()
-            local lejos = ((tRoot and root) and (tRoot.Position - root.Position).Magnitude > CONFIG.BOT_RANGE) or false
-            local vivoT = t and t.Parent == Players and tRoot and (not tHum or tHum.Health > 0) and not lejos
+            local lejos = ((tRoot and root)
+                and (tRoot.Position - root.Position).Magnitude > CONFIG.BOT_RANGE)
+                or false
+            local vivoT = t and t.Parent == Players and tRoot
+                and (not tHum or tHum.Health > 0) and not lejos
+
             if vivoT then
                 botMiss = 0
             else
@@ -3797,13 +4493,17 @@ track(RunService.Heartbeat:Connect(safe(function(dt)
                         notify("Objetivo cambiado a @" .. pick.Name)
                     elseif not pick then
                         S.target = nil
-                        if UI.setStatus then UI.setStatus("Sin jugadores a " .. CONFIG.BOT_RANGE .. " studs") end
+                        if UI.setStatus then
+                            UI.setStatus("Sin jugadores a "
+                                .. CONFIG.BOT_RANGE .. " studs")
+                        end
                     end
                 end
             end
         end
     end
 
+    -- ESP
     if S.esp then
         espAcc += dt
         if espAcc >= ESP_TICK then
@@ -3812,6 +4512,7 @@ track(RunService.Heartbeat:Connect(safe(function(dt)
         end
     end
 
+    -- Nombres
     if S.hideNames then
         hideAcc += dt
         if hideAcc >= 0.6 then
@@ -3822,12 +4523,14 @@ track(RunService.Heartbeat:Connect(safe(function(dt)
         restaurarTodos()
     end
 
+    -- Decoraciones
     decoAcc += dt
     if decoAcc >= 0.05 then
         decoAcc = 0
         pcall(pasoDecos, dt)
     end
 
+    -- Pads
     if lastFly ~= S.fly then
         lastFly = S.fly
         if S.fly then
@@ -3846,6 +4549,7 @@ track(RunService.Heartbeat:Connect(safe(function(dt)
         end
     end
 
+    -- Etiqueta
     tagAcc += dt
     if tagAcc >= 0.5 then
         tagAcc = 0
@@ -3860,9 +4564,12 @@ track(RunService.Heartbeat:Connect(safe(function(dt)
 end, "motor", 18)))
 
 --═══ FIN DEL BLOQUE B18 ═══
+
 --##################################################
 --#  B19  •  GUARDIA Y CIERRE
 --##################################################
+
+-- Flotado del botón DH
 task.spawn(function()
     task.wait(3)
     while alive() do
@@ -3871,9 +4578,15 @@ task.spawn(function()
             local base = Toggle.Position
             local y = base.Y.Offset
             for _ = 1, 4 do
-                tween(Toggle, { Position = UDim2.new(base.X.Scale, base.X.Offset, base.Y.Scale, y - 9) }, 0.25)
+                tween(Toggle, {
+                    Position = UDim2.new(base.X.Scale, base.X.Offset,
+                        base.Y.Scale, y - 9),
+                }, 0.25)
                 task.wait(0.25)
-                tween(Toggle, { Position = UDim2.new(base.X.Scale, base.X.Offset, base.Y.Scale, y + 9) }, 0.25)
+                tween(Toggle, {
+                    Position = UDim2.new(base.X.Scale, base.X.Offset,
+                        base.Y.Scale, y + 9),
+                }, 0.25)
                 task.wait(0.25)
             end
             tween(Toggle, { Position = base }, 0.2)
@@ -3881,15 +4594,18 @@ task.spawn(function()
     end
 end)
 
+-- Guardia: recoloca, reengancha y ajusta al viewport
 local lastVs
 task.spawn(function()
     while alive() do
         task.wait(1)
+
         if Screen.Parent == nil then pcall(function() colgar(Screen) end) end
         if Main.Parent == nil then pcall(function() Main.Parent = Screen end) end
         if not UI.closing and UI.open and not Main.Visible then
             pcall(function() Main.Visible = true end)
         end
+
         local cam = getCamera()
         local vs = cam and cam.ViewportSize.X or 0
         if vs ~= lastVs then
@@ -3898,10 +4614,16 @@ task.spawn(function()
             aplicarEscala()
             acomodarFlotantes()
         end
-        if not CurrentPage and Pages["Funciones"] then pcall(function() showPage("Funciones") end) end
+
+        if not CurrentPage and Pages["Funciones"] then
+            pcall(function() showPage("Funciones") end)
+        end
+
         if UI.open and titleShine and UI.anim then
             pcall(function()
-                if titleShine.PlaybackState ~= Enum.PlaybackState.Playing then titleShine:Play() end
+                if titleShine.PlaybackState ~= Enum.PlaybackState.Playing then
+                    titleShine:Play()
+                end
             end)
         elseif not UI.open and titleShine then
             pcall(function() titleShine:Pause() end)
@@ -3918,7 +4640,8 @@ local function destroyHub()
     UI.open = false
     pcall(function() RunService:UnbindFromRenderStep("DestroyaCam") end)
     pcall(function()
-        tween(MenuScale, { Scale = 0.5 }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+        tween(MenuScale, { Scale = 0.5 }, 0.2,
+            Enum.EasingStyle.Back, Enum.EasingDirection.In)
         tween(Backdrop, { ImageTransparency = 1 }, 0.2)
     end)
     task.delay(0.22, function()
@@ -3945,6 +4668,10 @@ do
     end, "destruir", 19))
 end
 
+--##################################################
+--#  B19  •  LIMPIEZA
+--##################################################
+
 Screen.Destroying:Connect(function()
     UI.dead = true
     pcall(releaseCamera)
@@ -3970,14 +4697,20 @@ end)
 --##################################################
 --#  B19  •  VERIFY Y ARRANQUE
 --##################################################
+
 verify("Screen colgado", function() return Screen.Parent ~= nil end)
-verify("Main en pantalla", function() return Main.Parent == Screen and Main.Visible end)
+verify("Main en pantalla", function()
+    return Main.Parent == Screen and Main.Visible
+end)
 verify("Main dentro del viewport", function()
-    local vs = (getCamera() and getCamera().ViewportSize) or Vector2.new(1280, 720)
+    local cam = getCamera()
+    local vs = (cam and cam.ViewportSize) or Vector2.new(1280, 720)
     local s = Main.AbsoluteSize
     return s.X <= vs.X and s.Y <= vs.Y
 end)
-verify("Escala viva", function() return MenuScale ~= nil and MenuScale.Parent == Main end)
+verify("Escala viva", function()
+    return MenuScale ~= nil and MenuScale.Parent == Main
+end)
 verify("Página activa", function() return CurrentPage ~= nil end)
 verify("Pestañas con contenido", function()
     for _, page in pairs(Pages) do
@@ -4006,6 +4739,6 @@ task.delay(0.8, function()
     aplicarEscala()
 end)
 
-notify("Destroya Hub v7.0 cargado")
+notify("Destroya Hub v7.1 cargado")
 
 --═══ FIN DEL SCRIPT ═══
