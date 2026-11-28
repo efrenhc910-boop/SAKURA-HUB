@@ -55,7 +55,7 @@ local CONFIG = {
     WALL_RADIUS  = 170,
     WALL_ALPHA   = 0.62,
     STRUCT_LIMIT = 130,
-    JUMP_BOOST   = 130,
+    JUMP_HEIGHT  = 17,
     FLY_SPEED    = 70,
     BTN_T        = 0.55,
     BTN_T_ON     = 0.38,
@@ -903,7 +903,6 @@ local function createButton(parent, name, desc, callback)
     return api
 end
 
--- REPARADO: el pliegue ahora se autoajusta al contenido
 local function createFold(page, title, openByDefault)
     local HEAD = 30
     local holder = Instance.new("Frame")
@@ -1065,6 +1064,8 @@ end
 local ESP_FILL  = Color3.fromRGB(0, 70, 255)
 local ESP_LINE  = Color3.fromRGB(120, 200, 255)
 local ESP_DARK  = Color3.fromRGB(0, 14, 70)
+local ORO       = Color3.fromRGB(255, 200, 90)
+local ORO_SUAVE = Color3.fromRGB(255, 226, 160)
 
 --══════════════════════════════════════════════
 --   ▸  END OF PART 6
@@ -1522,7 +1523,6 @@ track(RunService.Heartbeat:Connect(function(dt)
         if S.fijado.Parent ~= Players then
             local viejo = S.fijado
             S.fijado = nil
-            -- REPARADO: si no hay bot activo, la cámara se apaga de verdad
             if not S.bot then
                 apagarCam()
             else
@@ -1583,7 +1583,7 @@ end)
 --   ▸  END OF PART 8
 --══════════════════════════════════════════════
 --##################################################
---# ► PART 9 — NOCLIP, FLY AND POWER JUMP
+--# ► PART 9 — NOCLIP, FLY AND JUMP IMPULSE
 --##################################################
 
 do
@@ -1639,26 +1639,52 @@ track(UserInputService.JumpRequest:Connect(function()
     end
 end))
 
+local ultimoImpulso = 0
+
+local function impulso()
+    local root, hum = getParts()
+    if not root or not hum then return end
+
+    local ahora = os.clock()
+    if ahora - ultimoImpulso < 0.2 then return end
+    ultimoImpulso = ahora
+
+    local g = Workspace.Gravity
+    if not g or g <= 0 then g = 196.2 end
+    local v = math.sqrt(2 * g * CONFIG.JUMP_HEIGHT)
+
+    local vel = root.AssemblyLinearVelocity
+    local horiz = Vector3.new(vel.X, 0, vel.Z)
+    if horiz.Magnitude > 2 then horiz = horiz * 1.2 end
+
+    task.defer(function()
+        if root.Parent then
+            root.AssemblyLinearVelocity = Vector3.new(horiz.X, v, horiz.Z)
+        end
+    end)
+end
+
+track(UserInputService.JumpRequest:Connect(function()
+    if S.jumpPower then pcall(impulso) end
+end))
+
 setJumpPower = function(on)
     S.jumpPower = on
     local _, hum = getParts()
     if not hum then return end
     pcall(function()
         hum.UseJumpPower = true
-        hum.JumpPower = on and CONFIG.JUMP_BOOST or 50
+        hum.JumpPower = 50
     end)
 end
 
 task.spawn(function()
     while Screen.Parent do
-        task.wait(0.5)
+        task.wait(0.6)
         if S.jumpPower then
             local _, hum = getParts()
-            if hum and math.abs(hum.JumpPower - CONFIG.JUMP_BOOST) > 1 then
-                pcall(function()
-                    hum.UseJumpPower = true
-                    hum.JumpPower = CONFIG.JUMP_BOOST
-                end)
+            if hum and hum.JumpPower > 60 then
+                pcall(function() hum.JumpPower = 50 end)
             end
         end
     end
@@ -2039,13 +2065,12 @@ end
 --   ▸  END OF PART 10
 --══════════════════════════════════════════════
 --##################################################
---# ► PART 10.5 — DECORATION, SKINS AND DISCORD
+--# ► PART 10.5 — SKY, GOLD LIGHT, SKINS AND DISCORD
 --##################################################
-
-local setNoche, setRosa
 
 local L_SNAP
 local skyObj
+local modoCielo = nil
 
 local SKY_NOCHE = {
     Bk = "rbxassetid://159454299", Dn = "rbxassetid://159454296",
@@ -2058,9 +2083,15 @@ local function guardarLuz()
     L_SNAP = {
         Brightness = Lighting.Brightness, ClockTime = Lighting.ClockTime,
         Ambient = Lighting.Ambient, Outdoor = Lighting.OutdoorAmbient,
-        FogEnd = Lighting.FogEnd, FogStart = Lighting.FogStart,
+        FogEnd = Lighting.FogEnd, FogStart = Lighting.FogStart, FogColor = Lighting.FogColor,
         Sky = Lighting:FindFirstChildOfClass("Sky"),
+        Atm = Lighting:FindFirstChildOfClass("Atmosphere"),
     }
+    if L_SNAP.Atm then
+        L_SNAP.AtmColor = L_SNAP.Atm.Color
+        L_SNAP.AtmDecay = L_SNAP.Atm.Decay
+        L_SNAP.AtmDensity = L_SNAP.Atm.Density
+    end
 end
 
 local function restaurarLuz()
@@ -2073,53 +2104,54 @@ local function restaurarLuz()
         Lighting.Brightness, Lighting.ClockTime = L_SNAP.Brightness, L_SNAP.ClockTime
         Lighting.Ambient, Lighting.OutdoorAmbient = L_SNAP.Ambient, L_SNAP.Outdoor
         Lighting.FogEnd, Lighting.FogStart = L_SNAP.FogEnd, L_SNAP.FogStart
+        Lighting.FogColor = L_SNAP.FogColor
     end)
+    if L_SNAP.Atm then
+        pcall(function()
+            L_SNAP.Atm.Color = L_SNAP.AtmColor
+            L_SNAP.Atm.Decay = L_SNAP.AtmDecay
+            L_SNAP.Atm.Density = L_SNAP.AtmDensity
+        end)
+    end
     if L_SNAP.Sky and not L_SNAP.Sky.Parent then
         pcall(function() L_SNAP.Sky.Parent = Lighting end)
     end
     L_SNAP = nil
 end
 
-local function nuevoCielo(tabla)
-    local s = Instance.new("Sky")
-    for k, v in pairs(tabla) do pcall(function() s[k] = v end) end
-    s.Parent = Lighting
-    skyObj = s
-end
+local function aplicarCielo(modo)
+    if modo == modoCielo then return end
 
-setNoche = function(on)
-    if on == S.noche then return end
-    S.noche = on
-    if on then
-        if S.rosa then
-            S.rosa = false
-            if UI.rosaToggle then UI.rosaToggle.Set(false, true) end
-        end
-        guardarLuz()
-        local viejo = Lighting:FindFirstChildOfClass("Sky")
-        if viejo then pcall(function() viejo.Parent = nil end) end
-        nuevoCielo(SKY_NOCHE)
+    if skyObj then
+        pcall(function() skyObj:Destroy() end)
+        skyObj = nil
+    end
+
+    if modo == nil then
+        restaurarLuz()
+        modoCielo = nil
+        return
+    end
+
+    guardarLuz()
+    modoCielo = modo
+
+    local viejo = Lighting:FindFirstChildOfClass("Sky")
+    if viejo then pcall(function() viejo.Parent = nil end) end
+
+    if modo == "noche" then
+        local s = Instance.new("Sky")
+        for k, v in pairs(SKY_NOCHE) do pcall(function() s[k] = v end) end
+        s.Parent = Lighting
+        skyObj = s
         pcall(function()
             Lighting.ClockTime = 0
-            Lighting.Brightness = 0.6
-            Lighting.Ambient = Color3.fromRGB(18, 24, 46)
-            Lighting.OutdoorAmbient = Color3.fromRGB(16, 20, 40)
-            Lighting.FogEnd = 600
+            Lighting.Brightness = 0.5
+            Lighting.Ambient = Color3.fromRGB(16, 22, 44)
+            Lighting.OutdoorAmbient = Color3.fromRGB(14, 18, 38)
+            Lighting.FogEnd = 700
         end)
     else
-        restaurarLuz()
-    end
-end
-
-setRosa = function(on)
-    if on == S.rosa then return end
-    S.rosa = on
-    if on then
-        if S.noche then
-            S.noche = false
-            if UI.nocheToggle then UI.nocheToggle.Set(false, true) end
-        end
-        guardarLuz()
         pcall(function()
             Lighting.ClockTime = 17.6
             Lighting.Brightness = 1.8
@@ -2136,33 +2168,71 @@ setRosa = function(on)
                 atm.Density = 0.42
             end)
         end
-    else
-        restaurarLuz()
     end
 end
 
-local neonLight
+local function sincronizarCielos()
+    if UI.nocheToggle then UI.nocheToggle.Set(S.noche, true) end
+    if UI.rosaToggle then UI.rosaToggle.Set(S.rosa, true) end
+end
+
+local function setNoche(on)
+    S.noche = on
+    if on then
+        S.rosa = false
+        aplicarCielo("noche")
+    elseif modoCielo == "noche" then
+        aplicarCielo(nil)
+    end
+    sincronizarCielos()
+end
+
+local function setRosa(on)
+    S.rosa = on
+    if on then
+        S.noche = false
+        aplicarCielo("rosa")
+    elseif modoCielo == "rosa" then
+        aplicarCielo(nil)
+    end
+    sincronizarCielos()
+end
+
+--==================================================
+-- LUZ DORADA (cuerpo y piso)
+--==================================================
+
+local luzCuerpo, luzPiso
 
 local function aplicarNeon()
     local root = getParts()
     if not root then return end
-    if neonLight and neonLight.Parent then return end
-    neonLight = Instance.new("PointLight")
-    neonLight.Name = "DestroyaNeon"
-    neonLight.Color = ESP_LINE
-    neonLight.Range = 34
-    neonLight.Brightness = 3
-    neonLight.Shadows = false
-    neonLight.Parent = root
+    if luzCuerpo and luzCuerpo.Parent then return end
+
+    luzCuerpo = Instance.new("PointLight")
+    luzCuerpo.Name = "DestroyaOro"
+    luzCuerpo.Color = ORO
+    luzCuerpo.Range = 26
+    luzCuerpo.Brightness = 2.2
+    luzCuerpo.Shadows = false
+    luzCuerpo.Parent = root
+
+    luzPiso = Instance.new("PointLight")
+    luzPiso.Name = "DestroyaOroPiso"
+    luzPiso.Color = ORO_SUAVE
+    luzPiso.Range = 44
+    luzPiso.Brightness = 1.5
+    luzPiso.Shadows = false
+    luzPiso.Parent = root
 end
 
-local setNeon = function(on)
+local function setNeon(on)
     S.neon = on
     if on then
         aplicarNeon()
-    elseif neonLight then
-        pcall(function() neonLight:Destroy() end)
-        neonLight = nil
+    else
+        if luzCuerpo then pcall(function() luzCuerpo:Destroy() end) luzCuerpo = nil end
+        if luzPiso then pcall(function() luzPiso:Destroy() end) luzPiso = nil end
     end
 end
 
@@ -2175,15 +2245,15 @@ local function aplicarGlow()
     glowHL = Instance.new("Highlight")
     glowHL.Name = "DestroyaGlow"
     glowHL.Adornee = char
-    glowHL.FillColor = ESP_FILL
-    glowHL.FillTransparency = 0.72
-    glowHL.OutlineColor = ESP_LINE
+    glowHL.FillColor = ORO
+    glowHL.FillTransparency = 0.68
+    glowHL.OutlineColor = ORO_SUAVE
     glowHL.OutlineTransparency = 0
     glowHL.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     glowHL.Parent = char
 end
 
-local setGlow = function(on)
+local function setGlow(on)
     S.glow = on
     if on then
         aplicarGlow()
@@ -2194,48 +2264,75 @@ local setGlow = function(on)
 end
 
 --==================================================
--- SKINS: 6 angelicales, 6 militares, 6 demoníacas
+-- SKINS POR CATEGORÍA (pintan el cuerpo)
 --==================================================
--- Cada skin lleva su camisa y su pantalón (IDs de catálogo)
--- y un aura propia. Si un ID sale gris, cámbialo aquí.
+
 local SKINS = {
-    -- ANGELICALES
-    { clave = "ang1", tipo = "angel", nombre = "Angel Blanco",     shirt = 6066485762, pants = 6066486586 },
-    { clave = "ang2", tipo = "angel", nombre = "Angel de Oro",      shirt = 6066486984, pants = 6066487678 },
-    { clave = "ang3", tipo = "angel", nombre = "Túnica Celeste",    shirt = 6076261391, pants = 6076262099 },
-    { clave = "ang4", tipo = "angel", nombre = "Ala de Luz",        shirt = 12140489143, pants = 12140488313 },
-    { clave = "ang5", tipo = "angel", nombre = "Serafín",           shirt = 12468047696, pants = 12468049141 },
-    { clave = "ang6", tipo = "angel", nombre = "Ángel de Mármol",   shirt = 13782438817, pants = 13782441471 },
-    -- MILITARES
-    { clave = "mil1", tipo = "militar", nombre = "Camo Verde",      shirt = 6161907804, pants = 6161908476 },
-    { clave = "mil2", tipo = "militar", nombre = "Camo Desierto",   shirt = 4517619103, pants = 4517619641 },
-    { clave = "mil3", tipo = "militar", nombre = "Táctico Negro",   shirt = 5766828189, pants = 5766828773 },
-    { clave = "mil4", tipo = "militar", nombre = "Comando Nocturno", shirt = 12065991387, pants = 12065993141 },
-    { clave = "mil5", tipo = "militar", nombre = "Militar Urbano",  shirt = 13263740030, pants = 13263741962 },
-    { clave = "mil6", tipo = "militar", nombre = "Fuerza Especial", shirt = 15123142451, pants = 15123145113 },
-    -- DEMONÍACAS
-    { clave = "dem1", tipo = "demon", nombre = "Demonio Negro",     shirt = 6066536286, pants = 6066537080 },
-    { clave = "dem2", tipo = "demon", nombre = "Demonio Rojo",      shirt = 6190465297, pants = 6190466033 },
-    { clave = "dem3", tipo = "demon", nombre = "Ala Carmesí",       shirt = 12133117087, pants = 12133118833 },
-    { clave = "dem4", tipo = "demon", nombre = "Súcubo",            shirt = 13331832014, pants = 13331834522 },
-    { clave = "dem5", tipo = "demon", nombre = "Íncubo",            shirt = 14569244723, pants = 14569247311 },
-    { clave = "dem6", tipo = "demon", nombre = "Señor del Abismo",  shirt = 15607145412, pants = 15607204313 },
+    { cat = "ANGELICALES", tipo = "angel", clave = "ang1", nombre = "Ángel blanco",
+      torso = Color3.fromRGB(250, 250, 250), brazos = Color3.fromRGB(232, 234, 240),
+      piernas = Color3.fromRGB(244, 246, 250), cabeza = Color3.fromRGB(255, 226, 200) },
+    { cat = "ANGELICALES", tipo = "angel", clave = "ang2", nombre = "Ángel dorado",
+      torso = Color3.fromRGB(255, 214, 120), brazos = Color3.fromRGB(240, 198, 105),
+      piernas = Color3.fromRGB(250, 226, 150), cabeza = Color3.fromRGB(255, 224, 190) },
+    { cat = "ANGELICALES", tipo = "angel", clave = "ang3", nombre = "Serafín celeste",
+      torso = Color3.fromRGB(198, 230, 255), brazos = Color3.fromRGB(214, 240, 255),
+      piernas = Color3.fromRGB(186, 218, 250), cabeza = Color3.fromRGB(255, 228, 205) },
+    { cat = "ANGELICALES", tipo = "angel", clave = "ang4", nombre = "Ángel de mármol",
+      torso = Color3.fromRGB(224, 224, 228), brazos = Color3.fromRGB(212, 212, 218),
+      piernas = Color3.fromRGB(232, 232, 236), cabeza = Color3.fromRGB(250, 224, 205) },
+
+    { cat = "DEMONÍACAS", tipo = "demon", clave = "dem1", nombre = "Demonio rojo",
+      torso = Color3.fromRGB(150, 22, 22), brazos = Color3.fromRGB(118, 16, 16),
+      piernas = Color3.fromRGB(88, 10, 10), cabeza = Color3.fromRGB(200, 62, 50) },
+    { cat = "DEMONÍACAS", tipo = "demon", clave = "dem2", nombre = "Carmesí",
+      torso = Color3.fromRGB(188, 30, 62), brazos = Color3.fromRGB(158, 20, 50),
+      piernas = Color3.fromRGB(118, 14, 34), cabeza = Color3.fromRGB(210, 70, 70) },
+    { cat = "DEMONÍACAS", tipo = "demon", clave = "dem3", nombre = "Negro abisal",
+      torso = Color3.fromRGB(26, 20, 26), brazos = Color3.fromRGB(36, 28, 36),
+      piernas = Color3.fromRGB(18, 14, 18), cabeza = Color3.fromRGB(190, 175, 180) },
+    { cat = "DEMONÍACAS", tipo = "demon", clave = "dem4", nombre = "Señor del abismo",
+      torso = Color3.fromRGB(62, 20, 82), brazos = Color3.fromRGB(46, 15, 62),
+      piernas = Color3.fromRGB(34, 10, 46), cabeza = Color3.fromRGB(200, 150, 220) },
+
+    { cat = "MILITARES", tipo = "militar", clave = "mil1", nombre = "Camo verde",
+      torso = Color3.fromRGB(90, 110, 60), brazos = Color3.fromRGB(74, 94, 50),
+      piernas = Color3.fromRGB(58, 78, 44), cabeza = Color3.fromRGB(200, 175, 150) },
+    { cat = "MILITARES", tipo = "militar", clave = "mil2", nombre = "Desierto",
+      torso = Color3.fromRGB(170, 150, 105), brazos = Color3.fromRGB(150, 130, 90),
+      piernas = Color3.fromRGB(128, 112, 78), cabeza = Color3.fromRGB(210, 180, 150) },
+    { cat = "MILITARES", tipo = "militar", clave = "mil3", nombre = "Táctico negro",
+      torso = Color3.fromRGB(40, 42, 45), brazos = Color3.fromRGB(32, 34, 36),
+      piernas = Color3.fromRGB(26, 28, 30), cabeza = Color3.fromRGB(205, 180, 155) },
+    { cat = "MILITARES", tipo = "militar", clave = "mil4", nombre = "Comando nocturno",
+      torso = Color3.fromRGB(30, 40, 55), brazos = Color3.fromRGB(24, 32, 44),
+      piernas = Color3.fromRGB(20, 27, 37), cabeza = Color3.fromRGB(195, 172, 150) },
+
+    { cat = "INSANAS", tipo = "insano", clave = "ins1", nombre = "Arcoíris",
+      torso = Color3.fromRGB(255, 60, 120), brazos = Color3.fromRGB(60, 200, 255),
+      piernas = Color3.fromRGB(255, 200, 60), cabeza = Color3.fromRGB(255, 230, 200) },
+    { cat = "INSANAS", tipo = "insano", clave = "ins2", nombre = "Tóxico",
+      torso = Color3.fromRGB(120, 255, 60), brazos = Color3.fromRGB(78, 218, 40),
+      piernas = Color3.fromRGB(158, 255, 92), cabeza = Color3.fromRGB(230, 255, 200) },
+    { cat = "INSANAS", tipo = "insano", clave = "ins3", nombre = "Hielo",
+      torso = Color3.fromRGB(178, 238, 255), brazos = Color3.fromRGB(148, 218, 255),
+      piernas = Color3.fromRGB(200, 248, 255), cabeza = Color3.fromRGB(240, 250, 255) },
+    { cat = "INSANAS", tipo = "insano", clave = "ins4", nombre = "Vacío",
+      torso = Color3.fromRGB(16, 16, 22), brazos = Color3.fromRGB(26, 26, 34),
+      piernas = Color3.fromRGB(10, 10, 14), cabeza = Color3.fromRGB(190, 180, 210) },
 }
 
 local POR_CLAVE = {}
 for _, s in ipairs(SKINS) do POR_CLAVE[s.clave] = s end
 
 local AURAS = {
-    angel = { fill = Color3.fromRGB(255, 250, 210), line = Color3.fromRGB(255, 240, 160),
-        tex = "rbxasset://textures/particles/sparkles_main.dds", size = 0.5, rate = 45, speed = 3 },
-    militar = { fill = Color3.fromRGB(120, 170, 80), line = Color3.fromRGB(210, 240, 140),
-        tex = "rbxasset://textures/particles/sparkles_main.dds", size = 0.35, rate = 30, speed = 4 },
-    demon = { fill = Color3.fromRGB(255, 40, 20), line = Color3.fromRGB(255, 120, 40),
-        tex = "rbxasset://textures/particles/smoke_main.dds", size = 2.2, rate = 26, speed = 2 },
+    angel = { linea = Color3.fromRGB(255, 245, 200), tex = "rbxasset://textures/particles/sparkles_main.dds", tam = 0.5, rate = 45, vel = 3 },
+    militar = { linea = Color3.fromRGB(190, 240, 140), tex = "rbxasset://textures/particles/sparkles_main.dds", tam = 0.35, rate = 30, vel = 4 },
+    demon = { linea = Color3.fromRGB(255, 80, 40), tex = "rbxasset://textures/particles/smoke_main.dds", tam = 2.2, rate = 26, vel = 2 },
+    insano = { linea = Color3.fromRGB(210, 120, 255), tex = "rbxasset://textures/particles/sparkles_main.dds", tam = 0.8, rate = 55, vel = 5 },
 }
 
 local skinHL, skinLight, skinFx
-local ropaOriginal
+local coloresGuardados, ropaOculta = {}, {}
 
 local function limpiarSkin()
     if skinHL then pcall(function() skinHL:Destroy() end) skinHL = nil end
@@ -2243,57 +2340,56 @@ local function limpiarSkin()
     if skinFx then pcall(function() skinFx:Destroy() end) skinFx = nil end
 end
 
--- Copia la descripción actual para no borrar pelo ni accesorios
-local function guardarRopa(hum)
-    if ropaOriginal then return end
-    pcall(function()
-        local d = hum:GetAppliedDescription()
-        if d then
-            ropaOriginal = {
-                Shirt = d.Shirt, Pants = d.Pants,
-            }
+local function restaurarCuerpo()
+    for p, d in pairs(coloresGuardados) do
+        if p.Parent then
+            pcall(function()
+                p.Color = d.Color
+                p.Material = d.Material
+            end)
         end
-    end)
-end
-
-local function ponerRopa(s)
-    local _, hum, char = getParts()
-    if not hum or not char then return end
-    guardarRopa(hum)
-
-    local ok = pcall(function()
-        local d = hum:GetAppliedDescription()
-        d.Shirt = s.shirt
-        d.Pants = s.pants
-        hum:ApplyDescription(d)
-    end)
-
-    -- Respaldo si el ejecutor no deja aplicar la descripción
-    if not ok then
-        pcall(function()
-            local shirt = char:FindFirstChildOfClass("Shirt") or Instance.new("Shirt", char)
-            shirt.ShirtTemplate = "rbxassetid://" .. s.shirt
-            local pants = char:FindFirstChildOfClass("Pants") or Instance.new("Pants", char)
-            pants.PantsTemplate = "rbxassetid://" .. s.pants
-        end)
     end
+    table.clear(coloresGuardados)
+
+    local char = player.Character
+    for inst in pairs(ropaOculta) do
+        if char and not inst.Parent then
+            pcall(function() inst.Parent = char end)
+        end
+    end
+    table.clear(ropaOculta)
 end
 
-local function devolverRopa()
-    local _, hum = getParts()
-    if not hum or not ropaOriginal then return end
-    pcall(function()
-        local d = hum:GetAppliedDescription()
-        d.Shirt = ropaOriginal.Shirt
-        d.Pants = ropaOriginal.Pants
-        hum:ApplyDescription(d)
-    end)
+local function pintarCuerpo(char, s)
+    for _, p in ipairs(char:GetDescendants()) do
+        if p:IsA("BasePart") then
+            local n = p.Name
+            local col = s.torso
+            if n:find("Torso") then
+                col = s.torso
+            elseif n:find("Arm") then
+                col = s.brazos
+            elseif n:find("Leg") then
+                col = s.piernas
+            elseif n == "Head" then
+                col = s.cabeza
+            end
+            coloresGuardados[p] = { Color = p.Color, Material = p.Material }
+            pcall(function()
+                p.Color = col
+                p.Material = Enum.Material.SmoothPlastic
+            end)
+        elseif p:IsA("Shirt") or p:IsA("Pants") then
+            ropaOculta[p] = true
+            pcall(function() p.Parent = nil end)
+        end
+    end
 end
 
 local function aplicarSkin(clave)
     limpiarSkin()
     if not clave then
-        devolverRopa()
+        restaurarCuerpo()
         return
     end
 
@@ -2301,38 +2397,52 @@ local function aplicarSkin(clave)
     local aura = s and AURAS[s.tipo]
     local char, root = getParts()
     local r = root or (char and char:FindFirstChild("HumanoidRootPart"))
-    if not s or not char or not r then return end
+    if not s or not aura or not char or not r then return end
 
-    ponerRopa(s)
+    restaurarCuerpo()
+    pintarCuerpo(char, s)
 
     skinHL = Instance.new("Highlight")
     skinHL.Name = "DestroyaSkin"
     skinHL.Adornee = char
-    skinHL.FillColor = aura.fill
-    skinHL.FillTransparency = 0.55
-    skinHL.OutlineColor = aura.line
+    skinHL.FillColor = aura.linea
+    skinHL.FillTransparency = 0.6
+    skinHL.OutlineColor = aura.linea
     skinHL.OutlineTransparency = 0.05
     skinHL.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     skinHL.Parent = char
 
     skinLight = Instance.new("PointLight")
-    skinLight.Color = aura.line
-    skinLight.Range = 22
-    skinLight.Brightness = 2.4
+    skinLight.Color = aura.linea
+    skinLight.Range = 20
+    skinLight.Brightness = 2.2
     skinLight.Shadows = false
     skinLight.Parent = r
 
     skinFx = Instance.new("ParticleEmitter")
     skinFx.Texture = aura.tex
-    skinFx.Color = ColorSequence.new(aura.line)
-    skinFx.Size = NumberSequence.new(aura.size)
+    skinFx.Color = ColorSequence.new(aura.linea)
+    skinFx.Size = NumberSequence.new(aura.tam)
     skinFx.Transparency = NumberSequence.new(0.25, 1)
     skinFx.Lifetime = NumberRange.new(0.6, 1.2)
     skinFx.Rate = aura.rate
-    skinFx.Speed = NumberRange.new(aura.speed * 0.4, aura.speed)
+    skinFx.Speed = NumberRange.new(aura.vel * 0.4, aura.vel)
     skinFx.SpreadAngle = Vector2.new(180, 180)
     skinFx.LightEmission = 0.8
     skinFx.Parent = r
+
+    if s.tipo == "insano" then
+        task.spawn(function()
+            local cols = { Color3.fromRGB(255, 90, 240), Color3.fromRGB(90, 220, 255), Color3.fromRGB(255, 220, 90) }
+            local i = 0
+            while skinHL and skinHL.Parent do
+                i = i % #cols + 1
+                skinHL.FillColor = cols[i]
+                skinHL.OutlineColor = cols[i]
+                task.wait(1.2)
+            end
+        end)
+    end
 end
 
 local setSkin = function(clave)
@@ -2342,7 +2452,8 @@ end
 
 track(player.CharacterAdded:Connect(function()
     task.wait(1)
-    ropaOriginal = nil
+    table.clear(coloresGuardados)
+    table.clear(ropaOculta)
     if S.neon then pcall(aplicarNeon) end
     if S.glow then pcall(aplicarGlow) end
     if S.skin then pcall(aplicarSkin, S.skin) end
@@ -2352,21 +2463,36 @@ end))
 -- ETIQUETA DE DISCORD SOBRE LA CABEZA
 --==================================================
 
-local dcGui
+local dcGui, dcLoop
 
 local function aplicarDiscord()
-    local char = getParts()
+    local char = player.Character
     local head = char and char:FindFirstChild("Head")
-    if not head or (dcGui and dcGui.Parent) then return end
+    if not head then return end
+    if dcGui and dcGui.Parent then return end
 
     dcGui = Instance.new("BillboardGui")
     dcGui.Name = "DestroyaDiscord"
-    dcGui.Size = UDim2.fromOffset(210, 26)
-    dcGui.StudsOffset = Vector3.new(0, 2.6, 0)
+    dcGui.Size = UDim2.fromOffset(230, 30)
+    dcGui.StudsOffset = Vector3.new(0, 2.9, 0)
     dcGui.AlwaysOnTop = true
     dcGui.LightInfluence = 0
     dcGui.Adornee = head
-    dcGui.Parent = head
+    dcGui.Parent = char
+
+    local fondo = Instance.new("Frame")
+    fondo.Size = UDim2.fromScale(1, 1)
+    fondo.BackgroundColor3 = Color3.fromRGB(20, 6, 10)
+    fondo.BackgroundTransparency = 0.35
+    fondo.BorderSizePixel = 0
+    fondo.Parent = dcGui
+    corner(fondo, 8)
+
+    local borde = Instance.new("UIStroke")
+    borde.Color = Color3.fromRGB(255, 60, 70)
+    borde.Thickness = 1.4
+    borde.Transparency = 0.25
+    borde.Parent = fondo
 
     local l = Instance.new("TextLabel")
     l.Size = UDim2.fromScale(1, 1)
@@ -2374,26 +2500,27 @@ local function aplicarDiscord()
     l.Text = CONFIG.DISCORD
     l.TextSize = 14
     l.Font = F.head
-    l.TextColor3 = Color3.fromRGB(255, 60, 70)
-    l.TextStrokeTransparency = 0.35
+    l.TextColor3 = Color3.fromRGB(255, 70, 80)
+    l.TextStrokeTransparency = 0.4
     l.TextStrokeColor3 = Color3.new(0, 0, 0)
-    l.Parent = dcGui
+    l.Parent = fondo
 
     local g = Instance.new("UIGradient")
     g.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 60, 70)),
-        ColorSequenceKeypoint.new(0.45, Color3.fromRGB(255, 60, 70)),
+        ColorSequenceKeypoint.new(0.42, Color3.fromRGB(255, 60, 70)),
         ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(255, 60, 70)),
+        ColorSequenceKeypoint.new(0.58, Color3.fromRGB(255, 60, 70)),
         ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 60, 70)),
     })
     g.Offset = Vector2.new(-1, 0)
     g.Parent = l
 
-    task.spawn(function()
+    if dcLoop then task.cancel(dcLoop) end
+    dcLoop = task.spawn(function()
         while dcGui and dcGui.Parent do
             g.Offset = Vector2.new(-1, 0)
-            tween(g, { Offset = Vector2.new(1, 0) }, 1.1, Enum.EasingStyle.Linear)
+            tween(g, { Offset = Vector2.new(1, 0) }, 1.2, Enum.EasingStyle.Linear)
             task.wait(10)
         end
     end)
@@ -2403,9 +2530,16 @@ local function setDiscord(on)
     S.dc = on
     if on then
         aplicarDiscord()
-    elseif dcGui then
-        pcall(function() dcGui:Destroy() end)
-        dcGui = nil
+        task.spawn(function()
+            for _ = 1, 20 do
+                task.wait(0.5)
+                if not S.dc or (dcGui and dcGui.Parent) then return end
+                aplicarDiscord()
+            end
+        end)
+    else
+        if dcLoop then task.cancel(dcLoop) dcLoop = nil end
+        if dcGui then pcall(function() dcGui:Destroy() end) dcGui = nil end
     end
 end
 
@@ -2470,9 +2604,9 @@ do
         notify(v and "Vuelo prendido" or "Vuelo apagado")
     end)
 
-    createButton(grid, "Súper salto", "Salto alto", function(v)
+    createButton(grid, "Impulso", "Salto de 17 studs, llega más lejos", function(v)
         setJumpPower(v)
-        notify(v and "Súper salto prendido" or "Súper salto apagado")
+        notify(v and "Impulso prendido" or "Impulso apagado")
     end)
 
     createButton(grid, "Salto infinito", "Salta sin parar", function(v)
@@ -2674,7 +2808,6 @@ do
             local minus = createMiniButton(entry, "minus", 30)
             minus.Position = UDim2.new(1, -30, 0, 2)
             minus.Activated:Connect(safe(function()
-                -- REPARADO: soltar el fijo también libera la cámara si no hay bot
                 if S.fijado == plr then
                     S.fijado = nil
                     if not S.bot then
@@ -2752,48 +2885,31 @@ do
     createSection(DecoPage, "Tu personaje")
     local g2 = createGrid(DecoPage)
 
-    createButton(g2, "Luz neón", "Te alumbra alrededor", function(v)
+    createButton(g2, "Luz dorada", "Alumbra cuerpo y piso", function(v)
         setNeon(v)
+        notify(v and "Luz dorada prendida" or "Luz dorada apagada")
     end)
 
-    createButton(g2, "Brillo", "Contorno azul en ti", function(v)
+    createButton(g2, "Brillo dorado", "Contorno dorado en ti", function(v)
         setGlow(v)
     end)
 end
 
 do
-    local fold = createFold(DecoPage, "SKINS Y DECORACIONES", false)
+    local fold = createFold(DecoPage, "SKINS", false)
 
-    createSection(fold, "Angelicales")
-    local ga = createGrid(fold)
-    for _, s in ipairs(SKINS) do
-        if s.tipo == "angel" then
-            createButton(ga, s.nombre, "Camisa " .. s.shirt, function()
-                setSkin(s.clave)
-                notify("Skin: " .. s.nombre)
-            end)
-        end
-    end
+    local cats = { "ANGELICALES", "DEMONÍACAS", "MILITARES", "INSANAS" }
 
-    createSection(fold, "Militares")
-    local gm = createGrid(fold)
-    for _, s in ipairs(SKINS) do
-        if s.tipo == "militar" then
-            createButton(gm, s.nombre, "Camisa " .. s.shirt, function()
-                setSkin(s.clave)
-                notify("Skin: " .. s.nombre)
-            end)
-        end
-    end
-
-    createSection(fold, "Demoníacas")
-    local gd = createGrid(fold)
-    for _, s in ipairs(SKINS) do
-        if s.tipo == "demon" then
-            createButton(gd, s.nombre, "Camisa " .. s.shirt, function()
-                setSkin(s.clave)
-                notify("Skin: " .. s.nombre)
-            end)
+    for _, cat in ipairs(cats) do
+        local sub = createFold(fold, cat, false)
+        local grid = createGrid(sub)
+        for _, s in ipairs(SKINS) do
+            if s.cat == cat then
+                createButton(grid, s.nombre, "Pinta tu cuerpo", function()
+                    setSkin(s.clave)
+                    notify("Skin: " .. s.nombre)
+                end)
+            end
         end
     end
 
@@ -2801,7 +2917,7 @@ do
     local gr = createGrid(fold)
     createButton(gr, "Quitar skin", "Vuelve a tu ropa original", function()
         setSkin(nil)
-        notify("Skin quitada, ropa original")
+        notify("Skin quitada")
     end)
 
     createSection(fold, "Entorno")
