@@ -903,12 +903,14 @@ local function createButton(parent, name, desc, callback)
     return api
 end
 
+-- REPARADO: el pliegue ahora se autoajusta al contenido
 local function createFold(page, title, openByDefault)
     local HEAD = 30
     local holder = Instance.new("Frame")
     holder.Size = UDim2.new(1, -4, 0, HEAD)
     holder.BackgroundTransparency = 0.45
     holder.LayoutOrder = nextOrder()
+    holder.AutomaticSize = Enum.AutomaticSize.Y
     holder.Parent = page
     bind(holder, "BackgroundColor3", "Tab")
     corner(holder, 9)
@@ -929,7 +931,7 @@ local function createFold(page, title, openByDefault)
     body.Position = UDim2.fromOffset(0, HEAD + 4)
     body.Size = UDim2.new(1, 0, 0, 0)
     body.BackgroundTransparency = 1
-    body.ClipsDescendants = true
+    body.AutomaticSize = Enum.AutomaticSize.Y
     body.Visible = false
     body.Parent = holder
 
@@ -943,13 +945,10 @@ local function createFold(page, title, openByDefault)
     pad.PaddingBottom = UDim.new(0, 6)
     pad.Parent = body
 
-    body.AutomaticSize = Enum.AutomaticSize.Y
-
     local open = false
     local function setOpen(v)
         open = v
         body.Visible = v
-        holder.Size = UDim2.new(1, -4, 0, v and (HEAD + 10 + body.AbsoluteSize.Y) or HEAD)
         tween(arrow, { Rotation = v and 90 or 0 }, 0.2, Enum.EasingStyle.Back)
     end
 
@@ -1511,6 +1510,7 @@ local function fijar(plr)
     syncBot()
 end
 UI.fijar = fijar
+UI.apagarCam = apagarCam
 
 track(RunService.Heartbeat:Connect(function(dt)
     if not S.camOn then
@@ -1522,7 +1522,12 @@ track(RunService.Heartbeat:Connect(function(dt)
         if S.fijado.Parent ~= Players then
             local viejo = S.fijado
             S.fijado = nil
-            syncBot()
+            -- REPARADO: si no hay bot activo, la cámara se apaga de verdad
+            if not S.bot then
+                apagarCam()
+            else
+                syncBot()
+            end
             if viejo then notify("@" .. viejo.Name .. " salió, cámara libre") end
         end
         botMiss = 0
@@ -2034,7 +2039,7 @@ end
 --   ▸  END OF PART 10
 --══════════════════════════════════════════════
 --##################################################
---# ► PART 10.5 — DECORATION
+--# ► PART 10.5 — DECORATION, SKINS AND DISCORD
 --##################################################
 
 local setNoche, setRosa
@@ -2189,115 +2194,168 @@ local setGlow = function(on)
 end
 
 --==================================================
--- SKINS
+-- SKINS: 6 angelicales, 6 militares, 6 demoníacas
 --==================================================
-
+-- Cada skin lleva su camisa y su pantalón (IDs de catálogo)
+-- y un aura propia. Si un ID sale gris, cámbialo aquí.
 local SKINS = {
-    angel = {
-        fill = Color3.fromRGB(255, 250, 210), line = Color3.fromRGB(255, 240, 160),
-        light = Color3.fromRGB(255, 245, 190), tex = "rbxasset://textures/particles/sparkles_main.dds",
-        size = 0.5, speed = 3, rate = 45,
-    },
-    demon = {
-        fill = Color3.fromRGB(255, 40, 20), line = Color3.fromRGB(255, 120, 40),
-        light = Color3.fromRGB(255, 60, 20), tex = "rbxasset://textures/particles/smoke_main.dds",
-        size = 2.2, speed = 2, rate = 26,
-    },
-    militar = {
-        fill = Color3.fromRGB(120, 170, 80), line = Color3.fromRGB(210, 240, 140),
-        light = Color3.fromRGB(190, 230, 120), tex = "rbxasset://textures/particles/sparkles_main.dds",
-        size = 0.35, speed = 4, rate = 30,
-    },
-    insano = {
-        fill = Color3.fromRGB(190, 60, 255), line = Color3.fromRGB(255, 210, 60),
-        light = Color3.fromRGB(255, 90, 240), tex = "rbxasset://textures/particles/sparkles_main.dds",
-        size = 0.8, speed = 6, rate = 60,
-    },
+    -- ANGELICALES
+    { clave = "ang1", tipo = "angel", nombre = "Angel Blanco",     shirt = 6066485762, pants = 6066486586 },
+    { clave = "ang2", tipo = "angel", nombre = "Angel de Oro",      shirt = 6066486984, pants = 6066487678 },
+    { clave = "ang3", tipo = "angel", nombre = "Túnica Celeste",    shirt = 6076261391, pants = 6076262099 },
+    { clave = "ang4", tipo = "angel", nombre = "Ala de Luz",        shirt = 12140489143, pants = 12140488313 },
+    { clave = "ang5", tipo = "angel", nombre = "Serafín",           shirt = 12468047696, pants = 12468049141 },
+    { clave = "ang6", tipo = "angel", nombre = "Ángel de Mármol",   shirt = 13782438817, pants = 13782441471 },
+    -- MILITARES
+    { clave = "mil1", tipo = "militar", nombre = "Camo Verde",      shirt = 6161907804, pants = 6161908476 },
+    { clave = "mil2", tipo = "militar", nombre = "Camo Desierto",   shirt = 4517619103, pants = 4517619641 },
+    { clave = "mil3", tipo = "militar", nombre = "Táctico Negro",   shirt = 5766828189, pants = 5766828773 },
+    { clave = "mil4", tipo = "militar", nombre = "Comando Nocturno", shirt = 12065991387, pants = 12065993141 },
+    { clave = "mil5", tipo = "militar", nombre = "Militar Urbano",  shirt = 13263740030, pants = 13263741962 },
+    { clave = "mil6", tipo = "militar", nombre = "Fuerza Especial", shirt = 15123142451, pants = 15123145113 },
+    -- DEMONÍACAS
+    { clave = "dem1", tipo = "demon", nombre = "Demonio Negro",     shirt = 6066536286, pants = 6066537080 },
+    { clave = "dem2", tipo = "demon", nombre = "Demonio Rojo",      shirt = 6190465297, pants = 6190466033 },
+    { clave = "dem3", tipo = "demon", nombre = "Ala Carmesí",       shirt = 12133117087, pants = 12133118833 },
+    { clave = "dem4", tipo = "demon", nombre = "Súcubo",            shirt = 13331832014, pants = 13331834522 },
+    { clave = "dem5", tipo = "demon", nombre = "Íncubo",            shirt = 14569244723, pants = 14569247311 },
+    { clave = "dem6", tipo = "demon", nombre = "Señor del Abismo",  shirt = 15607145412, pants = 15607204313 },
 }
 
-local skinHL, skinLight, skinFx, skinTween
+local POR_CLAVE = {}
+for _, s in ipairs(SKINS) do POR_CLAVE[s.clave] = s end
+
+local AURAS = {
+    angel = { fill = Color3.fromRGB(255, 250, 210), line = Color3.fromRGB(255, 240, 160),
+        tex = "rbxasset://textures/particles/sparkles_main.dds", size = 0.5, rate = 45, speed = 3 },
+    militar = { fill = Color3.fromRGB(120, 170, 80), line = Color3.fromRGB(210, 240, 140),
+        tex = "rbxasset://textures/particles/sparkles_main.dds", size = 0.35, rate = 30, speed = 4 },
+    demon = { fill = Color3.fromRGB(255, 40, 20), line = Color3.fromRGB(255, 120, 40),
+        tex = "rbxasset://textures/particles/smoke_main.dds", size = 2.2, rate = 26, speed = 2 },
+}
+
+local skinHL, skinLight, skinFx
+local ropaOriginal
 
 local function limpiarSkin()
-    if skinTween then
-        pcall(function() skinTween:Cancel() end)
-        skinTween = nil
-    end
     if skinHL then pcall(function() skinHL:Destroy() end) skinHL = nil end
     if skinLight then pcall(function() skinLight:Destroy() end) skinLight = nil end
     if skinFx then pcall(function() skinFx:Destroy() end) skinFx = nil end
 end
 
-local function aplicarSkin(nombre)
+-- Copia la descripción actual para no borrar pelo ni accesorios
+local function guardarRopa(hum)
+    if ropaOriginal then return end
+    pcall(function()
+        local d = hum:GetAppliedDescription()
+        if d then
+            ropaOriginal = {
+                Shirt = d.Shirt, Pants = d.Pants,
+            }
+        end
+    end)
+end
+
+local function ponerRopa(s)
+    local _, hum, char = getParts()
+    if not hum or not char then return end
+    guardarRopa(hum)
+
+    local ok = pcall(function()
+        local d = hum:GetAppliedDescription()
+        d.Shirt = s.shirt
+        d.Pants = s.pants
+        hum:ApplyDescription(d)
+    end)
+
+    -- Respaldo si el ejecutor no deja aplicar la descripción
+    if not ok then
+        pcall(function()
+            local shirt = char:FindFirstChildOfClass("Shirt") or Instance.new("Shirt", char)
+            shirt.ShirtTemplate = "rbxassetid://" .. s.shirt
+            local pants = char:FindFirstChildOfClass("Pants") or Instance.new("Pants", char)
+            pants.PantsTemplate = "rbxassetid://" .. s.pants
+        end)
+    end
+end
+
+local function devolverRopa()
+    local _, hum = getParts()
+    if not hum or not ropaOriginal then return end
+    pcall(function()
+        local d = hum:GetAppliedDescription()
+        d.Shirt = ropaOriginal.Shirt
+        d.Pants = ropaOriginal.Pants
+        hum:ApplyDescription(d)
+    end)
+end
+
+local function aplicarSkin(clave)
     limpiarSkin()
-    if not nombre then return end
-    local cfg = SKINS[nombre]
+    if not clave then
+        devolverRopa()
+        return
+    end
+
+    local s = POR_CLAVE[clave]
+    local aura = s and AURAS[s.tipo]
     local char, root = getParts()
     local r = root or (char and char:FindFirstChild("HumanoidRootPart"))
-    if not cfg or not char or not r then return end
+    if not s or not char or not r then return end
+
+    ponerRopa(s)
 
     skinHL = Instance.new("Highlight")
     skinHL.Name = "DestroyaSkin"
     skinHL.Adornee = char
-    skinHL.FillColor = cfg.fill
+    skinHL.FillColor = aura.fill
     skinHL.FillTransparency = 0.55
-    skinHL.OutlineColor = cfg.line
+    skinHL.OutlineColor = aura.line
     skinHL.OutlineTransparency = 0.05
     skinHL.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     skinHL.Parent = char
 
     skinLight = Instance.new("PointLight")
-    skinLight.Color = cfg.light
+    skinLight.Color = aura.line
     skinLight.Range = 22
     skinLight.Brightness = 2.4
     skinLight.Shadows = false
     skinLight.Parent = r
 
     skinFx = Instance.new("ParticleEmitter")
-    skinFx.Texture = cfg.tex
-    skinFx.Color = ColorSequence.new(cfg.line)
-    skinFx.Size = NumberSequence.new(cfg.size)
+    skinFx.Texture = aura.tex
+    skinFx.Color = ColorSequence.new(aura.line)
+    skinFx.Size = NumberSequence.new(aura.size)
     skinFx.Transparency = NumberSequence.new(0.25, 1)
     skinFx.Lifetime = NumberRange.new(0.6, 1.2)
-    skinFx.Rate = cfg.rate
-    skinFx.Speed = NumberRange.new(cfg.speed * 0.4, cfg.speed)
+    skinFx.Rate = aura.rate
+    skinFx.Speed = NumberRange.new(aura.speed * 0.4, aura.speed)
     skinFx.SpreadAngle = Vector2.new(180, 180)
     skinFx.LightEmission = 0.8
     skinFx.Parent = r
-
-    if nombre == "insano" then
-        skinTween = TweenService:Create(skinHL,
-            TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, false),
-            { FillColor = Color3.fromRGB(60, 200, 255) })
-        skinTween:Play()
-        task.delay(2, function()
-            if skinHL then
-                skinHL.FillColor = Color3.fromRGB(255, 90, 240)
-                skinHL.OutlineColor = Color3.fromRGB(120, 255, 200)
-            end
-        end)
-    end
 end
 
-local setSkin = function(nombre)
-    S.skin = nombre
-    aplicarSkin(nombre)
+local setSkin = function(clave)
+    S.skin = clave
+    aplicarSkin(clave)
 end
 
 track(player.CharacterAdded:Connect(function()
     task.wait(1)
+    ropaOriginal = nil
     if S.neon then pcall(aplicarNeon) end
     if S.glow then pcall(aplicarGlow) end
     if S.skin then pcall(aplicarSkin, S.skin) end
 end))
 
 --==================================================
--- DISCORD LABEL
+-- ETIQUETA DE DISCORD SOBRE LA CABEZA
 --==================================================
 
-local dcGui, dcShine
+local dcGui
 
 local function aplicarDiscord()
-    local char, _, _ = getParts()
+    local char = getParts()
     local head = char and char:FindFirstChild("Head")
     if not head or (dcGui and dcGui.Parent) then return end
 
@@ -2331,7 +2389,6 @@ local function aplicarDiscord()
     })
     g.Offset = Vector2.new(-1, 0)
     g.Parent = l
-    dcShine = g
 
     task.spawn(function()
         while dcGui and dcGui.Parent do
@@ -2617,9 +2674,14 @@ do
             local minus = createMiniButton(entry, "minus", 30)
             minus.Position = UDim2.new(1, -30, 0, 2)
             minus.Activated:Connect(safe(function()
+                -- REPARADO: soltar el fijo también libera la cámara si no hay bot
                 if S.fijado == plr then
                     S.fijado = nil
-                    syncBot()
+                    if not S.bot then
+                        apagarCam()
+                    else
+                        syncBot()
+                    end
                 end
                 if selRemove(plr) then notify("@" .. plr.Name .. " fuera") end
             end, "quitar"))
@@ -2647,7 +2709,11 @@ track(Players.PlayerRemoving:Connect(safe(function(plr)
     end
     if S.fijado == plr then
         S.fijado = nil
-        syncBot()
+        if not S.bot then
+            apagarCam()
+        else
+            syncBot()
+        end
         UI.setStatus("El fijo salió, cámara libre")
     end
     if S.target == plr then
@@ -2698,23 +2764,45 @@ end
 do
     local fold = createFold(DecoPage, "SKINS Y DECORACIONES", false)
 
-    createSection(fold, "Skins")
-    local gs = createGrid(fold)
-
-    local skins = {
-        { "Angelical", "Brillo dorado y chispas", "angel" },
-        { "Demonio", "Rojo con humo", "demon" },
-        { "Militar", "Verde con chispas", "militar" },
-        { "Insano", "Arcoíris y luces", "insano" },
-        { "Quitar skin", "Deja tu personaje normal", nil },
-    }
-
-    for _, s in ipairs(skins) do
-        createButton(gs, s[1], s[2], function()
-            setSkin(s[3])
-            notify(s[3] and ("Skin " .. s[1]) or "Skin quitada")
-        end)
+    createSection(fold, "Angelicales")
+    local ga = createGrid(fold)
+    for _, s in ipairs(SKINS) do
+        if s.tipo == "angel" then
+            createButton(ga, s.nombre, "Camisa " .. s.shirt, function()
+                setSkin(s.clave)
+                notify("Skin: " .. s.nombre)
+            end)
+        end
     end
+
+    createSection(fold, "Militares")
+    local gm = createGrid(fold)
+    for _, s in ipairs(SKINS) do
+        if s.tipo == "militar" then
+            createButton(gm, s.nombre, "Camisa " .. s.shirt, function()
+                setSkin(s.clave)
+                notify("Skin: " .. s.nombre)
+            end)
+        end
+    end
+
+    createSection(fold, "Demoníacas")
+    local gd = createGrid(fold)
+    for _, s in ipairs(SKINS) do
+        if s.tipo == "demon" then
+            createButton(gd, s.nombre, "Camisa " .. s.shirt, function()
+                setSkin(s.clave)
+                notify("Skin: " .. s.nombre)
+            end)
+        end
+    end
+
+    createSection(fold, "Ropa")
+    local gr = createGrid(fold)
+    createButton(gr, "Quitar skin", "Vuelve a tu ropa original", function()
+        setSkin(nil)
+        notify("Skin quitada, ropa original")
+    end)
 
     createSection(fold, "Entorno")
     local ge = createGrid(fold)
