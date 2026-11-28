@@ -448,3 +448,453 @@ local function applyTextureSafe(label, assetIds, opciones)
 
     connLoad = label:GetPropertyChangedSignal("IsLoaded"):Connect(safe(function()
         if label.IsLoaded then cargada = true end
+end, "textura", 4))
+
+    label.Destroying:Connect(safe(function()
+        vivo = false
+        if connImg then pcall(function() connImg:Disconnect() end) end
+        if connLoad then pcall(function() connLoad:Disconnect() end) end
+    end, "textura", 4))
+
+    task.spawn(function()
+        while vivo and label.Parent and not cargada and intentos < maxIntentos do
+            intentos += 1
+            pintar()
+            if label.IsLoaded then
+                cargada = true
+                break
+            end
+            task.wait(0.5)
+        end
+    end)
+end
+
+local function ajustarEscala()
+    local cam = getCamera()
+    local vs = cam and cam.ViewportSize or Vector2.new(CONFIG.BASE_W, CONFIG.BASE_H)
+    local fit = math.min(1, (vs.X - 24) / CONFIG.BASE_W, (vs.Y - 24) / CONFIG.BASE_H)
+    UI.fit = math.clamp(fit, 0.35, 1)
+end
+
+local function aplicarEscala()
+    if UI.closing or not MenuScale or not MenuScale.Parent then return end
+    local objetivo = UI.size * UI.fit
+    if math.abs(MenuScale.Scale - objetivo) > 0.02 then
+        MenuScale.Scale = objetivo
+    end
+end
+
+--═══ FIN DE LA PARTE 4 ═══
+local BASE_W, BASE_H, HEADER_H = CONFIG.BASE_W, CONFIG.BASE_H, 46
+local HOME = UDim2.fromScale(0.5, 0.5)
+local GLOW = Color3.fromRGB(255, 200, 90)
+
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.AnchorPoint = Vector2.new(0.5, 0.5)
+Main.Size = UDim2.fromOffset(BASE_W, BASE_H)
+Main.Position = HOME
+Main.BackgroundColor3 = Color3.fromRGB(10, 10, 13)
+Main.BackgroundTransparency = 0
+Main.BorderSizePixel = 0
+Main.ClipsDescendants = true
+Main.Visible = true
+Main.Parent = Screen
+corner(Main, 12)
+stroke(Main, "Oro", 1.2, 0.55)
+
+local FondoBase = Instance.new("Frame")
+FondoBase.Size = UDim2.fromScale(1, 1)
+FondoBase.BackgroundColor3 = Color3.fromRGB(10, 10, 13)
+FondoBase.BorderSizePixel = 0
+FondoBase.ZIndex = 0
+FondoBase.Parent = Main
+corner(FondoBase, 12)
+
+local gradBase = Instance.new("UIGradient")
+gradBase.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(8, 8, 11)),
+    ColorSequenceKeypoint.new(0.38, Color3.fromRGB(18, 18, 22)),
+    ColorSequenceKeypoint.new(0.62, Color3.fromRGB(56, 44, 18)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 13)),
+})
+gradBase.Rotation = 90
+gradBase.Parent = FondoBase
+
+local Backdrop = Instance.new("ImageLabel")
+Backdrop.Name = "Backdrop"
+Backdrop.Size = UDim2.fromScale(1, 1)
+Backdrop.BackgroundTransparency = 1
+Backdrop.ImageTransparency = 0.25
+Backdrop.ScaleType = Enum.ScaleType.Crop
+Backdrop.ZIndex = 1
+Backdrop.Parent = Main
+corner(Backdrop, 12)
+
+applyTextureSafe(Backdrop, { CONFIG.IMAGEN_MENU, CONFIG.IMAGEN_MENU2 }, { max = 10 })
+
+local BackdropTint = Instance.new("Frame")
+BackdropTint.Size = UDim2.fromScale(1, 1)
+BackdropTint.BackgroundColor3 = Color3.fromRGB(6, 6, 9)
+BackdropTint.BackgroundTransparency = 0.30
+BackdropTint.BorderSizePixel = 0
+BackdropTint.ZIndex = 2
+BackdropTint.Parent = Main
+corner(BackdropTint, 12)
+
+MenuScale = Instance.new("UIScale")
+MenuScale.Scale = 1
+MenuScale.Parent = Main
+
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, HEADER_H)
+Header.BackgroundColor3 = Color3.fromRGB(18, 16, 14)
+Header.BackgroundTransparency = 0.2
+Header.BorderSizePixel = 0
+Header.ZIndex = 3
+Header.Parent = Main
+corner(Header, 12)
+
+local hGrad = Instance.new("UIGradient")
+hGrad.Parent = Header
+hGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, C.CarbonD),
+    ColorSequenceKeypoint.new(0.55, C.Carbon),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(46, 36, 14)),
+})
+hGrad.Rotation = 90
+hGrad.Transparency = NumberSequence.new(0.15, 0.6)
+
+local blood = Instance.new("Frame")
+blood.Position = UDim2.new(0, 0, 1, -2)
+blood.Size = UDim2.new(1, 0, 0, 2)
+blood.BorderSizePixel = 0
+blood.ZIndex = 4
+blood.Parent = Header
+bind(blood, "BackgroundColor3", "Oro")
+local bg = Instance.new("UIGradient")
+bg.Transparency = NumberSequence.new({
+    NumberSequenceKeypoint.new(0, 0.1),
+    NumberSequenceKeypoint.new(0.6, 0.55),
+    NumberSequenceKeypoint.new(1, 1),
+})
+bg.Parent = blood
+
+local TITLE_X, TITLE_Y = 40, 4
+local titleW = 150
+pcall(function()
+    titleW = TextService:GetTextSize("DESTROYA HUB", 26, F.title, Vector2.new(500, 40)).X
+end)
+
+local TitleShadow = plain(Header, "DESTROYA HUB", 26, F.title, Color3.new(0, 0, 0),
+    UDim2.fromOffset(TITLE_X + 2, TITLE_Y + 2), UDim2.fromOffset(titleW + 24, 30))
+TitleShadow.TextTransparency = 0.5
+TitleShadow.ZIndex = 4
+
+local Title = plain(Header, "DESTROYA HUB", 26, F.title, Color3.new(1, 1, 1),
+    UDim2.fromOffset(TITLE_X, TITLE_Y), UDim2.fromOffset(titleW + 24, 30))
+Title.ZIndex = 5
+
+local TitleGrad = Instance.new("UIGradient")
+TitleGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, C.CarbonD),
+    ColorSequenceKeypoint.new(0.34, C.Carbon),
+    ColorSequenceKeypoint.new(0.47, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(0.53, Color3.fromRGB(255, 236, 170)),
+    ColorSequenceKeypoint.new(0.66, C.Carbon),
+    ColorSequenceKeypoint.new(1, C.CarbonD),
+})
+TitleGrad.Offset = Vector2.new(-0.35, 0)
+TitleGrad.Parent = Title
+
+local TitleStroke = Instance.new("UIStroke")
+TitleStroke.Color = Color3.new(1, 1, 1)
+TitleStroke.Thickness = 1.4
+TitleStroke.Transparency = 0.25
+TitleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+TitleStroke.Parent = Title
+
+local ul = titleW * 0.95
+local underline = Instance.new("Frame")
+underline.AnchorPoint = Vector2.new(0.5, 0.5)
+underline.Position = UDim2.fromOffset(TITLE_X + ul / 2, 36)
+underline.Size = UDim2.fromOffset(ul, 2)
+underline.Rotation = -1
+underline.BorderSizePixel = 0
+underline.ZIndex = 5
+underline.Parent = Header
+bind(underline, "BackgroundColor3", "Oro")
+
+local titleShine
+pcall(function()
+    titleShine = TweenService:Create(TitleGrad,
+        TweenInfo.new(2.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        { Offset = Vector2.new(1.35, 0) })
+    titleShine:Play()
+end)
+
+--═══ FIN DE LA PARTE 5 ═══
+local function iconButton(kind, pos, bgColor)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.fromOffset(26, 26)
+    b.Position = pos
+    b.BackgroundColor3 = bgColor
+    b.BackgroundTransparency = 0.05
+    b.Text = ""
+    b.AutoButtonColor = false
+    b.ZIndex = 6
+    b.Parent = Header
+    corner(b, 8)
+    squish(b, 0.88)
+    local function glyph(w, rot)
+        local f = Instance.new("Frame")
+        f.AnchorPoint = Vector2.new(0.5, 0.5)
+        f.Position = UDim2.fromScale(0.5, 0.5)
+        f.Size = UDim2.fromOffset(w, 2)
+        f.Rotation = rot
+        f.BackgroundColor3 = Color3.fromRGB(235, 252, 255)
+        f.BorderSizePixel = 0
+        f.ZIndex = 7
+        f.Parent = b
+        corner(f, 1)
+    end
+    if kind == "x" then
+        glyph(13, 45)
+        glyph(13, -45)
+    else
+        glyph(12, 0)
+    end
+    return b
+end
+
+local DestroyBtn = iconButton("x", UDim2.fromOffset(8, 10), Color3.fromRGB(24, 84, 104))
+local HideBtn = iconButton("minus", UDim2.new(1, -34, 0, 10), Color3.fromRGB(26, 62, 74))
+
+local DragZone = Instance.new("Frame")
+DragZone.Position = UDim2.fromOffset(42, 0)
+DragZone.Size = UDim2.new(1, -84, 1, 0)
+DragZone.BackgroundTransparency = 1
+DragZone.ZIndex = 6
+DragZone.Parent = Header
+
+DragZone.InputBegan:Connect(safe(function(input)
+    if not isPointer(input) then return end
+    local startPos, startMouse = Main.Position, input.Position
+    beginDrag(input, function(i)
+        local d = i.Position - startMouse
+        Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X,
+            startPos.Y.Scale, startPos.Y.Offset + d.Y)
+    end)
+end, "dragMain", 5))
+
+local TabReveal = Instance.new("TextButton")
+TabReveal.Position = UDim2.fromOffset(8, HEADER_H + 6)
+TabReveal.Size = UDim2.new(1, -16, 0, 18)
+TabReveal.BackgroundTransparency = 0.35
+TabReveal.Text = "▴  FUNCIONES  ▴"
+TabReveal.TextColor3 = C.OroClaro
+TabReveal.TextSize = 10
+TabReveal.Font = F.section
+TabReveal.AutoButtonColor = false
+TabReveal.ZIndex = 5
+TabReveal.Parent = Main
+bind(TabReveal, "BackgroundColor3", "Tab")
+corner(TabReveal, 7)
+
+local TabBar = Instance.new("Frame")
+TabBar.Position = UDim2.fromOffset(8, HEADER_H + 28)
+TabBar.Size = UDim2.new(1, -16, 0, 26)
+TabBar.BackgroundTransparency = 0.55
+TabBar.BorderSizePixel = 0
+TabBar.ZIndex = 3
+TabBar.Visible = true
+TabBar.Parent = Main
+bind(TabBar, "BackgroundColor3", "Tab")
+corner(TabBar, 9)
+
+local TabScroll = Instance.new("ScrollingFrame")
+TabScroll.Size = UDim2.fromScale(1, 1)
+TabScroll.BackgroundTransparency = 1
+TabScroll.BorderSizePixel = 0
+TabScroll.ScrollBarThickness = 0
+TabScroll.ScrollingDirection = Enum.ScrollingDirection.X
+TabScroll.CanvasSize = UDim2.new()
+TabScroll.ZIndex = 3
+TabScroll.Parent = TabBar
+
+local TabIndicator = Instance.new("Frame")
+TabIndicator.Size = UDim2.fromOffset(0, 22)
+TabIndicator.Position = UDim2.fromOffset(3, 2)
+TabIndicator.BorderSizePixel = 0
+TabIndicator.ZIndex = 1
+TabIndicator.Parent = TabScroll
+bind(TabIndicator, "BackgroundColor3", "Oro")
+corner(TabIndicator, 7)
+
+local Content = Instance.new("Frame")
+Content.Position = UDim2.fromOffset(8, HEADER_H + 60)
+Content.Size = UDim2.new(1, -16, 1, -(HEADER_H + 60 + 24))
+Content.BackgroundTransparency = 0.72
+Content.BorderSizePixel = 0
+Content.ZIndex = 3
+Content.Parent = Main
+bind(Content, "BackgroundColor3", "Panel")
+corner(Content, 10)
+
+local Status = plain(Main, "Listo. Usa el botón de la izquierda para ocultar.", 9, F.body, C.Gray,
+    UDim2.new(0, 12, 1, -21), UDim2.new(1, -90, 0, 12))
+Status.ZIndex = 3
+Status.TextTruncate = Enum.TextTruncate.AtEnd
+UI.setStatus = function(t)
+    if Status and Status.Parent then Status.Text = tostring(t) end
+end
+
+local Author = plain(Main, "by Efrén Hub", 9, F.body, C.Gray,
+    UDim2.new(1, -10, 1, -21), UDim2.fromOffset(70, 12), Enum.TextXAlignment.Right)
+Author.AnchorPoint = Vector2.new(1, 0)
+Author.TextTransparency = 0.45
+Author.ZIndex = 3
+
+local TabButtons, Pages, tabOrder = {}, {}, {}
+local CurrentPage
+
+local function moveIndicator(animated)
+    local b = TabButtons[CurrentPage]
+    if not b or not b.Parent then return end
+    if animated then
+        tween(TabIndicator, { Position = b.Position, Size = b.Size }, 0.32, Enum.EasingStyle.Quint)
+    else
+        TabIndicator.Position = b.Position
+        TabIndicator.Size = b.Size
+    end
+end
+
+local function paintTabs(animated)
+    for name, b in pairs(TabButtons) do
+        if b.Parent then
+            local col = (name == CurrentPage) and C.CarbonD or C.Gray
+            if animated then
+                tween(b, { TextColor3 = col }, 0.22)
+            else
+                b.TextColor3 = col
+            end
+        end
+    end
+    moveIndicator(animated)
+end
+
+local function layoutTabs()
+    local n = #tabOrder
+    if n == 0 then return end
+    local gap = 3
+    local w = math.max(62, (BASE_W - 16 - 6 - gap * (n - 1)) / n)
+    for i, name in ipairs(tabOrder) do
+        local b = TabButtons[name]
+        if b then
+            b.Size = UDim2.fromOffset(w, 22)
+            b.Position = UDim2.fromOffset(3 + (i - 1) * (w + gap), 2)
+        end
+    end
+    TabScroll.CanvasSize = UDim2.fromOffset(6 + n * (w + gap), 0)
+    moveIndicator(false)
+end
+
+local function showPage(name)
+    if not Pages[name] then return end
+    if CurrentPage == name then return end
+    CurrentPage = name
+    for pageName, page in pairs(Pages) do
+        local vis = pageName == name
+        page.Visible = vis
+        if vis then
+            page.CanvasPosition = Vector2.zero
+            page.Position = UDim2.fromOffset(0, 14)
+            tween(page, { Position = UDim2.fromOffset(0, 0) }, 0.3, Enum.EasingStyle.Quint)
+        end
+    end
+    paintTabs(true)
+end
+
+local function addTab(name)
+    local b = Instance.new("TextButton")
+    b.Name = name
+    b.Text = string.upper(name)
+    b.TextSize = 11
+    b.Font = F.head
+    b.BackgroundTransparency = 1
+    b.AutoButtonColor = false
+    b.BorderSizePixel = 0
+    b.ZIndex = 4
+    b.Parent = TabScroll
+    squish(b, 0.94)
+    TabButtons[name] = b
+    tabOrder[#tabOrder + 1] = name
+
+    local page = Instance.new("ScrollingFrame")
+    page.Name = name
+    page.Size = UDim2.fromScale(1, 1)
+    page.BackgroundTransparency = 1
+    page.BorderSizePixel = 0
+    page.ScrollBarThickness = 3
+    page.CanvasSize = UDim2.new()
+    page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    page.Visible = false
+    page.ZIndex = 3
+    page.Parent = Content
+    bind(page, "ScrollBarImageColor3", "Oro")
+
+    local pad = Instance.new("UIPadding")
+    pad.PaddingTop = UDim.new(0, 10)
+    pad.PaddingBottom = UDim.new(0, 12)
+    pad.PaddingLeft = UDim.new(0, 8)
+    pad.PaddingRight = UDim.new(0, 8)
+    pad.Parent = page
+
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 14)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = page
+
+    Pages[name] = page
+    b.Activated:Connect(safe(function() showPage(name) end, "tab", 6))
+    paintTabs(false)
+    return page
+end
+
+UI.setScrollLock = function(lock)
+    for _, p in pairs(Pages) do
+        if p.Parent then p.ScrollingEnabled = not lock end
+    end
+end
+
+local function plegarPestanas(ocultar)
+    UI.tabsOpen = not ocultar
+    TabBar.Visible = not ocultar
+    TabReveal.Text = ocultar and "▸  FUNCIONES  ▸" or "▴  FUNCIONES  ▴"
+    if ocultar then
+        Content.Position = UDim2.fromOffset(8, HEADER_H + 28)
+        Content.Size = UDim2.new(1, -16, 1, -(HEADER_H + 28 + 24))
+    else
+        Content.Position = UDim2.fromOffset(8, HEADER_H + 60)
+        Content.Size = UDim2.new(1, -16, 1, -(HEADER_H + 60 + 24))
+    end
+end
+
+TabReveal.Activated:Connect(safe(function()
+    plegarPestanas(UI.tabsOpen)
+end, "tabs", 6))
+
+--═══ FIN DE LA PARTE 6 ═══
+local function createSection(page, text)
+    local h = Instance.new("Frame")
+    h.Size = UDim2.new(1, -4, 0, 24)
+    h.BackgroundTransparency = 1
+    h.LayoutOrder = nextOrder()
+    h.Parent = page
+
+    local barF = Instance.new("Frame")
+    barF.Position = UDim2.fromOffset(2, 10)
+    barF.Size = UDim2.fromOffset(3, 11)
+    barF.BorderSizePixel = 0
+    barF.Parent = h
+    bind(barF, "BackgroundColor3", "Oro")
