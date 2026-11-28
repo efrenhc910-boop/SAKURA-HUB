@@ -1,6 +1,6 @@
 --==================================================
 --            DESTROYA HUB  •  RIVALS
---            v1.1.0  (build reparado)
+--            v1.3.0  (build limpio)
 --==================================================
 
 if not game:IsLoaded() then
@@ -19,15 +19,17 @@ local ContentProvider = game:GetService("ContentProvider")
 local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
-if not player then
-    Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
+local espera = 0
+while not player and espera < 20 do
+    task.wait(0.1)
+    espera += 0.1
     player = Players.LocalPlayer
 end
 if not player then return end
 
 local playerGui = player:WaitForChild("PlayerGui", 20) or player:FindFirstChildOfClass("PlayerGui")
 if not playerGui then
-    warn("[DestroyaHub] PlayerGui no disponible")
+    warn("[DestroyaHub] sin PlayerGui")
     return
 end
 
@@ -68,25 +70,27 @@ local okParent = pcall(function() Screen.Parent = guiParent end)
 if not okParent then Screen.Parent = playerGui end
 
 --##################################################
---# ► PARTE 1 — CONFIG, VALIDACIÓN, UTILS, ESTADO
+--# ► CONFIG, VALIDACIÓN, UTILS, ESTADO
 --##################################################
 
 local CONFIG = {
-    VERSION      = "1.1.0",
-    ESP_MAX      = 140,
-    ESP_TICK     = 0.12,
-    MAX_TARGETS  = 5,
-    BOT_RANGE    = 60,
-    WALL_RADIUS  = 170,
-    WALL_ALPHA   = 0.62,
-    STRUCT_LIMIT = 130,
-    JUMP_HEIGHT  = 17,
-    FLY_SPEED    = 70,
-    BTN_T        = 0.55,
-    BTN_T_ON     = 0.38,
-    CELL_H       = 34,
-    CELL_GAP     = 12,
-    DISCORD      = "https://discord.gg/ykHwgmQnD",
+    VERSION       = "1.3.0",
+    ESP_MAX       = 150,
+    ESP_TICK      = 0.12,
+    MAX_TARGETS   = 8,
+    BOT_RANGE     = 60,
+    HIDE_RADIUS   = 400,
+    WALL_RADIUS   = 170,
+    WALL_ALPHA    = 0.62,
+    STRUCT_LIMIT  = 130,
+    JUMP_HEIGHT   = 17,
+    FLY_SPEED     = 70,
+    BTN_T         = 0.55,
+    BTN_T_ON      = 0.38,
+    CELL_H        = 34,
+    CELL_GAP      = 12,
+    CELL_W        = 150,
+    DISCORD       = "https://discord.gg/ykHwgmQnD",
     IMAGEN_MENU   = 129242456244221,
     IMAGEN_MENU2  = 127301015274297,
     IMAGEN_BOTON  = 80949061281229,
@@ -101,10 +105,11 @@ local function num(v, def, min, max)
     return v
 end
 
-CONFIG.ESP_MAX      = num(CONFIG.ESP_MAX, 140, 20, 500)
+CONFIG.ESP_MAX      = num(CONFIG.ESP_MAX, 150, 20, 500)
 CONFIG.ESP_TICK     = num(CONFIG.ESP_TICK, 0.12, 0.03, 1)
-CONFIG.MAX_TARGETS  = math.floor(num(CONFIG.MAX_TARGETS, 5, 1, 20))
+CONFIG.MAX_TARGETS  = math.floor(num(CONFIG.MAX_TARGETS, 8, 1, 20))
 CONFIG.BOT_RANGE    = num(CONFIG.BOT_RANGE, 60, 10, 300)
+CONFIG.HIDE_RADIUS  = num(CONFIG.HIDE_RADIUS, 400, 50, 800)
 CONFIG.WALL_RADIUS  = num(CONFIG.WALL_RADIUS, 170, 30, 600)
 CONFIG.WALL_ALPHA   = num(CONFIG.WALL_ALPHA, 0.62, 0, 1)
 CONFIG.STRUCT_LIMIT = math.floor(num(CONFIG.STRUCT_LIMIT, 130, 10, 2000))
@@ -131,17 +136,18 @@ local C = {
     Dark = Color3.fromRGB(10, 26, 34), Panel = Color3.fromRGB(16, 40, 52),
     Row = Color3.fromRGB(130, 210, 232), Off = Color3.fromRGB(78, 140, 160),
     Tab = Color3.fromRGB(22, 52, 64), RowOn = Color3.fromRGB(96, 178, 198),
-    Oro = Color3.fromRGB(255, 196, 60), Rojo = Color3.fromRGB(255, 70, 90),
+    Oro = Color3.fromRGB(255, 196, 60), OroClaro = Color3.fromRGB(255, 234, 160),
+    Rojo = Color3.fromRGB(255, 70, 90),
 }
 
-local UI = { open = true, size = 1, anim = true, autoLow = false, tabsOpen = false, dead = false }
+local UI = { open = true, size = 1, anim = true, autoLow = false, lowApplied = false, tabsOpen = false, dead = false }
 local S = {
     esp = false, bot = false, target = nil, fijado = nil,
     infJump = false, noclip = false, fly = false,
     up = false, down = false,
     boost = false, walls = false, jumpPower = false,
     noche = false, rosa = false, neon = false, glow = false,
-    oro = false, skin = nil, tag = true, aura = false,
+    oro = false, aura = false, skin = nil, tag = true, hideNames = false,
 }
 
 local setNoclip, setWalls, setFpsBoost, setFly
@@ -351,10 +357,10 @@ end
 local function getCamera()
     return Workspace.CurrentCamera
 end
+--═══ FIN DEL BLOQUE 1 ═══
 
---═══ FIN DE LA PARTE 1 ═══
 --##################################################
---# ► PARTE 2 — RIVALS LOCK, VENTANA, FONDO, CABECERA
+--# ► AVISO DE RIVALS (NO BLOQUEANTE) + VENTANA
 --##################################################
 
 local RIVALS_ID    = 6035872082
@@ -365,50 +371,48 @@ local function dentroDeRivals()
 end
 
 if not dentroDeRivals() then
-    local cartel = Instance.new("TextLabel")
-    cartel.AnchorPoint = Vector2.new(0.5, 0.5)
-    cartel.Position = UDim2.fromScale(0.5, 0.5)
-    cartel.Size = UDim2.fromOffset(420, 96)
-    cartel.BackgroundColor3 = Color3.fromRGB(8, 22, 30)
-    cartel.BackgroundTransparency = 0.12
-    cartel.BorderSizePixel = 0
-    cartel.TextColor3 = Color3.fromRGB(200, 246, 255)
-    cartel.Font = F.bold
-    cartel.TextSize = 14
-    cartel.TextWrapped = true
-    cartel.Text = "DESTROYA HUB v" .. CONFIG.VERSION ..
-        "\nEste hub es solo para RIVALS.\nTe llevo al lugar correcto, espera..."
-    cartel.Parent = Screen
-    corner(cartel, 12)
-    stroke(cartel, "Acc", 1.4, 0.2)
+    local banner = Instance.new("TextButton")
+    banner.AnchorPoint = Vector2.new(0.5, 0)
+    banner.Position = UDim2.new(0.5, 0, 0, 6)
+    banner.Size = UDim2.fromOffset(330, 52)
+    banner.BackgroundColor3 = Color3.fromRGB(60, 16, 20)
+    banner.BackgroundTransparency = 0.12
+    banner.Text = ""
+    banner.AutoButtonColor = false
+    banner.ZIndex = 40
+    banner.Parent = Screen
+    corner(banner, 10)
+    local bStr = Instance.new("UIStroke")
+    bStr.Color = C.Rojo
+    bStr.Thickness = 1.6
+    bStr.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    bStr.Parent = banner
 
-    local intentos = 0
-    local function ir()
-        if not Screen.Parent then return end
-        intentos += 1
-        local ok = pcall(function()
-            TeleportService:Teleport(RIVALS_PLACE, player)
-        end)
+    local bl1 = plain(banner, "ESTÁS FUERA DE RIVALS", 12, F.head, Color3.fromRGB(255, 210, 215),
+        UDim2.fromOffset(10, 5), UDim2.new(1, -20, 0, 16))
+    bl1.ZIndex = 41
+    local bl2 = plain(banner, "Toca aquí para viajar (auto en 3s)", 9, F.body, Color3.fromRGB(255, 170, 180),
+        UDim2.fromOffset(10, 22), UDim2.new(1, -20, 0, 14))
+    bl2.ZIndex = 41
+
+    local viajando = false
+    local function viajar()
+        if viajando then return end
+        viajando = true
+        bl2.Text = "Teletransportando..."
+        local ok = pcall(function() TeleportService:Teleport(RIVALS_PLACE, player) end)
         if not ok then
-            ok = pcall(function()
-                TeleportService:TeleportToPlaceInstance(RIVALS_PLACE, nil, player)
-            end)
+            ok = pcall(function() TeleportService:TeleportToPlaceInstance(RIVALS_PLACE, nil, player) end)
         end
         if not ok then
-            if intentos < 3 then
-                cartel.Text = "Reintentando (" .. intentos .. "/3)..."
-                task.delay(2, ir)
-            else
-                cartel.Text = "No pude teletransportar.\nEntra a RIVALS a mano y ejecuta otra vez."
-                task.delay(4, function()
-                    pcall(function() player:Kick("Entra a RIVALS y ejecuta el script de nuevo") end)
-                end)
-            end
+            viajando = false
+            bl2.Text = "Falló. Toca para reintentar."
+            bl1.Text = "NO PUDE TELEPORTAR"
         end
     end
 
-    task.delay(1.2, ir)
-    return
+    banner.Activated:Connect(safe(viajar, "banner"))
+    task.delay(3, viajar)
 end
 
 local BASE_W, BASE_H, HEADER_H = 480, 324, 46
@@ -436,9 +440,7 @@ local function fuenteImg(id)
 end
 
 local FONDOS = fuenteImg(CONFIG.IMAGEN_MENU)
-for _, v in ipairs(fuenteImg(CONFIG.IMAGEN_MENU2)) do
-    table.insert(FONDOS, v)
-end
+for _, v in ipairs(fuenteImg(CONFIG.IMAGEN_MENU2)) do table.insert(FONDOS, v) end
 local idxFondo = 1
 
 local Backdrop = Instance.new("ImageLabel")
@@ -478,7 +480,6 @@ MenuScale.Parent = Main
 tween(MenuScale, { Scale = 1 }, 0.4, Enum.EasingStyle.Back)
 
 local Header = Instance.new("Frame")
-Header.Name = "Header"
 Header.Size = UDim2.new(1, 0, 0, HEADER_H)
 Header.BackgroundColor3 = Color3.new(1, 1, 1)
 Header.BackgroundTransparency = 0.35
@@ -647,11 +648,6 @@ DragZone.InputBegan:Connect(safe(function(input)
     end)
 end, "dragMain"))
 
---═══ FIN DE LA PARTE 2 ═══
---##################################################
---# ► PARTE 3 — TABS, CONTENIDO, PIE
---##################################################
-
 local TabReveal = Instance.new("TextButton")
 TabReveal.Position = UDim2.fromOffset(8, HEADER_H + 6)
 TabReveal.Size = UDim2.new(1, -16, 0, 18)
@@ -752,7 +748,7 @@ local function layoutTabs()
     local n = #tabOrder
     if n == 0 then return end
     local gap = 3
-    local w = math.max(66, (BASE_W - 16 - 6 - gap * (n - 1)) / n)
+    local w = math.max(62, (BASE_W - 16 - 6 - gap * (n - 1)) / n)
     for i, name in ipairs(tabOrder) do
         local b = TabButtons[name]
         if b then
@@ -784,7 +780,7 @@ local function addTab(name)
     local b = Instance.new("TextButton")
     b.Name = name
     b.Text = string.upper(name)
-    b.TextSize = 12
+    b.TextSize = 11
     b.Font = F.head
     b.BackgroundTransparency = 1
     b.AutoButtonColor = false
@@ -846,9 +842,9 @@ TabReveal.Activated:Connect(safe(function()
     end
 end, "tabs"))
 
---═══ FIN DE LA PARTE 3 ═══
+--═══ FIN DEL BLOQUE 2 ═══
 --##################################################
---# ► PARTE 4 — SECCIONES, GRID, BOTONES
+--# ► SECCIONES, GRID, BOTONES, SLIDERS
 --##################################################
 
 local function createSection(page, text)
@@ -930,7 +926,7 @@ local function createMiniButton(parent, kind, size)
     return b
 end
 
--- Devuelve (api, fila). "fila" permite fijar ancho propio en scrollers horizontales.
+-- Devuelve (api, fila). La fila permite ancho propio en scrollers horizontales.
 local function createButton(parent, name, desc, callback)
     local cb = callback and safe(callback, name or "boton")
 
@@ -1041,16 +1037,11 @@ local function createButton(parent, name, desc, callback)
         if cb and not silent then cb(enabled) end
     end
     function api.Get() return enabled end
-    function api.Row() return row end
+    api.Row = row
 
     row.Activated:Connect(safe(function() api.Set(not enabled) end, "boton"))
     return api, row
 end
-
---═══ FIN DE LA PARTE 4 ═══
---##################################################
---# ► PARTE 5 — SLIDERS
---##################################################
 
 local function createSlider(page, name, min, max, default, fmt, callback)
     local cb = callback and safe(callback, name or "slider")
@@ -1058,6 +1049,7 @@ local function createSlider(page, name, min, max, default, fmt, callback)
     max = num(max, 100)
     if max <= min then max = min + 1 end
     default = math.clamp(num(default, min), min, max)
+    fmt = fmt or function(v) return tostring(math.floor(v + 0.5)) end
 
     local row = Instance.new("Frame")
     row.Size = UDim2.new(1, -4, 0, 46)
@@ -1116,15 +1108,13 @@ local function createSlider(page, name, min, max, default, fmt, callback)
         fill.Size = UDim2.fromScale(r, 1)
         knob.Position = UDim2.fromScale(r, 0.5)
         local value = min + (max - min) * r
-        valueL.Text = fmt and fmt(value) or tostring(math.floor(value + 0.5))
+        valueL.Text = fmt(value)
         if cb then cb(value) end
     end
 
     local function fromInput(input)
         local w = barF.AbsoluteSize.X
-        if w > 0 then
-            setRatio((input.Position.X - barF.AbsolutePosition.X) / w)
-        end
+        if w > 0 then setRatio((input.Position.X - barF.AbsolutePosition.X) / w) end
     end
 
     hit.InputBegan:Connect(safe(function(input)
@@ -1141,16 +1131,16 @@ local function createSlider(page, name, min, max, default, fmt, callback)
 end
 
 --##################################################
---# ► PARTE 5.5 — COLORES DEL ESP
+--# ► COLORES DEL ESP
 --##################################################
 
 local ESP_FILL = Color3.fromRGB(0, 70, 255)
 local ESP_LINE = Color3.fromRGB(120, 200, 255)
 local ESP_DARK = Color3.fromRGB(0, 14, 70)
 
---═══ FIN DE LA PARTE 5 ═══
+--═══ FIN DEL BLOQUE 3 ═══
 --##################################################
---# ► PARTE 6 — SKINS (CATÁLOGO Y PINTADO)
+--# ► SKINS: CATÁLOGO
 --##################################################
 
 local SKINS = {}
@@ -1197,6 +1187,21 @@ SKINS["Custodio"] = {
     brazos = Color3.fromRGB(236, 228, 206), piernas = Color3.fromRGB(224, 214, 190),
     mat = Enum.Material.Fabric,
 }
+SKINS["Serafin de Oro"] = {
+    cat = "Angelicales", shirt = 137023417546564, pants = 76522013984870,
+    acc = { 137053805164277, 119580197020326, 72043506924963, 108985095581995 },
+    piel = Color3.fromRGB(255, 238, 205), torso = Color3.fromRGB(255, 248, 226),
+    brazos = Color3.fromRGB(255, 242, 214), piernas = Color3.fromRGB(250, 236, 200),
+    mat = Enum.Material.Neon,
+}
+SKINS["Angel Imperial"] = {
+    cat = "Angelicales", shirt = 85215300470467, pants = 109354912963665,
+    acc = { 137053805164277, 119580197020326, 103666178979147 },
+    piel = Color3.fromRGB(255, 252, 240), torso = Color3.fromRGB(255, 253, 248),
+    brazos = Color3.fromRGB(255, 252, 242), piernas = Color3.fromRGB(252, 248, 236),
+    mat = Enum.Material.SmoothPlastic,
+}
+
 SKINS["Abismo"] = {
     cat = "Demoniacas", shirt = 124548910537144, pants = 110049411162166,
     acc = { 77955259540369, 139149912348515, 74040331623661 },
@@ -1239,6 +1244,21 @@ SKINS["Vacio"] = {
     brazos = Color3.fromRGB(34, 38, 46), piernas = Color3.fromRGB(22, 26, 32),
     mat = Enum.Material.Neon,
 }
+SKINS["Ala Carmesi"] = {
+    cat = "Demoniacas", shirt = 74499371561322, pants = 110049411162166,
+    acc = { 139236742766021, 130730925628278, 127232512100466, 135886331355721 },
+    piel = Color3.fromRGB(150, 40, 40), torso = Color3.fromRGB(52, 12, 14),
+    brazos = Color3.fromRGB(104, 26, 28), piernas = Color3.fromRGB(28, 22, 34),
+    mat = Enum.Material.SmoothPlastic,
+}
+SKINS["Noche Carmesi"] = {
+    cat = "Demoniacas", shirt = 90511459105820, pants = 91508624238064,
+    acc = { 139236742766021, 130730925628278, 127232512100466 },
+    piel = Color3.fromRGB(96, 24, 30), torso = Color3.fromRGB(22, 18, 26),
+    brazos = Color3.fromRGB(70, 20, 24), piernas = Color3.fromRGB(20, 16, 24),
+    mat = Enum.Material.Neon,
+}
+
 SKINS["Operador Nocturno"] = {
     cat = "Militares", shirt = 125592532988680, pants = 116286207001306,
     acc = { 124118799485439, 130155371071474 },
@@ -1281,6 +1301,57 @@ SKINS["Infiltrador"] = {
     brazos = Color3.fromRGB(76, 84, 92), piernas = Color3.fromRGB(56, 64, 72),
     mat = Enum.Material.Metal,
 }
+SKINS["Tactica Nocturna"] = {
+    cat = "Militares", shirt = 100506377718359, pants = 135939181530122,
+    acc = { 124118799485439, 111569439069499, 76355358907371, 136154125469709 },
+    piel = Color3.fromRGB(46, 50, 58), torso = Color3.fromRGB(20, 22, 28),
+    brazos = Color3.fromRGB(32, 36, 42), piernas = Color3.fromRGB(18, 20, 26),
+    mat = Enum.Material.Metal,
+}
+SKINS["Casco Nocturno"] = {
+    cat = "Militares", shirt = 80741901475133, pants = 116286207001306,
+    acc = { 136154125469709, 95983417096435, 71851802744911 },
+    piel = Color3.fromRGB(52, 56, 64), torso = Color3.fromRGB(26, 28, 34),
+    brazos = Color3.fromRGB(38, 42, 48), piernas = Color3.fromRGB(22, 24, 30),
+    mat = Enum.Material.Metal,
+}
+
+SKINS["Gotica Y2K"] = {
+    cat = "Goticas", shirt = 135577651214406, pants = 137291843127365,
+    acc = { 131964348959107, 96252928989203, 108985095581995 },
+    piel = Color3.fromRGB(250, 250, 252), torso = Color3.fromRGB(238, 236, 240),
+    brazos = Color3.fromRGB(248, 248, 250), piernas = Color3.fromRGB(52, 52, 60),
+    mat = Enum.Material.SmoothPlastic,
+}
+SKINS["Emo Sparkle"] = {
+    cat = "Goticas", shirt = 139352896739890, pants = 91508624238064,
+    acc = { 85151572704409, 132136956994661, 101908025263798 },
+    piel = Color3.fromRGB(250, 244, 240), torso = Color3.fromRGB(28, 28, 32),
+    brazos = Color3.fromRGB(245, 240, 238), piernas = Color3.fromRGB(20, 20, 24),
+    mat = Enum.Material.SmoothPlastic,
+}
+SKINS["Grunge Negro"] = {
+    cat = "Goticas", shirt = 97471458435335, pants = 137291843127365,
+    acc = { 96252928989203, 128532503142522, 127232512100466 },
+    piel = Color3.fromRGB(232, 228, 226), torso = Color3.fromRGB(36, 34, 38),
+    brazos = Color3.fromRGB(224, 220, 218), piernas = Color3.fromRGB(42, 42, 50),
+    mat = Enum.Material.Fabric,
+}
+SKINS["Blanco Roto"] = {
+    cat = "Goticas", shirt = 137023417546564, pants = 101637911532702,
+    acc = { 119540888584724, 112058237796150, 108985095581995 },
+    piel = Color3.fromRGB(255, 255, 255), torso = Color3.fromRGB(248, 248, 250),
+    brazos = Color3.fromRGB(252, 252, 253), piernas = Color3.fromRGB(240, 240, 245),
+    mat = Enum.Material.SmoothPlastic,
+}
+SKINS["Cadena Plateada"] = {
+    cat = "Goticas", shirt = 90511459105820, pants = 110049411162166,
+    acc = { 93695327103470, 136814464637785, 127232512100466 },
+    piel = Color3.fromRGB(210, 214, 220), torso = Color3.fromRGB(58, 60, 68),
+    brazos = Color3.fromRGB(190, 194, 202), piernas = Color3.fromRGB(30, 32, 40),
+    mat = Enum.Material.Metal,
+}
+
 SKINS["Coronado"] = {
     cat = "Insanas", shirt = 137956928473169, pants = 76089867333800,
     acc = { 103666178979147, 71851802744911 },
@@ -1408,9 +1479,9 @@ local function devolverRopa()
     SK.ropa = {}
 end
 
---═══ FIN DE LA PARTE 6 ═══
+--═══ FIN DEL BLOQUE 4 ═══
 --##################################################
---# ► PARTE 7 — ACCESORIOS, SETSKIN, ESP
+--# ► ACCESORIOS Y APLICACIÓN DE SKIN
 --##################################################
 
 local function esconderAccesorios(char)
@@ -1515,7 +1586,10 @@ end
 local function setSkin(nombre)
     if SK.candado then return end
     local skin = SKINS[nombre]
-    if not skin then return end
+    if not skin then
+        notify("Skin desconocida")
+        return
+    end
 
     local char = player.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -1534,22 +1608,19 @@ local function setSkin(nombre)
         pintar(char, skin)
         ponerRopa(char, skin.shirt, skin.pants)
 
+        local accs = skin.acc or {}
         local pre = {}
-        for _, id in ipairs(skin.acc or {}) do
+        for _, id in ipairs(accs) do
             pre[#pre + 1] = "rbxassetid://" .. tostring(id)
         end
         if #pre > 0 then pcall(function() ContentProvider:PreloadAsync(pre) end) end
 
         local fallas = 0
-        for _, id in ipairs(skin.acc or {}) do
+        for _, id in ipairs(accs) do
             if not montar(char, hum, id) then fallas = fallas + 1 end
             task.wait(0.12)
         end
-        if fallas > 0 then
-            notify(nombre .. " con " .. fallas .. " fallas")
-        else
-            notify(nombre .. " puesta")
-        end
+        notify(fallas > 0 and (nombre .. " con " .. fallas .. " fallas") or (nombre .. " puesta"))
     end)
     SK.candado = false
     if not ok then
@@ -1571,7 +1642,7 @@ track(player.CharacterAdded:Connect(safe(function()
 end, "respawnSkin")))
 
 --##################################################
---# ► PARTE 7.5 — ESP (140 STUDS, 5 OBJETIVOS)
+--# ► ESP (150 STUDS, 8 OBJETIVOS)
 --##################################################
 
 local ESP_MAX = CONFIG.ESP_MAX
@@ -1601,7 +1672,7 @@ local function espLabel(parent, size, font, pos, sz)
 end
 
 local function paintESP(d)
-    if not d.hl.Parent then return end
+    if not d or not d.hl or not d.hl.Parent then return end
     d.hl.FillColor = ESP_FILL
     d.hl.OutlineColor = ESP_LINE
     d.nameL.TextColor3 = ESP_LINE
@@ -1751,7 +1822,7 @@ do
                 applyESP(plr)
                 d = espObjects[plr]
             end
-            if d then
+            if d and d.bb.Parent then
                 if not d.bb.Enabled then d.bb.Enabled = true end
                 if not d.hl.Enabled then d.hl.Enabled = true end
 
@@ -1776,9 +1847,9 @@ end
 
 for _, plr in ipairs(Players:GetPlayers()) do hookPlayer(plr) end
 
---═══ FIN DE LA PARTE 7 ═══
+--═══ FIN DEL BLOQUE 5 ═══
 --##################################################
---# ► PARTE 8 — SELECCIÓN, CÁMARA, I'M BOT
+--# ► SELECCIÓN, CÁMARA, I'M BOT (SIN NOCLIP FORZADO)
 --##################################################
 
 local Sel = { list = {}, set = {} }
@@ -1832,7 +1903,7 @@ local function nearestPlayer(radio)
     if not root then return nil end
     local best, bestD = nil, radio or CONFIG.BOT_RANGE
     for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= player then
+        if plr ~= player and plr.Parent == Players then
             local c = plr.Character
             local r = c and c:FindFirstChild("HumanoidRootPart")
             local h = c and c:FindFirstChildOfClass("Humanoid")
@@ -1932,17 +2003,12 @@ local function syncBot()
     if UI.refreshLists then UI.refreshLists() end
 end
 
-local noclipPrev = false
-
 local function setBot(on)
+    on = on and true or false
     if on == S.bot then return end
     S.bot = on
 
     if on then
-        noclipPrev = S.noclip
-        if setNoclip then setNoclip(true) end
-        if UI.noclipToggle then UI.noclipToggle.Set(true, true) end
-
         if not S.fijado then
             local pick = nearestPlayer()
             if pick then
@@ -1955,8 +2021,6 @@ local function setBot(on)
         end
         botMiss = 0
     else
-        if setNoclip then setNoclip(noclipPrev) end
-        if UI.noclipToggle then UI.noclipToggle.Set(noclipPrev, true) end
         S.target = nil
         waitTime, botMiss = 0, 0
         if not S.fijado then pcall(releaseCamera) end
@@ -1970,7 +2034,6 @@ local function selectTarget(plr)
         notify("Jugador no disponible")
         return
     end
-    -- Si estaba fijado en otro, se libera el fijo para que la selección mande
     if S.fijado and S.fijado ~= plr then
         S.fijado = nil
         if UI.showFijoStop then UI.showFijoStop(false) end
@@ -1979,11 +2042,9 @@ local function selectTarget(plr)
     botMiss = 0
     if not S.bot then
         setBot(true)
-        S.target = plr -- setBot pudo pisarlo con el más cercano
-        syncBot()
-    else
-        syncBot()
+        S.target = plr
     end
+    syncBot()
 end
 
 local function fijar(plr)
@@ -2000,15 +2061,14 @@ local function fijar(plr)
         return
     end
 
+    if not S.bot then
+        S.bot = true
+        if UI.botToggle then UI.botToggle.Set(true, true) end
+    end
+
     S.fijado = plr
     S.target = plr
     botMiss, waitTime = 0, 0
-    if not S.bot then
-        noclipPrev = S.noclip
-        S.bot = true
-        if setNoclip then setNoclip(true) end
-        if UI.noclipToggle then UI.noclipToggle.Set(true, true) end
-    end
     syncBot()
     notify("Fijo en @" .. plr.Name)
 end
@@ -2044,9 +2104,9 @@ track(RunService.Heartbeat:Connect(safe(function(dt)
     local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
     local root = getParts()
     local lejos = ((tRoot and root) and (tRoot.Position - root.Position).Magnitude > CONFIG.BOT_RANGE) or false
-    local aliveT = t and t.Parent == Players and tRoot and (not tHum or tHum.Health > 0) and not lejos
+    local vivo = t and t.Parent == Players and tRoot and (not tHum or tHum.Health > 0) and not lejos
 
-    if aliveT then
+    if vivo then
         botMiss = 0
         return
     end
@@ -2083,9 +2143,80 @@ RunService:BindToRenderStep("DestroyaCam", Enum.RenderPriority.Last.Value, funct
     end
 end)
 
---═══ FIN DE LA PARTE 8 ═══
 --##################################################
---# ► PARTE 9 — NOCLIP, SALTO, VUELO, LUZ DORADA
+--# ► OCULTAR NOMBRES A 400 STUDS
+--##################################################
+
+local hideSaved = {}
+
+local function restaurarNombre(plr)
+    local d = hideSaved[plr]
+    if not d then return end
+    hideSaved[plr] = nil
+    if d.hum and d.hum.Parent and d.tipo then
+        pcall(function() d.hum.DisplayDistanceType = d.tipo end)
+    end
+    for _, g in ipairs(d.guis or {}) do
+        if g and g.Parent then pcall(function() g.Enabled = true end) end
+    end
+end
+
+local function restaurarTodos()
+    for plr in pairs(hideSaved) do restaurarNombre(plr) end
+    table.clear(hideSaved)
+end
+
+local function ocultarNombre(plr)
+    if not plr or plr == player or hideSaved[plr] then return end
+    local char = plr.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local reg = { hum = hum, tipo = hum and hum.DisplayDistanceType, guis = {} }
+    hideSaved[plr] = reg
+    if hum then pcall(function() hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end) end
+    for _, g in ipairs(char:GetDescendants()) do
+        if g:IsA("BillboardGui") and g.Enabled then
+            reg.guis[#reg.guis + 1] = g
+            pcall(function() g.Enabled = false end)
+        end
+    end
+end
+
+do
+    local acc = 0
+    track(RunService.Heartbeat:Connect(safe(function(dt)
+        if not S.hideNames or not alive() then
+            if next(hideSaved) then restaurarTodos() end
+            return
+        end
+        acc += dt
+        if acc < 0.6 then return end
+        acc = 0
+
+        local root = getParts()
+        local cerca = {}
+        if root then
+            for _, plr in ipairs(Players:GetPlayers()) do
+                if plr ~= player then
+                    local c = plr.Character
+                    local r = c and c:FindFirstChild("HumanoidRootPart")
+                    if r and (r.Position - root.Position).Magnitude <= CONFIG.HIDE_RADIUS then
+                        cerca[plr] = true
+                        ocultarNombre(plr)
+                    end
+                end
+            end
+        end
+
+        for plr in pairs(hideSaved) do
+            if not cerca[plr] then restaurarNombre(plr) end
+        end
+    end, "hideNames")))
+end
+
+--═══ FIN DEL BLOQUE 6 ═══
+--##################################################
+--# ► NOCLIP (RESTAURA AL INSTANTE), SALTO, VUELO
 --##################################################
 
 do
@@ -2093,13 +2224,14 @@ do
 
     local function restore()
         for p in pairs(changed) do
-            if p and p.Parent then pcall(function() p.CanCollide = true end) end
+            if p and p.Parent then
+                pcall(function() p.CanCollide = true end)
+            end
         end
         table.clear(changed)
         table.clear(parts)
     end
 
-    -- Expuesta para poder restaurar de inmediato al cerrar
     setNoclip = function(on)
         on = on and true or false
         S.noclip = on
@@ -2142,14 +2274,6 @@ do
     end))
 end
 
-track(UserInputService.JumpRequest:Connect(safe(function()
-    if not S.infJump then return end
-    local _, hum = getParts()
-    if hum and hum.Health > 0 then
-        pcall(function() hum:ChangeState(Enum.HumanoidStateType.Jumping) end)
-    end
-end, "infJump")))
-
 local function impulso()
     local root, hum = getParts()
     if not root then return end
@@ -2167,8 +2291,14 @@ local function impulso()
 end
 
 track(UserInputService.JumpRequest:Connect(safe(function()
+    if S.infJump then
+        local _, hum = getParts()
+        if hum and hum.Health > 0 then
+            pcall(function() hum:ChangeState(Enum.HumanoidStateType.Jumping) end)
+        end
+    end
     if S.jumpPower then impulso() end
-end, "impulso")))
+end, "salto")))
 
 local function setJumpPower(on)
     S.jumpPower = on and true or false
@@ -2205,9 +2335,14 @@ setFly = function(on)
             hum.PlatformStand = true
         end)
     else
-        if flyBV then pcall(function() flyBV:Destroy() end) end
-        if flyBG then pcall(function() flyBG:Destroy() end) end
-        flyBV, flyBG = nil, nil
+        if flyBV then
+            pcall(function() flyBV:Destroy() end)
+            flyBV = nil
+        end
+        if flyBG then
+            pcall(function() flyBG:Destroy() end)
+            flyBG = nil
+        end
         if hum then pcall(function() hum.PlatformStand = false end) end
     end
 end
@@ -2247,15 +2382,19 @@ track(RunService.Heartbeat:Connect(safe(function()
     flyBG.CFrame = CFrame.new(root.Position, root.Position + dir)
 end, "flyLoop")))
 
-track(player.CharacterAdded:Connect(function()
+track(player.CharacterAdded:Connect(safe(function()
     if S.fly then
         flyBV, flyBG = nil, nil
         task.wait(0.6)
         if S.fly then setFly(true) end
     end
-end))
+end, "flyRespawn")))
 
-local oroLight, oroFloor, oroConn
+--##################################################
+--# ► PISO DORADO
+--##################################################
+
+local oroFolder, oroLight, oroConn, oroT, oroPulse
 
 local function apagarOro()
     S.oro = false
@@ -2263,14 +2402,33 @@ local function apagarOro()
         pcall(function() oroConn:Disconnect() end)
         oroConn = nil
     end
+    if oroPulse then
+        pcall(function() oroPulse:Cancel() end)
+        oroPulse = nil
+    end
     if oroLight then
         pcall(function() oroLight:Destroy() end)
         oroLight = nil
     end
-    if oroFloor then
-        pcall(function() oroFloor:Destroy() end)
-        oroFloor = nil
+    if oroFolder then
+        pcall(function() oroFolder:Destroy() end)
+        oroFolder = nil
     end
+end
+
+local function discoOro(parent, ancho, grosor, trans)
+    local p = Instance.new("Part")
+    p.Shape = Enum.PartType.Cylinder
+    p.Size = Vector3.new(grosor, ancho, ancho)
+    p.Material = Enum.Material.Neon
+    p.Color = C.Oro
+    p.Transparency = trans
+    p.CanCollide = false
+    p.CanTouch = false
+    p.CastShadow = false
+    p.Anchored = true
+    p.Parent = parent
+    return p
 end
 
 local function prenderOro()
@@ -2278,43 +2436,223 @@ local function prenderOro()
     if not root then return end
     apagarOro()
     S.oro = true
+    oroT = 0
+
+    oroFolder = Instance.new("Folder")
+    oroFolder.Name = "DestroyaOro"
+    oroFolder.Parent = Workspace
+
+    local externo = discoOro(oroFolder, 8.6, 0.16, 0.4)
+    local medio = discoOro(oroFolder, 6.4, 0.13, 0.58)
+    local interno = discoOro(oroFolder, 4.2, 0.1, 0.72)
+    local nucleo = discoOro(oroFolder, 2.2, 0.09, 0.85)
+
+    local marcas = {}
+    for i = 1, 8 do
+        local m = discoOro(oroFolder, 0.4, 0.16, 0.28)
+        m.Material = Enum.Material.SmoothPlastic
+        marcas[i] = m
+    end
 
     oroLight = Instance.new("PointLight")
     oroLight.Color = C.Oro
-    oroLight.Range = 18
-    oroLight.Brightness = 3.4
+    oroLight.Range = 22
+    oroLight.Brightness = 3.8
     oroLight.Shadows = false
     oroLight.Parent = root
 
-    oroFloor = Instance.new("Part")
-    oroFloor.Size = Vector3.new(7, 0.2, 7)
-    oroFloor.Shape = Enum.PartType.Cylinder
-    oroFloor.Material = Enum.Material.Neon
-    oroFloor.Color = C.Oro
-    oroFloor.Transparency = 0.35
-    oroFloor.CanCollide = false
-    oroFloor.Anchored = true
-    oroFloor.Parent = Workspace
+    local luzPiso = Instance.new("PointLight")
+    luzPiso.Color = C.OroClaro
+    luzPiso.Range = 17
+    luzPiso.Brightness = 2.8
+    luzPiso.Shadows = false
+    luzPiso.Parent = externo
 
-    local floorLight = Instance.new("PointLight")
-    floorLight.Color = C.Oro
-    floorLight.Range = 14
-    floorLight.Brightness = 2.4
-    floorLight.Shadows = false
-    floorLight.Parent = oroFloor
+    pcall(function()
+        oroPulse = TweenService:Create(externo,
+            TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+            { Transparency = 0.72, Size = Vector3.new(0.16, 9.6, 9.6) })
+        oroPulse:Play()
+    end)
 
-    oroConn = RunService.Heartbeat:Connect(safe(function()
+    oroConn = RunService.Heartbeat:Connect(safe(function(dt)
+        if not S.oro then return end
         local r = getParts()
-        if r and oroFloor and oroFloor.Parent then
-            oroFloor.CFrame = CFrame.new(r.Position - Vector3.new(0, 2.7, 0)) * CFrame.Angles(0, 0, math.rad(90))
+        if not r or not oroFolder or not oroFolder.Parent then return end
+        oroT += dt
+
+        local base = CFrame.new(r.Position - Vector3.new(0, 2.75, 0))
+        externo.CFrame = base * CFrame.Angles(0, 0, math.rad(90)) * CFrame.Angles(0, oroT * 0.45, 0)
+        medio.CFrame = base * CFrame.Angles(0, 0, math.rad(90)) * CFrame.Angles(0, -oroT * 0.7, 0)
+        interno.CFrame = base * CFrame.Angles(0, 0, math.rad(90)) * CFrame.Angles(0, oroT * 1.0, 0)
+        nucleo.CFrame = base * CFrame.Angles(0, 0, math.rad(90)) * CFrame.Angles(0, -oroT * 1.4, 0)
+
+        for i, m in ipairs(marcas) do
+            local a = oroT * 0.8 + (i * math.pi / 4)
+            local rad = 6.3 + math.sin(oroT * 2 + i) * 0.3
+            m.CFrame = CFrame.new(r.Position + Vector3.new(math.cos(a) * rad, -2.6, math.sin(a) * rad))
+                * CFrame.Angles(0, 0, math.rad(90))
         end
-        if oroLight and r and oroLight.Parent ~= r then oroLight.Parent = r end
+
+        if oroLight and oroLight.Parent ~= r then oroLight.Parent = r end
     end, "oroLoop"))
 end
 
---═══ FIN DE LA PARTE 9 ═══
 --##################################################
---# ► PARTE 10 — FPS BOOST Y PAREDES TRANSPARENTES
+--# ► AURA PREMIUM
+--##################################################
+
+local auraFolder, auraSpark, auraHL, auraLight, auraConn, auraPulse, auraT
+local auraOrbs, auraAnillos = {}, {}
+
+local function apagarAura()
+    S.aura = false
+    if auraConn then
+        pcall(function() auraConn:Disconnect() end)
+        auraConn = nil
+    end
+    if auraPulse then
+        pcall(function() auraPulse:Cancel() end)
+        auraPulse = nil
+    end
+    if auraSpark then
+        pcall(function() auraSpark:Destroy() end)
+        auraSpark = nil
+    end
+    if auraHL then
+        pcall(function() auraHL:Destroy() end)
+        auraHL = nil
+    end
+    if auraLight then
+        pcall(function() auraLight:Destroy() end)
+        auraLight = nil
+    end
+    if auraFolder then
+        pcall(function() auraFolder:Destroy() end)
+        auraFolder = nil
+    end
+    table.clear(auraOrbs)
+    table.clear(auraAnillos)
+end
+
+local function prenderAura()
+    local root, hum, char = getParts()
+    if not root or not char then return end
+    apagarAura()
+    S.aura = true
+    auraT = 0
+
+    auraFolder = Instance.new("Folder")
+    auraFolder.Name = "DestroyaAura"
+    auraFolder.Parent = Workspace
+
+    -- dos anillos de orbes a distinta altura y radio
+    for i = 1, 10 do
+        local orb = Instance.new("Part")
+        orb.Shape = Enum.PartType.Ball
+        orb.Size = Vector3.new(0.3, 0.3, 0.3)
+        orb.Material = Enum.Material.Neon
+        orb.Color = (i % 2 == 0) and C.Oro or C.OroClaro
+        orb.Transparency = 0.12
+        orb.CanCollide = false
+        orb.CanTouch = false
+        orb.CastShadow = false
+        orb.Anchored = true
+        orb.Parent = auraFolder
+        auraOrbs[i] = { parte = orb, anillo = (i <= 5) and 1 or 2, fase = i * 0.63 }
+    end
+
+    -- tres aros finos que giran a la altura de la cintura
+    for i = 1, 3 do
+        local aro = discoOro(auraFolder, 2.6 + i * 0.5, 0.07, 0.45)
+        auraAnillos[i] = aro
+    end
+
+    auraSpark = Instance.new("Sparkles")
+    auraSpark.SparkleColor = C.Oro
+    auraSpark.SparkleFrequency = 6
+    auraSpark.Parent = root
+
+    auraHL = Instance.new("Highlight")
+    auraHL.Name = "DestroyaAuraHL"
+    auraHL.Adornee = char
+    auraHL.FillColor = C.Oro
+    auraHL.FillTransparency = 0.88
+    auraHL.OutlineColor = C.OroClaro
+    auraHL.OutlineTransparency = 0
+    auraHL.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    auraHL.Parent = char
+
+    auraLight = Instance.new("PointLight")
+    auraLight.Color = C.OroClaro
+    auraLight.Range = 14
+    auraLight.Brightness = 2.4
+    auraLight.Shadows = false
+    auraLight.Parent = root
+
+    pcall(function()
+        auraPulse = TweenService:Create(auraHL,
+            TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+            { OutlineTransparency = 0.75, FillTransparency = 0.96 })
+        auraPulse:Play()
+    end)
+
+    auraConn = RunService.Heartbeat:Connect(safe(function(dt)
+        if not S.aura then return end
+        local r = getParts()
+        if not r or not auraFolder or not auraFolder.Parent then return end
+        auraT += dt
+
+        for _, o in ipairs(auraOrbs) do
+            local orb = o.parte
+            if orb.Parent then
+                local rad = (o.anillo == 1) and 1.45 or 2.1
+                local a = auraT * (o.anillo == 1 and 1.8 or -1.3) + o.fase
+                local alto = (o.anillo == 1)
+                    and (0.4 + math.sin(auraT * 2.2 + o.fase) * 0.5)
+                    or (1.7 + math.cos(auraT * 1.9 + o.fase) * 0.6)
+                orb.CFrame = CFrame.new(r.Position + Vector3.new(math.cos(a) * rad, alto, math.sin(a) * rad))
+            end
+        end
+
+        for i, aro in ipairs(auraAnillos) do
+            if aro.Parent then
+                local giro = auraT * (i % 2 == 0 and -1.1 or 1.4) + i
+                aro.CFrame = CFrame.new(r.Position + Vector3.new(0, 1.05 + i * 0.12, 0))
+                    * CFrame.Angles(0, 0, math.rad(90))
+                    * CFrame.Angles(math.rad(math.sin(giro) * 12), giro, 0)
+            end
+        end
+
+        if auraSpark and auraSpark.Parent ~= r then auraSpark.Parent = r end
+        if auraLight and auraLight.Parent ~= r then auraLight.Parent = r end
+        if auraHL and auraHL.Adornee ~= r.Parent then auraHL.Adornee = r.Parent end
+    end, "auraLoop"))
+end
+
+local function setOro(on)
+    if on then
+        prenderOro()
+        notify("Luz dorada puesta")
+    else
+        apagarOro()
+        notify("Luz dorada apagada")
+    end
+end
+
+local function setAura(on)
+    if on then
+        prenderAura()
+        notify("Aura premium activada")
+    else
+        apagarAura()
+        notify("Aura premium apagada")
+    end
+end
+
+--═══ FIN DEL BLOQUE 7 ═══
+--##################################################
+--# ► FPS BOOST
 --##################################################
 
 do
@@ -2492,11 +2830,16 @@ do
     end
 end
 
+--##################################################
+--# ► PAREDES TRANSPARENTES
+--##################################################
+
 local WALL_RADIUS = CONFIG.WALL_RADIUS
 local WALL_ALPHA = CONFIG.WALL_ALPHA
 local LIMITE = CONFIG.STRUCT_LIMIT
 
 local function esPiso(part)
+    if not part then return true end
     local sz = part.Size
     if sz.Y <= 1.5 and (sz.X >= 8 or sz.Z >= 8) then return true end
     local n = string.lower(part.Name)
@@ -2550,7 +2893,6 @@ do
         notify(aviso)
     end
 
-    -- Solo reescanea si te moviste lo suficiente o pasó medio segundo
     local function debeEscanear(root)
         local now = os.clock()
         if now - lastScan < 0.5 then return false end
@@ -2617,15 +2959,12 @@ do
     end
 end
 
---═══ FIN DE LA PARTE 10 ═══
 --##################################################
---# ► PARTE 11 — DECORACIÓN
+--# ► DECORACIÓN: CIELOS, LUCES PROPIAS
 --##################################################
 
 local setNoche, setRosa
-
-local L_SNAP
-local skyObj
+local L_SNAP, skyObj
 
 local SKY_NOCHE = {
     Bk = "rbxassetid://159454299", Dn = "rbxassetid://159454296",
@@ -2734,7 +3073,6 @@ local neonLight
 local function aplicarNeon()
     local root = getParts()
     if not root then return end
-    if neonLight and neonLight.Parent then return end
     if neonLight then pcall(function() neonLight:Destroy() end) end
     neonLight = Instance.new("PointLight")
     neonLight.Name = "DestroyaNeon"
@@ -2760,7 +3098,6 @@ local glowHL
 local function aplicarGlow()
     local char = player.Character
     if not char or not char.Parent then return end
-    if glowHL and glowHL.Parent then return end
     if glowHL then pcall(function() glowHL:Destroy() end) end
     glowHL = Instance.new("Highlight")
     glowHL.Name = "DestroyaGlow"
@@ -2788,11 +3125,12 @@ track(player.CharacterAdded:Connect(safe(function()
     if S.neon then pcall(aplicarNeon) end
     if S.glow then pcall(aplicarGlow) end
     if S.oro then pcall(prenderOro) end
+    if S.aura then pcall(prenderAura) end
 end, "decoRespawn")))
 
---═══ FIN DE LA PARTE 11 ═══
+--═══ FIN DEL BLOQUE 8 ═══
 --##################################################
---# ► PARTE 12 — PESTAÑAS, PÁGINA FUNCIONES, LISTA
+--# ► PÁGINAS
 --##################################################
 
 local FunctionPage = addTab("Funciones")
@@ -2806,7 +3144,7 @@ createSection(FunctionPage, "Jugadores")
 do
     local grid = createGrid(FunctionPage)
 
-    createButton(grid, "ESP Player", "Azul, 5 más cercanos a 140", function(v)
+    createButton(grid, "ESP Player", "Azul, 8 cercanos a 150", function(v)
         S.esp = v
         if v then
             for _, plr in ipairs(Players:GetPlayers()) do pcall(applyESP, plr) end
@@ -2815,8 +3153,16 @@ do
         end
     end)
 
-    UI.botToggle = createButton(grid, "I'm bot", "El más cercano a 60", function(v)
+    UI.botToggle = createButton(grid, "I'm bot", "El más cercano a 60 (sin noclip)", function(v)
         setBot(v)
+    end)
+
+    createButton(grid, "Ocultar nombres", "400 studs a la redonda", function(v)
+        S.hideNames = v
+        if not v then
+            for plr in pairs(hideSaved) do restaurarNombre(plr) end
+        end
+        notify(v and "Nombres ocultos a 400" or "Nombres visibles")
     end)
 end
 
@@ -2824,7 +3170,7 @@ createSection(FunctionPage, "Cámara y Noclip")
 do
     local grid = createGrid(FunctionPage)
 
-    UI.noclipToggle = createButton(grid, "Noclip", "Atraviesa paredes", function(v)
+    UI.noclipToggle = createButton(grid, "Noclip", "Atraviesa paredes (independiente)", function(v)
         setNoclip(v)
     end)
 end
@@ -2838,7 +3184,7 @@ do
         notify(v and "Vuelo activado" or "Vuelo apagado")
     end)
 
-    createButton(grid, "Impulso de salto", "Brinca " .. CONFIG.JUMP_HEIGHT .. " studs y más lejos", function(v)
+    createButton(grid, "Impulso de salto", "Brinca " .. CONFIG.JUMP_HEIGHT .. " studs. Toca otra vez para apagar", function(v)
         setJumpPower(v)
         notify(v and "Impulso activado" or "Impulso apagado")
     end)
@@ -2846,19 +3192,6 @@ do
     createButton(grid, "Salto infinito", "Salta sin parar", function(v)
         S.infJump = v
     end)
-end
-
-createSection(FunctionPage, "Aviso")
-do
-    local aviso = plain(FunctionPage,
-        "I'm bot agarra al más cercano dentro de " .. CONFIG.BOT_RANGE ..
-        " studs. Lo de Seleccionados es aparte: tocas un nombre y la cámara se queda clavada ahí hasta que la sueltes. Con más de " ..
-        LIMITE .. " estructuras a " .. WALL_RADIUS ..
-        " studs las paredes claras se apagan solas. Los pisos no cuentan.",
-        10, F.body, C.Gray, nil, UDim2.new(1, -4, 0, 0))
-    aviso.LayoutOrder = nextOrder()
-    aviso.TextWrapped = true
-    aviso.AutomaticSize = Enum.AutomaticSize.Y
 end
 
 local refreshList
@@ -2964,16 +3297,11 @@ do
     end
 end
 
---═══ FIN DE LA PARTE 12 ═══
---##################################################
---# ► PARTE 13 — SELECCIONADOS Y EVENTOS
---##################################################
-
 local refreshSel
 do
     createSection(SelPage, "Seleccionados")
     local hint = plain(SelPage,
-        "Agrega con el + de la Lista. Toca un nombre y la cámara se fija en él hasta que la sueltes.",
+        "Agrega con el + de la Lista. Toca un nombre y la cámara se fija hasta que la sueltes.",
         10, F.body, C.Gray, nil, UDim2.new(1, -4, 0, 0))
     hint.LayoutOrder = nextOrder()
     hint.TextWrapped = true
@@ -3032,7 +3360,6 @@ do
 
             plain(nameBtn, "@" .. plr.Name, 13, F.head, C.White,
                 UDim2.fromOffset(12, 0), UDim2.new(1, -100, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
-
             if esFijo then
                 plain(nameBtn, "FIJO", 10, F.section, ESP_LINE, UDim2.new(1, -86, 0, 0),
                     UDim2.fromOffset(78, 34), Enum.TextXAlignment.Right)
@@ -3040,7 +3367,6 @@ do
                 plain(nameBtn, "OBJETIVO", 10, F.section, ESP_LINE, UDim2.new(1, -86, 0, 0),
                     UDim2.fromOffset(78, 34), Enum.TextXAlignment.Right)
             end
-
             nameBtn.Activated:Connect(safe(function() fijar(plr) end, "seleccionado"))
 
             local minus = createMiniButton(entry, "minus", 30)
@@ -3057,6 +3383,7 @@ do
     end
 end
 
+--═══ FIN DEL BLOQUE 9 ═══
 UI.refreshLists = debounced(function()
     if refreshList then refreshList() end
     if refreshSel then refreshSel() end
@@ -3071,6 +3398,7 @@ end, "PlayerAdded")))
 track(Players.PlayerRemoving:Connect(safe(function(plr)
     removeESP(plr)
     unhookPlayer(plr)
+    restaurarNombre(plr)
     if Sel.set[plr] then
         selRemove(plr)
         notify("@" .. plr.Name .. " salió y se quitó")
@@ -3084,19 +3412,11 @@ track(Players.PlayerRemoving:Connect(safe(function(plr)
         S.target = nil
         syncBot()
     end
-    task.delay(0.25, UI.refreshLists)
+    task.delay(0.3, UI.refreshLists)
 end, "PlayerRemoving")))
 
-verify("ESP", function() return type(applyESP) == "function" end)
-verify("Bot", function() return type(setBot) == "function" end)
-verify("Paredes", function() return type(setWalls) == "function" end)
-verify("Skin", function() return type(setSkin) == "function" end)
-verify("Vuelo", function() return type(setFly) == "function" end)
-verify("Noclip", function() return type(setNoclip) == "function" end)
-
---═══ FIN DE LA PARTE 13 ═══
 --##################################################
---# ► PARTE 14 — PÁGINA DE SKINS
+--# ► PÁGINA DE SKINS
 --##################################################
 
 do
@@ -3109,7 +3429,6 @@ do
     end
 
     createSection(SkinPage, "Skin actual")
-
     local actualL = plain(SkinPage, "Sin skin", 12, F.head, C.Acc2,
         UDim2.fromOffset(6, 0), UDim2.new(1, -12, 0, 20))
     actualL.LayoutOrder = nextOrder()
@@ -3121,12 +3440,12 @@ do
     end
 
     local gridQuitar = createGrid(SkinPage)
-    local btnQuitar = createButton(gridQuitar, "Quitar skin", "Devuelve tu ropa", function()
+    createButton(gridQuitar, "Quitar skin", "Devuelve tu ropa", function()
         clearSkin()
         refrescarSkins()
         pintarActual()
     end)
-    local btnReponer = createButton(gridQuitar, "Reponer", "Vuelve a aplicar", function()
+    createButton(gridQuitar, "Reponer", "Vuelve a aplicar", function()
         if S.skin then
             local n = S.skin
             S.skin = nil
@@ -3142,6 +3461,7 @@ do
         { "Angelicales", "Alas, halos y brillo" },
         { "Demoniacas", "Cuernos, colas y alas rotas" },
         { "Militares", "Cascos, chalecos y camuflaje" },
+        { "Goticas", "Y2K, grunge y blanco roto" },
         { "Insanas", "Coronas, visores y colores" },
     }
 
@@ -3186,7 +3506,7 @@ do
             if skin.cat == nombreCat then
                 n += 1
                 local celda, fila = createButton(desliz, nombre,
-                    (skin.acc and skin.acc[1]) and "Accesorios" or "Solo ropa",
+                    (#(skin.acc or {}) > 0) and "Accesorios" or "Solo ropa",
                     function(v)
                         if v then
                             setSkin(nombre)
@@ -3196,15 +3516,13 @@ do
                         refrescarSkins()
                         pintarActual()
                     end)
-                -- Ancho fijo: dentro de un scroller horizontal el 100% no sirve
-                fila.Size = UDim2.fromOffset(148, CONFIG.CELL_H)
+                -- Ancho fijo: en un scroller horizontal el 100% rompe la rejilla
+                fila.Size = UDim2.fromOffset(CONFIG.CELL_W, CONFIG.CELL_H)
                 fila.LayoutOrder = n
                 celda.Set(false, true)
                 botonesSkin[nombre] = celda
             end
         end
-
-        local alto = CONFIG.CELL_H + 8
 
         barra.Activated:Connect(safe(function()
             local abierto = desliz.Size.Y.Offset > 0
@@ -3212,22 +3530,21 @@ do
                 desliz.Size = UDim2.new(1, -4, 0, 0)
                 rotulo.Text = "▸  " .. nombreCat
             else
-                desliz.Size = UDim2.new(1, -4, 0, alto)
+                desliz.Size = UDim2.new(1, -4, 0, CONFIG.CELL_H + 8)
                 rotulo.Text = "▾  " .. nombreCat
             end
         end, "categoria"))
     end
 
-    -- Sincroniza el estado visual con la skin real
     UI.refrescarSkins = refrescarSkins
     UI.pintarActual = pintarActual
     refrescarSkins()
     pintarActual()
 end
 
---═══ FIN DE LA PARTE 14 ═══
+--═══ FIN DEL BLOQUE 10 ═══
 --##################################################
---# ► PARTE 15 — DECORACIÓN UI, CONFIG, FLOTANTES
+--# ► PÁGINA DE DECORACIÓN
 --##################################################
 
 do
@@ -3255,14 +3572,12 @@ do
         setGlow(v)
     end)
 
-    createButton(gridPersona, "Luz dorada", "Tu cuerpo y tu piso en oro", function(v)
-        if v then
-            prenderOro()
-            notify("Luz dorada puesta")
-        else
-            apagarOro()
-            notify("Luz dorada apagada")
-        end
+    createButton(gridPersona, "Luz dorada", "Cuatro anillos girando en el piso", function(v)
+        setOro(v)
+    end)
+
+    createButton(gridPersona, "Aura premium", "Orbes, aros, chispas y contorno", function(v)
+        setAura(v)
     end)
 
     createSection(DecoPage, "Entorno")
@@ -3273,26 +3588,11 @@ do
             setWalls(v)
             notify(v and "Paredes transparentes" or "Paredes normales")
         end)
-
-    createSection(DecoPage, "Discord")
-    local gridDiscord = createGrid(DecoPage)
-
-    createButton(gridDiscord, "Copiar enlace", "discord.gg/ykHwgmQnD", function()
-        pcall(function() setclipboard(CONFIG.DISCORD) end)
-        notify("Enlace copiado")
-    end)
-
-    createButton(gridDiscord, "Enlace en la cabeza", "Etiqueta roja animada", function(v)
-        S.tag = v
-        if v then
-            pcall(aplicarTag)
-            notify("Etiqueta visible")
-        else
-            pcall(quitarTag)
-            notify("Etiqueta oculta")
-        end
-    end)
 end
+
+--##################################################
+--# ► PÁGINA DE CONFIGURACIÓN (aviso y portapapeles aquí)
+--##################################################
 
 do
     createSection(SettingsPage, "Estilo")
@@ -3320,7 +3620,7 @@ do
 
     createButton(grid, "FPS Boost", "Quita lag y detalles", function(v)
         setFpsBoost(v)
-        UI.setStatus(v and "FPS Boost activado" or "FPS Boost desactivado")
+        UI.lowApplied = false
         notify(v and "FPS Boost activado" or "FPS Boost desactivado")
     end)
 
@@ -3330,6 +3630,7 @@ do
 
     createButton(grid, "Modo seguro (auto)", "FPS Boost si bajas de 24 FPS", function(v)
         UI.autoLow = v
+        UI.lowApplied = false
         notify(v and "Modo seguro activado" or "Modo seguro apagado")
     end)
 
@@ -3355,13 +3656,46 @@ do
         if MenuScale.Parent then MenuScale.Scale = UI.size end
         notify("Ventana recolocada")
     end)
+
+    createSection(SettingsPage, "Discord")
+
+    local gridDiscord = createGrid(SettingsPage)
+
+    createButton(gridDiscord, "Copiar enlace", "discord.gg/ykHwgmQnD", function()
+        pcall(function() setclipboard(CONFIG.DISCORD) end)
+        notify("Enlace copiado")
+    end)
+
+    createButton(gridDiscord, "Etiqueta sobre la cabeza", "Cartel rojo animado", function(v)
+        S.tag = v
+        if v then
+            pcall(aplicarTag)
+            notify("Etiqueta visible")
+        else
+            pcall(quitarTag)
+            notify("Etiqueta oculta")
+        end
+    end).Set(true, true)
+
+    createSection(SettingsPage, "Aviso")
+
+    local aviso = plain(SettingsPage,
+        "I'm bot toma al más cercano dentro de " .. CONFIG.BOT_RANGE ..
+        " studs y ya NO enciende el noclip: son independientes. Seleccionados fija la cámara hasta que la sueltes. ESP muestra 8 jugadores a " .. CONFIG.ESP_MAX ..
+        ". Ocultar nombres esconde las etiquetas ajenas a " .. CONFIG.HIDE_RADIUS ..
+        " studs. Las paredes claras se apagan solas pasadas " .. LIMITE ..
+        " estructuras a " .. WALL_RADIUS .. " studs; los pisos no cuentan.",
+        10, F.body, C.Gray, nil, UDim2.new(1, -4, 0, 0))
+    aviso.LayoutOrder = nextOrder()
+    aviso.TextWrapped = true
+    aviso.AutomaticSize = Enum.AutomaticSize.Y
 end
 
 showPage("Funciones")
 
---──────────────────────────────────────────────
---   Botón flotante
---──────────────────────────────────────────────
+--##################################################
+--# ► BOTÓN FLOTANTE
+--##################################################
 
 local Toggle = Instance.new("TextButton")
 Toggle.Name = "MenuButton"
@@ -3417,6 +3751,20 @@ pcall(function()
         { Transparency = 0.55 }):Play()
 end)
 
+-- Columna: los botones de parada se apilan, nunca se enciman
+local FloatCol = Instance.new("Frame")
+FloatCol.AnchorPoint = Vector2.new(0, 0)
+FloatCol.Position = UDim2.new(0, 14, 0.5, 34)
+FloatCol.Size = UDim2.fromOffset(122, 0)
+FloatCol.AutomaticSize = Enum.AutomaticSize.Y
+FloatCol.BackgroundTransparency = 1
+FloatCol.ZIndex = 10
+FloatCol.Parent = Screen
+local fLayout = Instance.new("UIListLayout")
+fLayout.Padding = UDim.new(0, 8)
+fLayout.SortOrder = Enum.SortOrder.LayoutOrder
+fLayout.Parent = FloatCol
+
 local function girar()
     if not Toggle.Parent then return end
     Toggle.Rotation = 0
@@ -3466,21 +3814,21 @@ task.spawn(function()
     end
 end)
 
---═══ FIN DE LA PARTE 15 ═══
+--═══ FIN DEL BLOQUE 11 ═══
 --##################################################
---# ► PARTE 16 — PARADA, TAG, FPS, PADS, CIERRE
+--# ► BOTONES DE PARADA (APILADOS)
 --##################################################
 
 local CamStop = Instance.new("TextButton")
+CamStop.LayoutOrder = 1
 CamStop.Size = UDim2.fromOffset(120, 42)
-CamStop.Position = UDim2.new(0, 14, 0.5, 34)
 CamStop.BackgroundColor3 = Color3.new(1, 1, 1)
 CamStop.BackgroundTransparency = 0.45
 CamStop.Text = ""
 CamStop.AutoButtonColor = false
 CamStop.Visible = false
 CamStop.ZIndex = 10
-CamStop.Parent = Screen
+CamStop.Parent = FloatCol
 corner(CamStop, 13)
 
 local camGrad = Instance.new("UIGradient")
@@ -3566,8 +3914,8 @@ CamStop.Activated:Connect(safe(function()
 end, "camstop"))
 
 local FijoStop = Instance.new("TextButton")
+FijoStop.LayoutOrder = 2
 FijoStop.Size = UDim2.fromOffset(120, 34)
-FijoStop.Position = UDim2.new(0, 14, 0.5, 80)
 FijoStop.BackgroundColor3 = Color3.fromRGB(40, 20, 26)
 FijoStop.BackgroundTransparency = 0.25
 FijoStop.Text = "DEJAR FIJO"
@@ -3577,7 +3925,7 @@ FijoStop.TextSize = 10
 FijoStop.AutoButtonColor = false
 FijoStop.Visible = false
 FijoStop.ZIndex = 10
-FijoStop.Parent = Screen
+FijoStop.Parent = FloatCol
 corner(FijoStop, 11)
 squish(FijoStop, 0.92)
 stroke(FijoStop, "Rojo", 1.4, 0.2)
@@ -3600,9 +3948,9 @@ end
 
 FijoStop.Activated:Connect(safe(function() soltarFijo() end, "fijostop"))
 
---──────────────────────────────────────────────
---   Etiqueta de Discord
---──────────────────────────────────────────────
+--##################################################
+--# ► ETIQUETA DE DISCORD (ENCIMA DE LA CABEZA)
+--##################################################
 
 local tagGui, tagShine
 
@@ -3619,20 +3967,20 @@ end
 
 local function aplicarTag()
     local char = player.Character
-    if not char or not char.Parent then return end
-    if not S.tag then return end
+    if not char or not char.Parent or not S.tag then return end
     quitarTag()
 
-    local head = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
+    local head = char:FindFirstChild("Head")
     if not head then return end
 
     tagGui = Instance.new("BillboardGui")
     tagGui.Name = "DestroyaTag"
     tagGui.Size = UDim2.fromOffset(190, 34)
-    tagGui.StudsOffset = Vector3.new(0, 2.6, 0)
+    -- Por encima del nametag de RIVALS para que no lo tape
+    tagGui.StudsOffset = Vector3.new(0, 4.1, 0)
     tagGui.AlwaysOnTop = true
     tagGui.LightInfluence = 0
-    tagGui.MaxDistance = 300
+    tagGui.MaxDistance = 500
     tagGui.Adornee = head
     tagGui.Parent = head
 
@@ -3693,7 +4041,7 @@ task.spawn(function()
         task.wait(0.5)
         if S.tag then
             local char = player.Character
-            local head = char and (char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart"))
+            local head = char and char:FindFirstChild("Head")
             if head then
                 if not tagGui or tagGui.Parent ~= head then pcall(aplicarTag) end
             elseif tagGui then
@@ -3712,9 +4060,9 @@ task.spawn(function()
     end
 end)
 
---──────────────────────────────────────────────
---   Contador de FPS
---──────────────────────────────────────────────
+--##################################################
+--# ► FPS, PADS Y CIERRE
+--##################################################
 
 local FpsText = Instance.new("TextButton")
 FpsText.Name = "FpsText"
@@ -3772,16 +4120,15 @@ do
         local fps = math.floor(frames / fpsAcc + 0.5)
         if FpsText.Parent then FpsText.Text = "FPS " .. fps end
         frames, fpsAcc = 0, 0
-        if UI.autoLow and fps < 24 and not S.boost then
+        if UI.autoLow and fps < 24 and not S.boost and not UI.lowApplied then
+            UI.lowApplied = true
             pcall(function() setFpsBoost(true) end)
             UI.setStatus("Modo seguro: FPS Boost automático")
+        elseif UI.autoLow and fps >= 45 then
+            UI.lowApplied = false
         end
     end, "fps")))
 end
-
---──────────────────────────────────────────────
---   Pads de vuelo
---──────────────────────────────────────────────
 
 local function padButton(y, arriba)
     local b = Instance.new("TextButton")
@@ -3854,10 +4201,6 @@ do
     end, "pads")))
 end
 
---──────────────────────────────────────────────
---   Cierre y teardown completo
---──────────────────────────────────────────────
-
 local closing = false
 
 local function destroyHub()
@@ -3894,10 +4237,10 @@ end
 
 Screen.Destroying:Connect(function()
     UI.dead = true
-    S.esp, S.infJump, S.fly = false, false, false
+    S.esp, S.infJump, S.fly, S.jumpPower = false, false, false, false
     S.bot, S.target, S.fijado = false, nil, nil
     S.noclip, S.walls, S.boost = false, false, false
-    S.noche, S.rosa, S.neon, S.glow, S.oro = false, false, false, false, false
+    S.noche, S.rosa, S.neon, S.glow, S.oro, S.aura, S.hideNames = false, false, false, false, false, false, false
 
     pcall(releaseCamera)
     pcall(function() setNoclip(false) end)
@@ -3909,9 +4252,11 @@ Screen.Destroying:Connect(function()
     pcall(function() setNoche(false) end)
     pcall(function() setRosa(false) end)
     pcall(apagarOro)
+    pcall(apagarAura)
     pcall(quitarTag)
     pcall(clearSkin, true)
     pcall(clearESP)
+    pcall(restaurarTodos)
     pcall(function() RunService:UnbindFromRenderStep("DestroyaCam") end)
     for _, c in ipairs(conns) do
         pcall(function() c:Disconnect() end)
@@ -3919,6 +4264,14 @@ Screen.Destroying:Connect(function()
     table.clear(conns)
 end)
 
+verify("ESP", function() return type(applyESP) == "function" end)
+verify("Bot", function() return type(setBot) == "function" end)
+verify("Paredes", function() return type(setWalls) == "function" end)
+verify("Skin", function() return type(setSkin) == "function" end)
+verify("Vuelo", function() return type(setFly) == "function" end)
+verify("Noclip", function() return type(setNoclip) == "function" end)
+verify("Aura", function() return type(prenderAura) == "function" end)
+
 notify("Destroya Hub v" .. CONFIG.VERSION .. " cargado")
 
---═══ FIN DE LA PARTE 16 — FIN DEL SCRIPT ═══
+--═══ FIN DEL BLOQUE 12 — FIN DEL SCRIPT ═══
