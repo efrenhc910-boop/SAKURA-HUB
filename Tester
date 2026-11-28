@@ -3860,3 +3860,152 @@ track(RunService.Heartbeat:Connect(safe(function(dt)
 end, "motor", 18)))
 
 --═══ FIN DEL BLOQUE B18 ═══
+--##################################################
+--#  B19  •  GUARDIA Y CIERRE
+--##################################################
+task.spawn(function()
+    task.wait(3)
+    while alive() do
+        task.wait(15)
+        if UI.anim and Toggle.Parent then
+            local base = Toggle.Position
+            local y = base.Y.Offset
+            for _ = 1, 4 do
+                tween(Toggle, { Position = UDim2.new(base.X.Scale, base.X.Offset, base.Y.Scale, y - 9) }, 0.25)
+                task.wait(0.25)
+                tween(Toggle, { Position = UDim2.new(base.X.Scale, base.X.Offset, base.Y.Scale, y + 9) }, 0.25)
+                task.wait(0.25)
+            end
+            tween(Toggle, { Position = base }, 0.2)
+        end
+    end
+end)
+
+local lastVs
+task.spawn(function()
+    while alive() do
+        task.wait(1)
+        if Screen.Parent == nil then pcall(function() colgar(Screen) end) end
+        if Main.Parent == nil then pcall(function() Main.Parent = Screen end) end
+        if not UI.closing and UI.open and not Main.Visible then
+            pcall(function() Main.Visible = true end)
+        end
+        local cam = getCamera()
+        local vs = cam and cam.ViewportSize.X or 0
+        if vs ~= lastVs then
+            lastVs = vs
+            ajustarEscala()
+            aplicarEscala()
+            acomodarFlotantes()
+        end
+        if not CurrentPage and Pages["Funciones"] then pcall(function() showPage("Funciones") end) end
+        if UI.open and titleShine and UI.anim then
+            pcall(function()
+                if titleShine.PlaybackState ~= Enum.PlaybackState.Playing then titleShine:Play() end
+            end)
+        elseif not UI.open and titleShine then
+            pcall(function() titleShine:Pause() end)
+        end
+    end
+end)
+
+local closing = false
+
+local function destroyHub()
+    if closing then return end
+    closing = true
+    UI.closing = true
+    UI.open = false
+    pcall(function() RunService:UnbindFromRenderStep("DestroyaCam") end)
+    pcall(function()
+        tween(MenuScale, { Scale = 0.5 }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+        tween(Backdrop, { ImageTransparency = 1 }, 0.2)
+    end)
+    task.delay(0.22, function()
+        if Screen.Parent then Screen:Destroy() end
+    end)
+end
+
+do
+    local confirmUntil = 0
+    DestroyBtn.Activated:Connect(safe(function()
+        local now = os.clock()
+        if now < confirmUntil then
+            destroyHub()
+            return
+        end
+        confirmUntil = now + 2.5
+        notify("Toca la X otra vez para destruir todo")
+        tween(DestroyBtn, { BackgroundColor3 = Color3.fromRGB(255, 30, 55) }, 0.15)
+        task.delay(2.5, function()
+            if DestroyBtn.Parent then
+                tween(DestroyBtn, { BackgroundColor3 = Color3.fromRGB(24, 84, 104) }, 0.3)
+            end
+        end)
+    end, "destruir", 19))
+end
+
+Screen.Destroying:Connect(function()
+    UI.dead = true
+    pcall(releaseCamera)
+    pcall(function() setNoclip(false) end)
+    pcall(function() setFly(false) end)
+    pcall(function() setFpsBoost(false, true) end)
+    pcall(function() setWalls(false, true) end)
+    pcall(setNeon, false, true)
+    pcall(setGlow, false, true)
+    pcall(setNoche, false, true)
+    pcall(setRosa, false, true)
+    pcall(quitarTodasDecos)
+    pcall(quitarTag)
+    pcall(clearESP)
+    pcall(restaurarTodos)
+    pcall(function() RunService:UnbindFromRenderStep("DestroyaCam") end)
+    for _, c in ipairs(conns) do
+        pcall(function() c:Disconnect() end)
+    end
+    table.clear(conns)
+end)
+
+--##################################################
+--#  B19  •  VERIFY Y ARRANQUE
+--##################################################
+verify("Screen colgado", function() return Screen.Parent ~= nil end)
+verify("Main en pantalla", function() return Main.Parent == Screen and Main.Visible end)
+verify("Main dentro del viewport", function()
+    local vs = (getCamera() and getCamera().ViewportSize) or Vector2.new(1280, 720)
+    local s = Main.AbsoluteSize
+    return s.X <= vs.X and s.Y <= vs.Y
+end)
+verify("Escala viva", function() return MenuScale ~= nil and MenuScale.Parent == Main end)
+verify("Página activa", function() return CurrentPage ~= nil end)
+verify("Pestañas con contenido", function()
+    for _, page in pairs(Pages) do
+        if #page:GetChildren() <= 3 then return false end
+    end
+    return true
+end)
+verify("ESP", function() return type(applyESP) == "function" end)
+verify("Bot", function() return type(setBot) == "function" end)
+verify("Vuelo", function() return type(setFly) == "function" end)
+verify("Paredes", function() return type(setWalls) == "function" end)
+verify("Decoración", function() return #DECO == 12 end)
+verify("Tag", function() return type(aplicarTag) == "function" end)
+
+showPage("Funciones")
+ajustarEscala()
+MenuScale.Scale = UI.size * UI.fit
+Main.Visible = true
+Main.Position = HOME
+acomodarFlotantes()
+UI.refreshLists()
+syncBot()
+
+task.delay(0.8, function()
+    pcall(ajustarEscala)
+    aplicarEscala()
+end)
+
+notify("Destroya Hub v7.0 cargado")
+
+--═══ FIN DEL SCRIPT ═══
