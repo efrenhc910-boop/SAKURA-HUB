@@ -3040,4 +3040,1026 @@ do
     end
 end
 
---═══ FIN DE LA PARTE 1
+--═══ FIN DE LA PARTE 14 ═══
+local refreshSel
+do
+    createSection(SelPage, "Seleccionados")
+    local hint = plain(SelPage,
+        "Agrega con el + de la Lista. Toca un nombre y la cámara se fija hasta que la sueltes.",
+        10, F.body, C.Gray, nil, UDim2.new(1, -4, 0, 0))
+    hint.LayoutOrder = nextOrder()
+    hint.TextWrapped = true
+    hint.AutomaticSize = Enum.AutomaticSize.Y
+
+    local selContainer = Instance.new("Frame")
+    selContainer.Size = UDim2.new(1, -4, 0, 0)
+    selContainer.BackgroundTransparency = 1
+    selContainer.AutomaticSize = Enum.AutomaticSize.Y
+    selContainer.LayoutOrder = nextOrder()
+    selContainer.Parent = SelPage
+    local sl = Instance.new("UIListLayout")
+    sl.Padding = UDim.new(0, 10)
+    sl.SortOrder = Enum.SortOrder.LayoutOrder
+    sl.Parent = selContainer
+
+    refreshSel = function()
+        if not selContainer.Parent then return end
+        for _, c in ipairs(selContainer:GetChildren()) do
+            if c:IsA("GuiObject") then c:Destroy() end
+        end
+        if #Sel.list == 0 then
+            local e = plain(selContainer, "Aún no hay nadie seleccionado", 11, F.body, C.Gray,
+                nil, UDim2.new(1, 0, 0, 30), Enum.TextXAlignment.Center)
+            e.LayoutOrder = 1
+            return
+        end
+        for i, plr in ipairs(Sel.list) do
+            local esFijo = S.fijado == plr
+            local esTarget = S.target == plr and S.bot
+
+            local entry = Instance.new("Frame")
+            entry.LayoutOrder = i
+            entry.Size = UDim2.new(1, 0, 0, 34)
+            entry.BackgroundTransparency = 1
+            entry.Parent = selContainer
+
+            local nameBtn = Instance.new("TextButton")
+            nameBtn.Size = UDim2.new(1, -38, 0, 34)
+            nameBtn.BackgroundColor3 = esFijo and ESP_FILL or (esTarget and C.RowOn or C.Row)
+            nameBtn.BackgroundTransparency = esFijo and 0.45 or 0.55
+            nameBtn.Text = ""
+            nameBtn.AutoButtonColor = false
+            nameBtn.Parent = entry
+            corner(nameBtn, 10)
+            squish(nameBtn, 0.96)
+
+            local accent = Instance.new("Frame")
+            accent.AnchorPoint = Vector2.new(0, 0.5)
+            accent.Position = UDim2.fromScale(0, 0.5)
+            accent.Size = UDim2.fromOffset(3, (esFijo or esTarget) and 20 or 0)
+            accent.BackgroundColor3 = ESP_LINE
+            accent.BorderSizePixel = 0
+            accent.Parent = nameBtn
+            corner(accent, 2)
+
+            plain(nameBtn, "@" .. plr.Name, 13, F.head, C.White,
+                UDim2.fromOffset(12, 0), UDim2.new(1, -100, 1, 0)).TextTruncate = Enum.TextTruncate.AtEnd
+            if esFijo then
+                plain(nameBtn, "FIJO", 10, F.section, ESP_LINE, UDim2.new(1, -86, 0, 0),
+                    UDim2.fromOffset(78, 34), Enum.TextXAlignment.Right)
+            elseif esTarget then
+                plain(nameBtn, "OBJETIVO", 10, F.section, ESP_LINE, UDim2.new(1, -86, 0, 0),
+                    UDim2.fromOffset(78, 34), Enum.TextXAlignment.Right)
+            end
+            nameBtn.Activated:Connect(safe(function() fijar(plr) end, "seleccionado"))
+
+            local minus = createMiniButton(entry, "minus", 30)
+            minus.Position = UDim2.new(1, -30, 0, 2)
+            minus.Activated:Connect(safe(function()
+                if S.fijado == plr then
+                    S.fijado = nil
+                    S.target = nil
+                    syncBot()
+                end
+                if selRemove(plr) then notify("@" .. plr.Name .. " fuera") end
+            end, "quitar"))
+        end
+    end
+end
+
+UI.refreshLists = debounced(function()
+    if refreshList then refreshList() end
+    if refreshSel then refreshSel() end
+end)
+
+track(Players.PlayerAdded:Connect(safe(function(plr)
+    hookPlayer(plr)
+    UI.refreshLists()
+end, "PlayerAdded")))
+
+track(Players.PlayerRemoving:Connect(safe(function(plr)
+    removeESP(plr)
+    unhookPlayer(plr)
+    restaurarNombre(plr)
+    if Sel.set[plr] then
+        selRemove(plr)
+        notify("@" .. plr.Name .. " salió y se quitó")
+    end
+    if S.fijado == plr then
+        S.fijado = nil
+        S.target = nil
+        syncBot()
+        UI.setStatus("El fijo salió, cámara libre")
+    elseif S.target == plr then
+        S.target = nil
+        syncBot()
+    end
+    task.delay(0.3, UI.refreshLists)
+end, "PlayerRemoving")))
+
+do
+    local botonesSkin = {}
+
+    local function refrescarSkins()
+        for nombre, api in pairs(botonesSkin) do
+            api.Set(S.skin == nombre, true)
+        end
+    end
+
+    createSection(SkinPage, "Skin actual")
+    local actualL = plain(SkinPage, "Sin skin", 12, F.head, C.Acc2,
+        UDim2.fromOffset(6, 0), UDim2.new(1, -12, 0, 20))
+    actualL.LayoutOrder = nextOrder()
+
+    local function pintarActual()
+        if actualL.Parent then
+            actualL.Text = S.skin and ("Puesta: " .. S.skin) or "Sin skin"
+        end
+    end
+
+    local gridQuitar = createGrid(SkinPage)
+    createButton(gridQuitar, "Quitar skin", "Devuelve tu ropa", function()
+        clearSkin()
+    end)
+    createButton(gridQuitar, "Reponer", "Vuelve a aplicar", function()
+        if S.skin then
+            local n = S.skin
+            S.skin = nil
+            setSkin(n)
+        else
+            notify("No hay skin puesta")
+        end
+    end)
+
+    for _, nombreCat in ipairs({ "Angelicales", "Demoniacas", "Militares", "Insanas" }) do
+        local barra = Instance.new("TextButton")
+        barra.Size = UDim2.new(1, -4, 0, 30)
+        barra.BackgroundColor3 = C.Tab
+        barra.BackgroundTransparency = 0.35
+        barra.Text = ""
+        barra.AutoButtonColor = false
+        barra.LayoutOrder = nextOrder()
+        barra.Parent = SkinPage
+        corner(barra, 8)
+        squish(barra, 0.97)
+
+        local rotulo = plain(barra, "▸  " .. nombreCat, 11, F.section, C.Acc2,
+            UDim2.fromOffset(10, 0), UDim2.new(1, -20, 1, 0))
+        rotulo.TextTruncate = Enum.TextTruncate.AtEnd
+
+        local desliz = Instance.new("ScrollingFrame")
+        desliz.Size = UDim2.new(1, -4, 0, 0)
+        desliz.BackgroundTransparency = 1
+        desliz.BorderSizePixel = 0
+        desliz.ScrollBarThickness = 3
+        desliz.ScrollingDirection = Enum.ScrollingDirection.X
+        desliz.CanvasSize = UDim2.new()
+        desliz.AutomaticCanvasSize = Enum.AutomaticSize.X
+        desliz.LayoutOrder = nextOrder()
+        desliz.Parent = SkinPage
+        bind(desliz, "ScrollBarImageColor3", "Acc")
+
+        local listaH = Instance.new("UIListLayout")
+        listaH.FillDirection = Enum.FillDirection.Horizontal
+        listaH.Padding = UDim.new(0, 8)
+        listaH.SortOrder = Enum.SortOrder.LayoutOrder
+        listaH.Parent = desliz
+
+        local n = 0
+        for nombre, skin in pairs(SKINS) do
+            if skin.cat == nombreCat then
+                n += 1
+                local celda, fila = createButton(desliz, nombre,
+                    (#(skin.acc or {}) > 0) and "Accesorios" or "Solo ropa",
+                    function(v)
+                        if v then
+                            setSkin(nombre)
+                        else
+                            clearSkin()
+                        end
+                    end)
+                fila.Size = UDim2.fromOffset(CONFIG.CELL_W, CONFIG.CELL_H)
+                fila.LayoutOrder = n
+                celda.Set(false, true)
+                botonesSkin[nombre] = celda
+            end
+        end
+
+        barra.Activated:Connect(safe(function()
+            local abierto = desliz.Size.Y.Offset > 0
+            if abierto then
+                desliz.Size = UDim2.new(1, -4, 0, 0)
+                rotulo.Text = "▸  " .. nombreCat
+            else
+                desliz.Size = UDim2.new(1, -4, 0, CONFIG.CELL_H + 8)
+                rotulo.Text = "▾  " .. nombreCat
+            end
+        end, "categoria"))
+    end
+
+    UI.refrescarSkins = refrescarSkins
+    UI.pintarActual = pintarActual
+end
+
+--═══ FIN DE LA PARTE 15 ═══
+do
+    createSection(DecoPage, "Cielo")
+    local gridCielo = createGrid(DecoPage)
+
+    UI.nocheToggle = createButton(gridCielo, "Cielo nocturno", "Noche con estrellas", function(v)
+        setNoche(v)
+        notify(v and "Cielo nocturno" or "Cielo normal")
+    end)
+
+    UI.rosaToggle = createButton(gridCielo, "Cielo rosa", "Atardecer rosado", function(v)
+        setRosa(v)
+        notify(v and "Cielo rosa" or "Cielo normal")
+    end)
+
+    createSection(DecoPage, "Personaje")
+    local gridPersona = createGrid(DecoPage)
+
+    createButton(gridPersona, "Neón propio", "Luz azul que te alumbra", function(v)
+        setNeon(v)
+    end)
+
+    createButton(gridPersona, "Brillo propio", "Contorno dorado en ti", function(v)
+        setGlow(v)
+    end)
+
+    createButton(gridPersona, "Luz dorada", "Anillos girando en el piso", function(v)
+        if v then
+            prenderOro()
+            notify("Luz dorada puesta")
+        else
+            apagarOro()
+            notify("Luz dorada apagada")
+        end
+    end)
+
+    createButton(gridPersona, "Aura premium", "Orbes, aros y chispas", function(v)
+        if v then
+            prenderAura()
+            notify("Aura activada")
+        else
+            apagarAura()
+            notify("Aura apagada")
+        end
+    end)
+
+    createSection(DecoPage, "Entorno")
+    local gridEntorno = createGrid(DecoPage)
+
+    UI.wallsToggle = createButton(gridEntorno, "Transparent Walls",
+        "Claras hasta " .. LIMITE .. " estructuras", function(v)
+            setWalls(v)
+            notify(v and "Paredes transparentes" or "Paredes normales")
+        end)
+end
+
+do
+    createSection(SettingsPage, "Estilo")
+
+    createSlider(SettingsPage, "Tamaño del menú", 0.6, 1.2, 1,
+        function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end,
+        function(v)
+            UI.size = math.clamp(v, 0.6, 1.2)
+            aplicarEscala()
+        end)
+
+    createSection(SettingsPage, "Vista")
+
+    local cam0 = getCamera()
+    local fov0 = math.clamp((cam0 and cam0.FieldOfView) or 70, 40, 120)
+    createSlider(SettingsPage, "Campo de visión", 40, 120, fov0,
+        function(v) return tostring(math.floor(v + 0.5)) end,
+        function(v)
+            local c = getCamera()
+            if c then pcall(function() c.FieldOfView = math.clamp(v, 40, 120) end) end
+        end)
+
+    createSection(SettingsPage, "Rendimiento")
+    local grid = createGrid(SettingsPage)
+
+    createButton(grid, "FPS Boost", "Quita lag y detalles", function(v)
+        setFpsBoost(v)
+        UI.lowApplied = false
+        notify(v and "FPS Boost activado" or "FPS Boost desactivado")
+    end)
+
+    createButton(grid, "Animaciones", "Apágalas si hay lag", function(v)
+        UI.anim = v
+    end).Set(true, true)
+
+    createButton(grid, "Modo seguro (auto)", "FPS Boost si bajas de 24 FPS", function(v)
+        UI.autoLow = v
+        UI.lowApplied = false
+        notify(v and "Modo seguro activado" or "Modo seguro apagado")
+    end)
+
+    createSection(SettingsPage, "Reparar")
+    local gridRep = createGrid(SettingsPage)
+
+    createButton(gridRep, "Reparar sistema", "Reinicia cámara y estados", function()
+        pcall(releaseCamera)
+        pcall(function() setBot(false) end)
+        S.fijado = nil
+        pcall(function() setFly(false) end)
+        pcall(function() setNoclip(false) end)
+        pcall(function() setWalls(false) end)
+        Main.Position = HOME
+        Main.Visible = true
+        UI.open = true
+        aplicarEscala()
+        notify("Sistema reparado")
+    end)
+
+    createButton(gridRep, "Reiniciar interfaz", "Vuelve la ventana al centro", function()
+        Main.Position = HOME
+        Main.Visible = true
+        UI.open = true
+        aplicarEscala()
+        notify("Ventana recolocada")
+    end)
+
+    createSection(SettingsPage, "Discord")
+    local gridDiscord = createGrid(SettingsPage)
+
+    createButton(gridDiscord, "Copiar enlace", "discord.gg/ykHwgmQnD", function()
+        pcall(function() setclipboard(CONFIG.DISCORD) end)
+        notify("Enlace copiado")
+    end)
+
+    createButton(gridDiscord, "Etiqueta en la cabeza", "Cartel rojo animado", function(v)
+        S.tag = v
+        if v then
+            pcall(aplicarTag)
+            notify("Etiqueta visible")
+        else
+            pcall(quitarTag)
+            notify("Etiqueta oculta")
+        end
+    end).Set(true, true)
+end
+
+--═══ FIN DE LA PARTE 16 ═══
+local Toggle = Instance.new("TextButton")
+Toggle.Name = "MenuButton"
+Toggle.AnchorPoint = Vector2.new(0, 0.5)
+Toggle.Size = UDim2.fromOffset(48, 48)
+Toggle.Position = UDim2.new(0, 14, 0.5, -24)
+Toggle.BackgroundColor3 = Color3.fromRGB(12, 34, 44)
+Toggle.BackgroundTransparency = 0.15
+Toggle.Text = ""
+Toggle.AutoButtonColor = false
+Toggle.ZIndex = 10
+Toggle.Parent = Screen
+corner(Toggle, 14)
+squish(Toggle, 0.9)
+
+local gradBoton = Instance.new("UIGradient")
+gradBoton.Color = ColorSequence.new(C.FondoB, C.FondoC)
+gradBoton.Rotation = 120
+gradBoton.Parent = Toggle
+
+local ToggleImg = Instance.new("ImageLabel")
+ToggleImg.Size = UDim2.fromScale(1, 1)
+ToggleImg.BackgroundTransparency = 1
+ToggleImg.ScaleType = Enum.ScaleType.Crop
+ToggleImg.ImageTransparency = 0.35
+ToggleImg.ZIndex = 10
+ToggleImg.Parent = Toggle
+corner(ToggleImg, 14)
+
+local BOTON_URLS = urls(CONFIG.IMAGEN_BOTON)
+for _, u in ipairs(urls(CONFIG.IMAGEN_BOTON2)) do table.insert(BOTON_URLS, u) end
+forzarImagen(ToggleImg, BOTON_URLS, 6)
+
+local ToggleTxt = plain(Toggle, "DH", 17, F.title, C.Oro,
+    UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), Enum.TextXAlignment.Center)
+ToggleTxt.ZIndex = 11
+ToggleTxt.TextStrokeTransparency = 0.25
+ToggleTxt.TextStrokeColor3 = Color3.new(0, 0, 0)
+
+local ring = Instance.new("UIStroke")
+ring.Color = GLOW
+ring.Thickness = 2.2
+ring.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+ring.Parent = Toggle
+
+local FloatCol = Instance.new("Frame")
+FloatCol.AnchorPoint = Vector2.new(0, 0)
+FloatCol.Position = UDim2.new(0, 14, 0.5, 34)
+FloatCol.Size = UDim2.fromOffset(122, 0)
+FloatCol.AutomaticSize = Enum.AutomaticSize.Y
+FloatCol.BackgroundTransparency = 1
+FloatCol.ZIndex = 10
+FloatCol.Parent = Screen
+local fLayout = Instance.new("UIListLayout")
+fLayout.Padding = UDim.new(0, 8)
+fLayout.SortOrder = Enum.SortOrder.LayoutOrder
+fLayout.Parent = FloatCol
+
+local function girar()
+    if not Toggle.Parent then return end
+    Toggle.Rotation = 0
+    tween(Toggle, { Rotation = 360 }, 0.55, Enum.EasingStyle.Quad)
+    task.delay(0.58, function()
+        if Toggle.Parent then Toggle.Rotation = 0 end
+    end)
+end
+
+local function setOpen(v)
+    if v == UI.open then return end
+    UI.open = v
+    Main.Visible = v
+    if v then
+        Main.Position = HOME
+    end
+end
+
+Toggle.Activated:Connect(safe(function()
+    girar()
+    setOpen(not UI.open)
+end, "toggle"))
+
+HideBtn.Activated:Connect(safe(function() setOpen(false) end, "hide"))
+
+local CamStop = Instance.new("TextButton")
+CamStop.LayoutOrder = 1
+CamStop.Size = UDim2.fromOffset(120, 42)
+CamStop.BackgroundColor3 = Color3.new(1, 1, 1)
+CamStop.BackgroundTransparency = 0.45
+CamStop.Text = ""
+CamStop.AutoButtonColor = false
+CamStop.Visible = false
+CamStop.ZIndex = 10
+CamStop.Parent = FloatCol
+corner(CamStop, 13)
+
+local camGrad = Instance.new("UIGradient")
+camGrad.Color = ColorSequence.new(Color3.fromRGB(30, 110, 135), Color3.fromRGB(8, 30, 40))
+camGrad.Rotation = 90
+camGrad.Parent = CamStop
+
+local StopScale = Instance.new("UIScale")
+StopScale.Scale = 0
+StopScale.Parent = CamStop
+
+local StopStroke = Instance.new("UIStroke")
+StopStroke.Color = GLOW
+StopStroke.Thickness = 2
+StopStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+StopStroke.Parent = CamStop
+
+local box = Instance.new("Frame")
+box.Position = UDim2.fromOffset(8, 9)
+box.Size = UDim2.fromOffset(24, 24)
+box.BackgroundColor3 = GLOW
+box.BackgroundTransparency = 0.25
+box.BorderSizePixel = 0
+box.ZIndex = 11
+box.Parent = CamStop
+corner(box, 12)
+for _, rot in ipairs({ 45, -45 }) do
+    local f = Instance.new("Frame")
+    f.AnchorPoint = Vector2.new(0.5, 0.5)
+    f.Position = UDim2.fromScale(0.5, 0.5)
+    f.Size = UDim2.fromOffset(12, 2)
+    f.Rotation = rot
+    f.BackgroundColor3 = Color3.fromRGB(240, 253, 255)
+    f.BorderSizePixel = 0
+    f.ZIndex = 12
+    f.Parent = box
+    corner(f, 1)
+end
+
+local l1 = plain(CamStop, "DESACTIVAR", 14, F.head, C.White, UDim2.fromOffset(40, 6), UDim2.fromOffset(76, 17))
+l1.ZIndex = 11
+local l2 = plain(CamStop, "I'M BOT", 9, F.section, Color3.fromRGB(200, 245, 255), UDim2.fromOffset(40, 24), UDim2.fromOffset(76, 12))
+l2.ZIndex = 11
+
+UI.showCamStop = function(v)
+    if v then
+        CamStop.Visible = true
+        tween(StopScale, { Scale = 1 }, 0.32, Enum.EasingStyle.Back)
+    else
+        tween(StopScale, { Scale = 0 }, 0.18)
+        task.delay(0.2, function()
+            if not S.bot and not S.fijado then CamStop.Visible = false end
+        end)
+    end
+end
+
+CamStop.Activated:Connect(safe(function()
+    setBot(false)
+    if S.fijado then soltarFijo() end
+    notify("Cámara desactivada")
+end, "camstop"))
+
+local FijoStop = Instance.new("TextButton")
+FijoStop.LayoutOrder = 2
+FijoStop.Size = UDim2.fromOffset(120, 34)
+FijoStop.BackgroundColor3 = Color3.fromRGB(40, 20, 26)
+FijoStop.BackgroundTransparency = 0.25
+FijoStop.Text = "DEJAR FIJO"
+FijoStop.TextColor3 = C.Rojo
+FijoStop.Font = F.section
+FijoStop.TextSize = 10
+FijoStop.AutoButtonColor = false
+FijoStop.Visible = false
+FijoStop.ZIndex = 10
+FijoStop.Parent = FloatCol
+corner(FijoStop, 11)
+squish(FijoStop, 0.92)
+stroke(FijoStop, "Rojo", 1.4, 0.2)
+
+local FijoScale = Instance.new("UIScale")
+FijoScale.Scale = 0
+FijoScale.Parent = FijoStop
+
+UI.showFijoStop = function(v)
+    if v then
+        FijoStop.Visible = true
+        tween(FijoScale, { Scale = 1 }, 0.26, Enum.EasingStyle.Back)
+    else
+        tween(FijoScale, { Scale = 0 }, 0.16)
+        task.delay(0.18, function()
+            if not S.fijado then FijoStop.Visible = false end
+        end)
+    end
+end
+
+FijoStop.Activated:Connect(safe(function() soltarFijo() end, "fijostop"))
+
+local FpsText = Instance.new("TextButton")
+FpsText.Name = "FpsText"
+FpsText.Size = UDim2.fromOffset(180, 52)
+FpsText.Position = UDim2.new(0.5, -90, 0, 4)
+FpsText.BackgroundTransparency = 1
+FpsText.AutoButtonColor = false
+FpsText.Text = "FPS --"
+FpsText.TextColor3 = Color3.new(1, 1, 1)
+FpsText.TextSize = 36
+FpsText.Font = F.head
+FpsText.ZIndex = 10
+FpsText.Parent = Screen
+
+local FpsStroke = Instance.new("UIStroke")
+FpsStroke.Color = Color3.new(0, 0, 0)
+FpsStroke.Thickness = 2.4
+FpsStroke.Transparency = 0.05
+FpsStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+FpsStroke.Parent = FpsText
+
+local FpsGrad = Instance.new("UIGradient")
+FpsGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 60)),
+    ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 200, 0)),
+    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(0, 255, 90)),
+    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0, 230, 255)),
+    ColorSequenceKeypoint.new(0.8, Color3.fromRGB(120, 60, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 200)),
+})
+FpsGrad.Offset = Vector2.new(-0.5, 0)
+FpsGrad.Parent = FpsText
+
+FpsText.InputBegan:Connect(safe(function(input)
+    if not isPointer(input) then return end
+    local startPos, startMouse = FpsText.Position, input.Position
+    beginDrag(input, function(i)
+        local d = i.Position - startMouse
+        FpsText.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X,
+            startPos.Y.Scale, startPos.Y.Offset + d.Y)
+    end)
+end, "fpsDrag"))
+
+local function padButton(y, arriba)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.fromOffset(54, 54)
+    b.Position = UDim2.new(1, -74, 0.5, y)
+    b.BackgroundColor3 = Color3.fromRGB(16, 46, 58)
+    b.BackgroundTransparency = 0.25
+    b.Text = ""
+    b.AutoButtonColor = false
+    b.Visible = false
+    b.ZIndex = 10
+    b.Parent = Screen
+    corner(b, 27)
+    stroke(b, "Acc2", 2, 0.15)
+
+    for i = 0, 2 do
+        local w = Instance.new("Frame")
+        w.AnchorPoint = Vector2.new(0.5, 0.5)
+        w.Position = UDim2.new(0.5, 0, 0.5, (arriba and -1 or 1) * (i * 4 - 4))
+        w.Size = UDim2.fromOffset(16 - i * 4, 3)
+        w.BackgroundColor3 = Color3.fromRGB(235, 252, 255)
+        w.BorderSizePixel = 0
+        w.ZIndex = 11
+        w.Parent = b
+        corner(w, 1)
+    end
+
+    local sc = Instance.new("UIScale")
+    sc.Scale = 0
+    sc.Parent = b
+
+    local function pulsar(on)
+        if arriba then S.up = on else S.down = on end
+        tween(sc, { Scale = on and 0.88 or 1 }, 0.1, Enum.EasingStyle.Quad)
+    end
+
+    b.InputBegan:Connect(safe(function(i)
+        if isPointer(i) then pulsar(true) end
+    end, "pad"))
+    b.InputEnded:Connect(safe(function(i)
+        if isPointer(i) then pulsar(false) end
+    end, "pad"))
+    b.MouseLeave:Connect(safe(function() pulsar(false) end, "pad"))
+
+    return b, sc
+end
+
+local UpBtn, UpScale = padButton(-88, true)
+local DownBtn, DownScale = padButton(24, false)
+
+--═══ FIN DE LA PARTE 17 ═══
+local frames, fpsAcc, espAcc, tagAcc, hideAcc = 0, 0, 0, 0, 0
+local lastFly = false
+
+local function pasoEsp()
+    local lr = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    local cands = {}
+
+    if lr then
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= player then
+                local char = plr.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                if root and hum and hum.Health > 0 then
+                    local dist = math.floor((root.Position - lr.Position).Magnitude + 0.5)
+                    if dist <= ESP_MAX then
+                        cands[#cands + 1] = { plr = plr, char = char, root = root, hum = hum, dist = dist }
+                    end
+                end
+            end
+        end
+        table.sort(cands, function(a, b) return a.dist < b.dist end)
+    end
+
+    local shown = {}
+    for i = 1, math.min(#cands, CONFIG.MAX_TARGETS) do
+        shown[cands[i].plr] = cands[i]
+    end
+
+    for plr, d in pairs(espObjects) do
+        if not shown[plr] then
+            if d.bb and d.bb.Enabled then d.bb.Enabled = false end
+            if d.hl and d.hl.Enabled then d.hl.Enabled = false end
+        end
+    end
+
+    for plr, c in pairs(shown) do
+        local d = espObjects[plr]
+        if not d or d.char ~= c.char then
+            applyESP(plr)
+            d = espObjects[plr]
+        end
+        if d and d.bb.Parent then
+            if not d.bb.Enabled then d.bb.Enabled = true end
+            if not d.hl.Enabled then d.hl.Enabled = true end
+
+            local head = c.char:FindFirstChild("Head") or c.root
+            if head and d.bb.Adornee ~= head then d.bb.Adornee = head end
+
+            local hp = math.max(0, math.floor(c.hum.Health + 0.5))
+            local mx = math.max(1, math.floor(c.hum.MaxHealth + 0.5))
+            if d.hp ~= hp or d.mx ~= mx then
+                d.hp, d.mx = hp, mx
+                d.fill.Size = UDim2.fromScale(math.clamp(hp / mx, 0, 1), 1)
+                d.hpL.Text = hp .. " / " .. mx
+            end
+            if d.dist ~= c.dist then
+                d.dist = c.dist
+                d.distL.Text = c.dist .. " studs"
+            end
+        end
+    end
+end
+
+local function pasoNombres()
+    local root = getParts()
+    local cerca = {}
+    if root then
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= player then
+                local c = plr.Character
+                local r = c and c:FindFirstChild("HumanoidRootPart")
+                if r and (r.Position - root.Position).Magnitude <= CONFIG.HIDE_RADIUS then
+                    cerca[plr] = true
+                    ocultarNombre(plr)
+                end
+            end
+        end
+    end
+    for plr in pairs(hideSaved) do
+        if not cerca[plr] then restaurarNombre(plr) end
+    end
+end
+
+track(RunService.Heartbeat:Connect(safe(function(dt)
+    if not alive() then return end
+
+    frames += 1
+    fpsAcc += dt
+    if fpsAcc >= 0.5 then
+        local fps = math.floor(frames / fpsAcc + 0.5)
+        if FpsText.Parent then FpsText.Text = "FPS " .. fps end
+        frames, fpsAcc = 0, 0
+        if UI.autoLow and fps < 24 and not S.boost and not UI.lowApplied then
+            UI.lowApplied = true
+            pcall(function() setFpsBoost(true) end)
+            UI.setStatus("Modo seguro: FPS Boost automático")
+        elseif UI.autoLow and fps >= 45 then
+            UI.lowApplied = false
+        end
+        if UI.anim and ring.Parent then
+            ring.Transparency = (ring.Transparency > 0.2) and 0.05 or 0.4
+        end
+    end
+
+    pcall(ajustarEscala)
+    aplicarEscala()
+
+    if S.fly then
+        local root, hum = getParts()
+        if root then
+            if not flyBV or flyBV.Parent ~= root or not flyBG or flyBG.Parent ~= root then
+                setFly(true)
+            else
+                local cam = getCamera()
+                local dir = cam and cam.CFrame.LookVector or Vector3.new(0, 0, -1)
+                local right = cam and cam.CFrame.RightVector or Vector3.new(1, 0, 0)
+                local move = Vector3.zero
+                if hum then
+                    local md = hum.MoveDirection
+                    if md.Magnitude > 0.05 then
+                        move = dir * md.Z + right * md.X
+                        move = Vector3.new(move.X, 0, move.Z)
+                    end
+                end
+                if S.up then move += Vector3.new(0, 1, 0) end
+                if S.down then move -= Vector3.new(0, 1, 0) end
+                flyBV.Velocity = move.Magnitude > 0.05 and (move.Unit * CONFIG.FLY_SPEED) or Vector3.zero
+                flyBG.CFrame = CFrame.new(root.Position, root.Position + dir)
+            end
+        end
+    end
+
+    if S.bot then
+        if S.fijado then
+            if S.fijado.Parent ~= Players then
+                S.fijado = nil
+                S.target = nil
+                syncBot()
+            elseif S.target ~= S.fijado then
+                S.target = S.fijado
+            end
+        else
+            local t = S.target
+            local tChar = t and t.Parent == Players and t.Character
+            local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
+            local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+            local root = getParts()
+            local lejos = ((tRoot and root) and (tRoot.Position - root.Position).Magnitude > CONFIG.BOT_RANGE) or false
+            local vivoT = t and t.Parent == Players and tRoot and (not tHum or tHum.Health > 0) and not lejos
+            if vivoT then
+                botMiss = 0
+            else
+                botMiss += dt
+                if botMiss >= 1.2 then
+                    botMiss = 0
+                    local pick = nearestPlayer()
+                    if pick and pick ~= t then
+                        S.target = pick
+                        syncBot()
+                        notify("Objetivo cambiado a @" .. pick.Name)
+                    elseif not pick then
+                        S.target = nil
+                        UI.setStatus("Sin jugadores a " .. CONFIG.BOT_RANGE .. " studs")
+                    end
+                end
+            end
+        end
+    end
+
+    if S.esp then
+        espAcc += dt
+        if espAcc >= ESP_TICK then
+            espAcc = 0
+            pcall(pasoEsp)
+        end
+    end
+
+    if S.hideNames then
+        hideAcc += dt
+        if hideAcc >= 0.6 then
+            hideAcc = 0
+            pcall(pasoNombres)
+        end
+    elseif next(hideSaved) then
+        restaurarTodos()
+    end
+
+    if lastFly ~= S.fly then
+        lastFly = S.fly
+        if S.fly then
+            UpBtn.Visible, DownBtn.Visible = true, true
+            tween(UpScale, { Scale = 1 }, 0.28, Enum.EasingStyle.Back)
+            tween(DownScale, { Scale = 1 }, 0.28, Enum.EasingStyle.Back)
+        else
+            S.up, S.down = false, false
+            tween(UpScale, { Scale = 0 }, 0.16)
+            tween(DownScale, { Scale = 0 }, 0.16)
+            task.delay(0.18, function()
+                if not S.fly then
+                    UpBtn.Visible, DownBtn.Visible = false, false
+                end
+            end)
+        end
+    end
+
+    tagAcc += dt
+    if tagAcc >= 0.5 then
+        tagAcc = 0
+        local char = player.Character
+        local head = char and char:FindFirstChild("Head")
+        if S.tag and head then
+            if not tagGui or tagGui.Parent ~= head then pcall(aplicarTag) end
+        elseif tagGui then
+            quitarTag()
+        end
+    end
+end, "motor")))
+
+task.spawn(function()
+    task.wait(3)
+    while alive() do
+        task.wait(15)
+        if UI.anim and Toggle.Parent then
+            local base = Toggle.Position
+            local y = base.Y.Offset
+            for _ = 1, 4 do
+                tween(Toggle, { Position = UDim2.new(base.X.Scale, base.X.Offset, base.Y.Scale, y - 9) }, 0.25)
+                task.wait(0.25)
+                tween(Toggle, { Position = UDim2.new(base.X.Scale, base.X.Offset, base.Y.Scale, y + 9) }, 0.25)
+                task.wait(0.25)
+            end
+            tween(Toggle, { Position = base }, 0.2)
+        end
+        if tagShine and S.tag then pcall(function() tagShine:Play() end) end
+        if UI.anim and Title.Parent then
+            local base = UDim2.fromOffset(TITLE_X, TITLE_Y)
+            for _ = 1, 5 do
+                Title.Position = UDim2.fromOffset(TITLE_X + math.random(-2, 2), TITLE_Y + math.random(-1, 1))
+                task.wait(0.04)
+            end
+            Title.Position = base
+        end
+    end
+end)
+
+local function guardia()
+    task.spawn(function()
+        while alive() do
+            task.wait(1)
+            if Screen.Parent == nil then
+                pcall(function() Screen.Parent = playerGui end)
+            end
+            if Main.Parent == nil then
+                pcall(function() Main.Parent = Screen end)
+            end
+
+            pcall(ajustarEscala)
+
+            local roto = Main.AbsoluteSize.X < 40 or Main.AbsoluteSize.Y < 40
+            if roto then
+                pcall(function()
+                    Screen.Parent = playerGui
+                    Screen.Enabled = true
+                    Screen.DisplayOrder = 9999
+                    Main.Visible = true
+                    Main.Position = HOME
+                    Main.Size = UDim2.fromOffset(BASE_W, BASE_H)
+                end)
+            end
+
+            if not UI.closing then
+                aplicarEscala()
+                if UI.open and not Main.Visible then
+                    pcall(function() Main.Visible = true end)
+                end
+            end
+
+            if not CurrentPage and Pages["Funciones"] then
+                pcall(function() showPage("Funciones") end)
+            end
+            if not TabBar.Visible and UI.tabsOpen then
+                pcall(function() plegarPestanas(false) end)
+            end
+        end
+    end)
+end
+
+local closing = false
+
+local function destroyHub()
+    if closing then return end
+    closing = true
+    UI.closing = true
+    UI.open = false
+    pcall(function()
+        tween(MenuScale, { Scale = 0.5 }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+    end)
+    task.delay(0.22, function()
+        if Screen.Parent then Screen:Destroy() end
+    end)
+end
+
+do
+    local confirmUntil = 0
+    DestroyBtn.Activated:Connect(safe(function()
+        local now = os.clock()
+        if now < confirmUntil then
+            destroyHub()
+            return
+        end
+        confirmUntil = now + 2.5
+        notify("Toca la X otra vez para destruir todo")
+        tween(DestroyBtn, { BackgroundColor3 = Color3.fromRGB(255, 30, 55) }, 0.15)
+        task.delay(2.5, function()
+            if DestroyBtn.Parent then
+                tween(DestroyBtn, { BackgroundColor3 = Color3.fromRGB(24, 84, 104) }, 0.3)
+            end
+        end)
+    end, "destruir"))
+end
+
+Screen.Destroying:Connect(function()
+    UI.dead = true
+    S.esp, S.infJump, S.fly, S.jumpPower = false, false, false, false
+    S.bot, S.target, S.fijado = false, nil, nil
+    S.noclip, S.walls, S.boost = false, false, false
+    S.noche, S.rosa, S.neon, S.glow, S.oro, S.aura, S.hideNames = false, false, false, false, false, false, false
+
+    pcall(releaseCamera)
+    pcall(function() setNoclip(false) end)
+    pcall(function() setFly(false) end)
+    pcall(function() setFpsBoost(false) end)
+    pcall(function() setWalls(false) end)
+    pcall(setNeon, false)
+    pcall(setGlow, false)
+    pcall(setNoche, false)
+    pcall(setRosa, false)
+    pcall(apagarOro)
+    pcall(apagarAura)
+    pcall(quitarTag)
+    pcall(clearSkin, true)
+    pcall(clearESP)
+    pcall(restaurarTodos)
+    pcall(function() RunService:UnbindFromRenderStep("DestroyaCam") end)
+    for _, c in ipairs(conns) do
+        pcall(function() c:Disconnect() end)
+    end
+    table.clear(conns)
+end)
+
+verify("ESP", function() return type(applyESP) == "function" end)
+verify("Bot", function() return type(setBot) == "function" end)
+verify("Paredes", function() return type(setWalls) == "function" end)
+verify("Skin", function() return type(setSkin) == "function" end)
+verify("Vuelo", function() return type(setFly) == "function" end)
+verify("Noclip", function() return type(setNoclip) == "function" end)
+verify("Aura", function() return type(prenderAura) == "function" end)
+verify("Tag", function() return type(aplicarTag) == "function" end)
+verify("Camara", function() return type(camStep) == "function" end)
+
+showPage("Funciones")
+ajustarEscala()
+MenuScale.Scale = UI.size * UI.fit
+Main.Visible = true
+Main.Position = HOME
+plegarPestanas(false)
+UI.refreshLists()
+syncBot()
+guardia()
+
+task.delay(0.8, function()
+    pcall(ajustarEscala)
+    aplicarEscala()
+end)
+
+notify("Destroya Hub v" .. CONFIG.VERSION .. " cargado")
+
+--═══ FIN DE LA PARTE 18 — FIN DEL SCRIPT ═══
